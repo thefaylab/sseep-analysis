@@ -1,0 +1,204 @@
+---
+title: Cooccurence Analysis and Visualization Example
+author: Angelia Miller
+output: 
+  word_document:
+    toc: TRUE 
+---
+
+```{r set up, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+```
+
+
+Load packages 
+```{r, results = 'hide'}
+library(here)
+library(tidyverse)
+library(stringi)
+library(fmsb)
+```
+
+Load your data. 
+```{r, results = 'hide'}
+# Write the script here 
+
+data <- read.csv(here("mergedpresence.csv"))
+
+```
+
+Jaccard Similarity Function: (Ntows_A&B / (N_A + N_B + N_A&B)
+```{r, results = 'hide'}
+# write your jaccard function which you will call later
+jaccard <- function(M=M, user1, user2) {
+  sums = rowSums(M[,c(user1, user2)])
+
+  similarity = length(sums[sums==2])
+  total = length(sums[sums==1]) + similarity
+  
+ return(similarity/total)
+  
+}
+```
+
+Filter data 
+```{r, results = 'hide'}
+#filter for species of interest 
+BSB_jaccard <- data%>%
+  group_by(SVSPP, COMNAME, ID, AREA_CODE)%>%
+  filter(SVSPP == 141)
+
+#pull out the unique tows the species was caught in
+uni_tow <- unique(BSB_jaccard$ID)
+
+#filter the data for various other species, including species of interest 
+#filter based on species code, and unique tows 
+#only looking at species that were caught in the same tows as species of interest
+some_jaccard <- data%>%
+  group_by(SVSPP, COMNAME, ID, AREA_CODE)%>%
+  filter(ID %in% uni_tow, SVSPP %in% c(121, 26, 106, 141, 503, 32))
+
+#pull out unique species names to loop over in next section
+species_list <- unique(some_jaccard$COMNAME)
+```
+
+
+```{r, results = 'hide'}
+#transform the table to show occurrence of each species in each unique tow
+  some_jaccard<- some_jaccard %>% 
+   group_by(ID, AREA_CODE, COMNAME)%>%
+   summarise(count=n()) %>%
+   pivot_wider(id_cols = c(ID, AREA_CODE), names_from = COMNAME, values_from = count, values_fn = sum) #%>% 
+  
+#fill in the NA's with 0's for later math
+some_jaccard[is.na(some_jaccard)] <- as.integer(0)
+
+# some_jaccard <- some_jaccard %>%
+#   rowwise() %>%
+#   mutate(similar_tows = sum(c_across(everything())))
+
+# x <- jaccard(some_jaccard, "BLACK SEA BASS", "LITTLE SKATE")
+# y <- jaccard(some_jaccard, "BLACK SEA BASS", "ATLANTIC MACKEREL")
+# colnames <- c("species", "rate")
+# 
+# 
+# cooccurrence <- data.frame(species = c("BSB+LS", "BSB+ATL MACK"), rate = c(x, y))
+
+# list the name of your species of interest for looping
+species1 <- rep("BLACK SEA BASS", 6)
+
+rates <- map2_dbl(species1, species_list, jaccard, M=some_jaccard)
+
+jaccard_rates <- tibble(species1 = species1, species2 = species_list, jaccard_rate = rates)
+
+
+```
+
+Outside Wind 
+```{r, results = 'hide'}
+BSB_jaccard <- data%>%
+  group_by(SVSPP, COMNAME, ID, AREA_CODE)%>%
+  filter(SVSPP == 141, AREA_CODE == 2)
+
+uni_tow <- unique(BSB_jaccard$ID)
+
+out_jaccard <- data%>%
+  group_by(SVSPP, COMNAME, ID, AREA_CODE)%>%
+  filter(ID %in% uni_tow, SVSPP %in% c(121, 26, 106, 141,32,503),AREA_CODE == 2)
+
+species_list <- unique(out_jaccard$COMNAME)
+
+out_jaccard<- out_jaccard %>% 
+   group_by(ID, AREA_CODE, COMNAME)%>%
+   summarise(count=n()) %>%
+   pivot_wider(id_cols = c(ID, AREA_CODE), names_from = COMNAME, values_from = count, values_fn = sum) #%>% 
+
+out_jaccard[is.na(out_jaccard)] <- as.integer(0)
+
+speciesA <- rep("BLACK SEA BASS", 6)
+
+rates <- map2_dbl(speciesA, species_list, jaccard, M=out_jaccard)
+
+# jaccard(some_jaccard,"BLACK SEA BASS", "ATLANTIC HERRING")
+out_jaccard_rates <- tibble(species1 = speciesA, species2 = species_list, jaccard_rate = rates)
+
+out_jaccard_rates$area <- paste("outside")
+out_jaccard_rates <- as.data.frame(out_jaccard_rates)
+
+```
+
+Wind 
+```{r, results = 'hide'}
+BSB_jaccard <- data%>%
+  group_by(SVSPP, COMNAME, ID, AREA_CODE)%>%
+  filter(SVSPP == 141, AREA_CODE == 1)
+
+
+uni_tow <- unique(BSB_jaccard$ID)
+  
+wind_jaccard <- data%>%
+  group_by(SVSPP, COMNAME, ID, AREA_CODE)%>%
+  filter(ID %in% uni_tow, SVSPP %in% c(121, 26, 106, 141,32,503),AREA_CODE == 1)
+
+species_list <- unique(wind_jaccard$COMNAME)
+
+wind_jaccard<- wind_jaccard %>% 
+   group_by(ID, AREA_CODE, COMNAME)%>%
+   summarise(count=n()) %>%
+   pivot_wider(id_cols = c(ID, AREA_CODE), names_from = COMNAME, values_from = count, values_fn = sum) #%>% 
+
+wind_jaccard[is.na(wind_jaccard)] <- as.integer(0)
+
+speciesA <- rep("BLACK SEA BASS", 6)
+
+rates <- map2_dbl(speciesA, species_list, jaccard, M=wind_jaccard)
+
+# jaccard(some_jaccard,"BLACK SEA BASS", "ATLANTIC HERRING")
+wind_jaccard_rates <- tibble(species1 = speciesA, species2 = species_list, jaccard_rate = rates)
+
+wind_jaccard_rates$area <- paste("wind")
+
+wind_jaccard_rates <- as.data.frame(wind_jaccard_rates)
+
+```
+
+Join the two tibbles of jaccard rates in order to plot them in a radar (spider) plot. 
+```{r, results = 'hide'}
+#join outside and wind rates by rows
+windout <- bind_rows(wind_jaccard_rates, out_jaccard_rates)
+
+#pivot the new dataframe by area to create species columns
+#exclude black sea bass since they are will be caught together 100% of the time.
+windout <- windout %>%  pivot_wider(id_cols = area, names_from = species2, values_from = jaccard_rate) %>% select(-c("BLACK SEA BASS"))
+
+# radar plots require a maximum and minimum observation. 
+# they will need to be added to the tibble
+# add a maximum row at the top of the dataframe
+windout <- windout %>% add_row(area = "max", "ATLANTIC HERRING" = 1, "LITTLE SKATE" = 1, "LONGFIN SQUID" = 1, "WINTER FLOUNDER" = 1, "ATLANTIC MACKEREL" = 1,  .before = 1)
+ 
+# add a minimum row as the 2nd row
+windout <- windout %>% add_row(area = "min", "ATLANTIC HERRING" = 0, "LITTLE SKATE" = 0, "LONGFIN SQUID" = 0, "WINTER FLOUNDER" = 0, "ATLANTIC MACKEREL" = 0,  .before = 2)
+ 
+```
+
+
+
+```{r, results='hold'}
+
+#convert the "area" column as rownames. 
+#radar plots can only process/plot numeric values in a dataframe/tibble
+windout <- windout %>% column_to_rownames(var = "area")
+
+radarchart(windout)
+```
+
+
+Save the files 
+```{r,results = 'hide'}
+write_csv(windout, file = "jaccard_rates.csv")
+```
+
+
+
+
