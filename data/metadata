@@ -1,0 +1,3 @@
+Folders: 
+raw-data <- raw database and gis export files 
+clean-data <- tidied data to be used in analyses
