@@ -27,7 +27,7 @@ species <- species %>%
   select(-c(X)) %>% 
   rename(SVSPP = species, 
          SCINAME = scientific_name, 
-         COMNAME = common_name)
+         COMNAME = common_name) 
 bts <- full_join(bts, species, by = "SVSPP")
 
 # create species reference dataframe #
@@ -448,7 +448,7 @@ skates <- data.frame(as.integer(999), "ALL SKATES") %>%
          COMNAME = X.ALL.SKATES.)
 species <- species %>%
   subset(!(SVSPP %in% c(22, 23, 24, 26))) %>%
-  bind_rows(species, skates)
+  bind_rows(skates)
 
 
 
@@ -538,7 +538,7 @@ sub_outside <- outside %>%
 
 
 # EXPORT ####
-write.csv(species, here("data", "clean-data", "species-subset.csv"), row.names=FALSE)
+write.csv(species, here("data", "clean-data", "species-v2.csv"), row.names=FALSE)
 write.csv(sub_wind, here("data", "clean-data", "wind-subset.csv"), row.names=FALSE)
 write.csv(sub_outside, here("data", "clean-data", "outside-subset.csv"), row.names=FALSE)
 write.csv(sub_bts, here("data", "clean-data", "bts-subset.csv"), row.names=FALSE)
