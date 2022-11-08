@@ -5,7 +5,7 @@
 library(stringr)
 library(patchwork)
 library(here)
-library(tidyverse)
+suppressPackageStartupMessages(library(tidyverse))
 
 # DATA SET UP #####
 
@@ -24,11 +24,12 @@ species <- read.csv(here("data", "raw-data", "species.csv"))
 
 # join full dataset with common and scientific names
 species <- species %>% 
+  tibble() %>% 
   select(-c(X)) %>% 
   rename(SVSPP = species, 
          SCINAME = scientific_name, 
          COMNAME = common_name) 
-bts <- full_join(bts, species, by = "SVSPP")
+bts <- left_join(bts, species, by = "SVSPP")
 
 # create species reference dataframe #
 species <- species %>%
