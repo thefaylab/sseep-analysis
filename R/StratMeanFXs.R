@@ -1,5 +1,5 @@
 ### created: 11/09/2022
-### last updated: 
+### last updated: 11/11/2022
 
 #### STRATIFIED MEAN FUNCTIONS ####
 
@@ -8,7 +8,7 @@
 ###################
 # write stratified mean functions for sourcing in future analyses. 
 
-# awaiting new full raw dataset from Catherine to run in here("tidy-data", "clean.R"); when received run and check code. Derived data from tidy-data script will be called here to test stratified mean functions. 
+# awaiting new full raw dataset from Catherine to run in here("tidy-data", "01-clean-raw-data.R"); when received run and check code. Derived data from tidy-data script will be called here to test stratified mean functions. 
 ####################
 
 #### LOAD PACKAGES ####
@@ -18,7 +18,7 @@ library(here)
 suppressPackageStartupMessages(library(tidyverse))
 
 #### LOAD DATA ####
-subdata <- readRDS("complete_merged_data.rds") #check location of complete merged data produced from 01-tidy-data.R
+subdata <- readRDS("complete_merged_data.rds") # check location of complete data produced from 01-clean-raw-data.R
 
 subdata <- subdata %>%
   filter(YEAR %in% c(2019, 2020, 2021), SVSPP %in% c()) # select small subset of years and species 
@@ -58,7 +58,7 @@ StratMean <- function(expectcatchwt, station, strata_area, total_survey_area){
   rs <- RelStratWt(strata_area, total_survey_area)
   mb <- MeanBiomass(expectcatchwt, station)
   
-  sm <- rs * mb
+  sm <- sum(rs * mb)
   
   return(sm)
 }
