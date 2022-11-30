@@ -28,6 +28,8 @@ data <- readRDS(here("data", "rds", "merged_data_complete.rds"))
 species <- data %>% 
   select(SVSPP, COMNAME, SCINAME) %>%
   unique()
+### save the data 
+saveRDS(species, here("data", "rds", "species.rds"))
 
 # load and manipulate the bottom trawl survey strata shapefile
 strata <- sf::st_read(dsn = here("gis", "temp", "BTS_Strata", "BTS_Strata.shp")) %>% #read in data
@@ -36,6 +38,9 @@ strata <- sf::st_read(dsn = here("gis", "temp", "BTS_Strata", "BTS_Strata.shp"))
   unique() %>% # identify unique stratum only 
   rename(STRATUM = Strata_Num) %>% # rename Strat_Num to STRATUM for further analyses below
   mutate(RelWt = Area_SqNm / sum(Area_SqNm)) # calculate the relative weight of each stratum based on its proportion of the total survey footprint area; to be used in later calculations.
+
+### save the data 
+saveRDS(strata, here("data", "rds", "strata.rds"))
 
 # calculate total survey area for use in future calculations  
 BTSArea <- as.integer(sum(strata$Area_SqNm))
@@ -48,7 +53,7 @@ nowind_means <- data %>%
   group_by(STRATUM, EST_YEAR, SVSPP) %>% 
   summarise(towct = length(unique(STATION)), # calculate unique tows
             mu = sum(EXPCATCHWT)/towct, # find the average biomass based on unique tows rather than observations to avoid potential duplication 
-            var = sum((EXPCATCHWT - mu)^2)/(length(EXPCATCHWT) - 1)) %>% # find the variance of biomass 
+            var = sum((EXPCATCHWT - mu)^2)/(towct - 1)) %>% # find the variance of biomass
   left_join(strata, by = "STRATUM") %>% # add each stratum area and relative weight to the dataset based on STRATUM number
   mutate(mu = ifelse(is.na(mu), 0, mu), #replace NA values with 0 to avoid na abundance indices; 
          var = ifelse(is.na(var), 0, var), #replace NA values with 0 to avoid na abundance indices; 

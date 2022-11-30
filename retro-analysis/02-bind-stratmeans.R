@@ -25,9 +25,7 @@ nowind_strat <- readRDS(here("data", "rds", "strat-mu_included.rds"))
 wind_strat <- readRDS(here("data", "rds", "strat-mu_preclusion.rds"))
 
 # species dataframe for adding to final dataset 
-species <- nowind_strat %>% 
-  select(SVSPP, COMNAME) %>% 
-  unique()
+species <- readRDS(here("data", "rds", "species.rds"))
 
 
 #### BIND DATASETS ####
