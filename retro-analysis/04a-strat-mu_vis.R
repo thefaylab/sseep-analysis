@@ -88,8 +88,9 @@ for(i in species){ # for each value i in the species vector
         color = TYPE, # differentiate color based on whether or not wind tows were included in the calculation
         shape = TYPE) +  # differentiate shapes based on whether or not wind tows were included in the calculation
     geom_pointrange(aes(ymin=lower, ymax = upper), position = position_dodge2(width=0.4)) + # plot the upper and lower quantiles about the mean 
-    facet_wrap(vars(SEASON)) + # create sequence of panels based on SEASON variable
+    facet_wrap(vars(SEASON), scales = "free_y") + # create sequence of panels based on SEASON variable
     labs(x = "YEAR", y = "Stratified Mean (kg/tow)", title = str_to_title(x$COMNAME), subtitle = str_c("Annual and seasonal stratified mean biomass for", str_to_lower(x$COMNAME), "when wind tows are included and precluded from the calculation", sep = " "), SEASON = "", TYPE = "") + # edit plot labels 
+    ylim(0,NA) +
     theme_bw() + # black and white plot theme
     theme(legend.position="bottom", # move legend to the bottom
           legend.title = element_blank(), # leave legend title blank
