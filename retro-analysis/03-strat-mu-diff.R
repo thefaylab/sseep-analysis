@@ -33,7 +33,7 @@ specieslookup <- data %>%
 mudiff_dat <- data %>%
   filter(EST_YEAR %in% c(2016:2019, 2021)) %>% #filter for recent 5 years, skipping 2020
   group_by(SVSPP, EST_YEAR, SEASON) %>%
-  summarize(sq_diff = exp(diff(log(stratmu)))^2, .groups = "drop") %>% # calculate the relative differences and square them; drop the groups for further analysis
+  summarize(sq_diff = (exp(diff(log(stratmu)))-1)^2, .groups = "drop") %>% # calculate the relative differences and square them; drop the groups for further analysis
   group_by(SVSPP) %>%
   summarize(mudiff = mean(sq_diff), .groups = "drop") %>% # calculate the average; drop the grouping factor 
   arrange(desc(mudiff)) %>% # arrange highest to lowest 
