@@ -1,5 +1,5 @@
 ### created: 11/28/2022
-### last updated: 11/30/2022
+### last updated: 12/8/2022
 
 #### 03 - CALCULATING MEAN SQUARED DIFFERENCES FOR STRATIFIED MEANS BY SPECIES ####
 
@@ -25,6 +25,7 @@ data <- readRDS(here("data", "rds", "strat-mu_all.rds"))
 
 # create a lookup table with filename-friendly species names
 specieslookup <- data %>%
+  ungroup() %>%
   select(SVSPP, COMNAME) %>%
   distinct() %>%
   mutate(spname = str_to_lower(gsub(" ", "_", COMNAME)))
@@ -32,7 +33,7 @@ specieslookup <- data %>%
 #### CALCULATE MEAN SQUARED DIFFERENCES #####  
 mudiff_dat <- data %>%
   filter(EST_YEAR %in% c(2016:2019, 2021)) %>% #filter for recent 5 years, skipping 2020
-  group_by(SVSPP, EST_YEAR, SEASON) %>%
+  group_by(SVSPP, EST_YEAR, SEASON, GEO_AREA) %>%
   summarize(sq_diff = (exp(diff(log(stratmu)))-1)^2, .groups = "drop") %>% # calculate the relative differences and square them; drop the groups for further analysis
   group_by(SVSPP) %>%
   summarize(mudiff = mean(sq_diff), .groups = "drop") %>% # calculate the average; drop the grouping factor 

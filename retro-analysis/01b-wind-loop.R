@@ -1,5 +1,5 @@
 ### created: 11/11/2022
-### last updated: 11/30/2022
+### last updated: 12/08/2022
 
 #### 01b - STRATIFIED CALCULATIONS: WITH WIND AREAS PRECLUDED ####
 
@@ -33,11 +33,18 @@ strata <- readRDS(here("data", "rds", "strata.rds"))
 # calculate total survey area for use in future calculations  
 BTSArea <- as.integer(sum(strata$Area_SqNm))
 
+# statistical management areas 
+geounits <- readRDS(here("data", "rds", "geounits.rds"))
+
 
 #### CALCULATE INDIVIDUAL MEANS AND VARIANCES ####
 # calculate individual means and variances for each combinations of species, year, and stratum
-wind_means <- data %>% 
-  group_by(STRATUM, EST_YEAR, SVSPP, SEASON) %>% 
+wind_means <- data %>%   
+  mutate(code = str_c(STRATUM, CRUISE6, STATION)) %>% 
+  left_join(geounits, by = "code") %>% 
+  rename(STRATUM = STRATUM.x, 
+         STATION = STATION.x) %>% 
+  group_by(STRATUM, EST_YEAR, SVSPP, SEASON, GEO_AREA) %>% 
   summarise(towct = length(unique(STATION)), # calculate unique tows
             mu = sum(EXPCATCHWT)/towct, # find the average biomass based on unique tows rather than observations to avoid potential duplication 
             var = ifelse(towct == 1, 0, # if the tow count equals 1, then variance about the mean should be 0
@@ -54,7 +61,7 @@ saveRDS(wind_means, here("data", "rds", "indiv-mu_preclusion.rds"))
 #### COMPLETE STRATIFIED MEAN AND VARIANCE CALCULATIONS ####
 # calculate stratified means and variances for each combinations of species and year based on individual stratum means and variances
 wind_stratmu <- wind_means %>% 
-  group_by(SVSPP, EST_YEAR, SEASON) %>% 
+  group_by(SVSPP, EST_YEAR, SEASON, GEO_AREA) %>% 
   summarise(stratmu = (sum(wt_mu)) / BTSArea, # part two of the stratified mean formula
             stratvar = sum(wt_var)) %>% # part two of the stratified variance formula
   mutate(TYPE = paste("With Wind Precluded")) # paste identifying information of means and variances for joining and plotting in later scripts
