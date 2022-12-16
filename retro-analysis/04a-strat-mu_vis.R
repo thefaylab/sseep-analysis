@@ -19,8 +19,8 @@ library(patchwork)
 library(here)
 suppressPackageStartupMessages(library(tidyverse))
 
-install.packages("devtools")
-devtools::install_github("katiejolly/nationalparkcolors")
+#install.packages("devtools")
+#devtools::install_github("katiejolly/nationalparkcolors")
 library(nationalparkcolors)
 
 
@@ -30,8 +30,8 @@ data <- readRDS(here("data", "rds", "strat-mu_all.rds"))
 
 # calculate the logistic standard deviation and logistic normal distribution 
 data <- data %>% 
-  filter(GEO_AREA %in% c("MAB", "GOM"))%>%
-  group_by(SVSPP, EST_YEAR, TYPE, SEASON, GEO_AREA) %>%
+  #filter(GEO_AREA %in% c("MAB", "GOM"))%>%
+  group_by(SVSPP, EST_YEAR, TYPE, SEASON) %>% #, GEO_AREA) %>%
   mutate(sdlog = sqrt(log(1+(sqrt(stratvar)/stratmu)^2)), #logistic standard deviation
          lower = qlnorm(0.025, log(stratmu), sdlog), # lower quantile of the logistic normal distribution
          upper = qlnorm(0.975, log(stratmu), sdlog)) %>% # upper quantile of the logistic normal distribution
@@ -66,7 +66,8 @@ y <- ggplot(x) +
   aes(x = as.factor(EST_YEAR), y = stratmu, color = TYPE, shape = TYPE) +
   #geom_point() +
   geom_pointrange(aes(ymin=lower, ymax = upper), position =  position_dodge2(width=0.4)) +
-  facet_grid(rows = vars(GEO_AREA), cols = vars(SEASON), scales = "free_y") + 
+  facet_wrap(vars(SEASON), scales = "free_y") +
+  #facet_grid(rows = vars(GEO_AREA), cols = vars(SEASON), scales = "free_y") + 
   labs(x = "YEAR", y = "Stratified Mean (kg/tow)", title = str_to_title(x$COMNAME), subtitle = str_c("Annual and seasonal stratified mean biomass for", str_to_lower(x$COMNAME), "when wind tows are included and precluded from the calculation", sep = " "), SEASON = "", TYPE = "") +
   ylim(0,NA) +
   theme_bw() + 
@@ -93,7 +94,8 @@ for(i in species){ # for each value i in the species vector
         color = TYPE, # differentiate color based on whether or not wind tows were included in the calculation
         shape = TYPE) +  # differentiate shapes based on whether or not wind tows were included in the calculation
     geom_pointrange(aes(ymin=lower, ymax = upper), position = position_dodge2(width=0.4)) + # plot the upper and lower quantiles about the mean 
-    facet_grid(rows = vars(GEO_AREA), cols = vars(SEASON), scales = "free_y") + # create sequence of panels based on SEASON variable
+    facet_wrap(vars(SEASON), scales = "free_y") + # create sequence of panels based on SEASON variable
+    #facet_grid(rows = vars(GEO_AREA), cols = vars(SEASON), scales = "free_y") + # create sequence of panels based on SEASON variable
     labs(x = "YEAR", y = "Stratified Mean (kg/tow)", title = str_to_title(x$COMNAME), subtitle = str_c("Annual and seasonal stratified mean biomass for", str_to_lower(x$COMNAME), "when wind tows are included and precluded from the calculation", sep = " "), SEASON = "", TYPE = "") + # edit plot labels 
     ylim(0,NA) +
     theme_bw() + # black and white plot theme

@@ -16,6 +16,8 @@ library(stringr)
 library(patchwork)
 library(here)
 suppressPackageStartupMessages(library(tidyverse))
+library(kableExtra)
+library(patchwork)
 
 
 #### LOAD DATA ####
@@ -33,16 +35,39 @@ specieslookup <- data %>%
 #### CALCULATE MEAN SQUARED DIFFERENCES #####  
 mudiff_dat <- data %>%
   filter(EST_YEAR %in% c(2016:2019, 2021)) %>% #filter for recent 5 years, skipping 2020
-  group_by(SVSPP, EST_YEAR, SEASON, GEO_AREA) %>%
+  group_by(SVSPP, EST_YEAR, SEASON) %>% #, GEO_AREA) %>%
   summarize(sq_diff = (exp(diff(log(stratmu)))-1)^2, .groups = "drop") %>% # calculate the relative differences and square them; drop the groups for further analysis
-  group_by(SVSPP) %>%
+  group_by(SVSPP, SEASON) %>%
   summarize(mudiff = mean(sq_diff), .groups = "drop") %>% # calculate the average; drop the grouping factor 
   arrange(desc(mudiff)) %>% # arrange highest to lowest 
   left_join(specieslookup, by = "SVSPP") # add the species look up data 
 
 
 # print the first 10 rows of the data 
-head(mudiff_dat, 10)
+topten_fall <- mudiff_dat %>%
+  filter(SEASON == "FALL") %>%
+  head(10) %>% 
+  mutate(mudiff = round(mudiff, 2), 
+         COMNAME = str_to_sentence(COMNAME)) %>% 
+  rename(Species = COMNAME, 
+         "Mean Squared Difference" = mudiff)
+
+kable(topten_fall[,c(4,3,2)], align = "lcccc", caption = "Top Ten Mean Squared Differences by Species", format.args = list(big.mark = ","), booktabs = TRUE) %>%
+  kable_styling(full_width = F, fixed_thead = T, font_size = 14)
+
+  
+topten_spring <- mudiff_dat %>%
+    filter(SEASON == "SPRING") %>% 
+    head(10) %>% 
+    mutate(mudiff = round(mudiff, 2), 
+           COMNAME = str_to_sentence(COMNAME)) %>% 
+    rename(Species = COMNAME, 
+           "Mean Squared Difference" = mudiff)
+
+
+kable(topten_spring[,c(4,3,2)], align = "lcccc", caption = "Top Ten Mean Squared Differences by Species", format.args = list(big.mark = ","), booktabs = TRUE) %>%
+  kable_styling(full_width = F, fixed_thead = T, font_size = 14)
+
 
 
 ### save the data 
