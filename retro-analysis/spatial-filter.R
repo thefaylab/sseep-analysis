@@ -38,20 +38,25 @@ saveRDS(total_bio, here("data", "rds", "total_biomass.rds"))
 
 # FIND CUMULATIVE DISTRIBUTION 
 # test data
-summerflounder <- total_bio %>% 
-  filter(COMNAME == "SUMMER FLOUNDER")
+summerflounder_fall <- total_bio %>% 
+  filter(COMNAME == "SUMMER FLOUNDER", SEASON == "FALL") %>% 
+  mutate(csum_bio = cumsum(EXPCATCHWT),
+         prop = csum_bio/max(csum_bio))
+
+
+
 
 
 # cumulative distribution function 
-cd <- ecdf(summerflounder$EXPCATCHWT)
-
-plot(cd, verticals = TRUE, col.points = "blue", col.hor = "red", col.vert = "bisque")
-
-# call function against biomass; returns the percentiles for biomass
-x <- cd(summerflounder$EXPCATCHWT)
-
-# attach to test dataframe 
-summerflounder <- bind_cols(summerflounder, x)
+# cd <- ecdf(summerflounder$EXPCATCHWT)
+# 
+# plot(cd, verticals = TRUE, col.points = "blue", col.hor = "red", col.vert = "bisque")
+# 
+# # call function against biomass; returns the percentiles for biomass
+# x <- cd(summerflounder$EXPCATCHWT)
+# 
+# # attach to test dataframe 
+# summerflounder <- bind_cols(summerflounder, x)
 
 
 
