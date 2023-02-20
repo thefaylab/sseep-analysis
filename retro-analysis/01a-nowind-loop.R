@@ -1,5 +1,5 @@
 ### created: 11/11/2022
-### last updated: 12/08/2022
+### last updated: 02/06/2022
 
 #### 01a - STRATIFIED CALCULATIONS: WITH WIND AREAS INCLUDED ####
 
@@ -51,10 +51,10 @@ BTSArea <- as.integer(sum(strata$Area_SqNm))
 #### CALCULATE INDIVIDUAL MEANS AND VARIANCES ####
 # calculate individual means and variances for each combinations of species, year, and stratum
 nowind_means <- data %>%  
-  mutate(code = str_c(STRATUM, CRUISE6, STATION)) %>% 
-  left_join(geounits, by = "code") %>% 
-  rename(STRATUM = STRATUM.x, 
-         STATION = STATION.x) %>% 
+  #mutate(tow_code = str_c(STRATUM, CRUISE6, STATION)) %>% 
+  #left_join(geounits, by = "code") %>% 
+  #rename(STRATUM = STRATUM.x, 
+  #       STATION = STATION.x) %>% 
   group_by(STRATUM, EST_YEAR, SVSPP, SEASON) %>% #, GEO_AREA) %>% 
   summarise(towct = length(unique(STATION)), # calculate unique tows
             mu = sum(EXPCATCHWT)/towct, # find the average biomass based on unique tows rather than observations to avoid potential duplication 
@@ -82,3 +82,20 @@ nowind_stratmu <- nowind_means %>%
 ### save the data 
 saveRDS(nowind_stratmu, here("data", "rds", "strat-mu_included.rds"))
 
+
+# tow count by area 
+data %>%
+  mutate(code = str_c(STRATUM, CRUISE6, STATION)) %>%
+  #group_by(SVSPP, SEASON, AREA) %>%
+  summarise(towct = length(code)) #%>%
+
+data %>%
+  mutate(code = str_c(STRATUM, CRUISE6, STATION)) %>%
+  #group_by(SVSPP, SEASON, AREA) %>%
+  summarise(towct = length(unique(code))) #%>%
+
+data %>%  
+  mutate(code = str_c(STRATUM, CRUISE6, STATION)) %>% 
+  group_by(SEASON, AREA) %>% 
+  summarise(towct = length(unique(code))) #%>% 
+  #left_join(specieslookup, by = "SVSPP")

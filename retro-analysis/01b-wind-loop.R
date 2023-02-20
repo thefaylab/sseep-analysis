@@ -40,10 +40,10 @@ BTSArea <- as.integer(sum(strata$Area_SqNm))
 #### CALCULATE INDIVIDUAL MEANS AND VARIANCES ####
 # calculate individual means and variances for each combinations of species, year, and stratum
 wind_means <- data %>%   
-  mutate(code = str_c(STRATUM, CRUISE6, STATION)) %>% 
-  left_join(geounits, by = "code") %>% 
-  rename(STRATUM = STRATUM.x, 
-         STATION = STATION.x) %>% 
+  #mutate(code = str_c(STRATUM, CRUISE6, STATION)) %>% 
+  #left_join(geounits, by = "code") %>% 
+  #rename(STRATUM = STRATUM.x, 
+  #       STATION = STATION.x) %>% 
   group_by(STRATUM, EST_YEAR, SVSPP, SEASON) %>% #, GEO_AREA) %>% 
   summarise(towct = length(unique(STATION)), # calculate unique tows
             mu = sum(EXPCATCHWT)/towct, # find the average biomass based on unique tows rather than observations to avoid potential duplication 
