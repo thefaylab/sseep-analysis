@@ -48,3 +48,55 @@ data99 <- semi_join(data, csum_dist99, by = c("SVSPP", "SEASON", "STRATUM"))
 ### save data 
 saveRDS(data99, here("data", "rds", "99filtered_complete_bts.rds"))
 
+
+#### COMPARE TOW COUNTS ####
+# to compare the number of tows filtered to the number of tows in the dataset 
+#data %>% filter(SVSPP == 141, ) %>% count() #8102
+#1569/8102 # 20% of data 
+
+#check the number of tows in each strata - how many tows were in that strata compared to the total number of tows 
+
+#total number of tows 
+data %>% 
+  filter(SVSPP == 141) %>%
+  # mutate(code = str_c(STRATUM, SEASON)) %>%
+  #group_by(STRATUM, SEASON) %>%
+  summarise(ct = length(unique(str_c(CRUISE6, STRATUM, SEASON, STATION)))) #8102
+
+# number of tows were in each strata
+bsba<- data %>% 
+  filter(SVSPP == 141) %>%
+ # mutate(code = str_c(STRATUM, SEASON)) %>%
+  group_by(STRATUM, SEASON) %>%
+  summarise(ct = length(unique(str_c(CRUISE6, STRATUM, SEASON, STATION))))
+
+bsbb<-data95 %>% 
+  filter(SVSPP == 141) %>%
+  # mutate(code = str_c(STRATUM, SEASON)) %>%
+  group_by(STRATUM, SEASON) %>%
+  summarise(ct95 = length(unique(str_c(CRUISE6, STRATUM, SEASON, STATION))))
+
+bsbc<-data99 %>%
+  filter(SVSPP == 141) %>%
+  # mutate(code = str_c(STRATUM, SEASON)) %>%
+  group_by(STRATUM, SEASON) %>%
+  summarise(ct99 = length(unique(str_c(CRUISE6, STRATUM, SEASON, STATION))))
+
+# join to compare/see which strata and how many tows were selected 
+bsba <- bsba %>% 
+  left_join(bsbb, by = c("STRATUM", "SEASON")) %>% 
+  left_join(bsbc, by = c("STRATUM", "SEASON"))
+
+bsba %>% 
+  ungroup() %>%
+  summarise(ct = sum(ct), 
+         ct95 = sum(ct95, na.rm = TRUE), 
+         ct99 = sum(ct99, na.rm = TRUE))
+
+# bsb <- csum_dist95 %>%  
+#   filter(SVSPP == 141, SEASON == "FALL") %>%
+#   select(STRATUM)
+# bsb2 <- csum_dist99 %>%  
+#   filter(SVSPP == 141) %>%
+#   select(STRATUM)
+

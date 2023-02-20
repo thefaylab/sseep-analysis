@@ -6,7 +6,7 @@
 ###################
 #### OBJECTIVE ####
 ###################
-# find the strata that make up 95% of the cumulative distribution of biomass for each species and season, and use it to filter the dataset so that analyses are  calculated with the strata that have 95% of the cumulative biomass. 
+# find the strata that make up 95% of the cumulative distribution of biomass for each species and season
 
 ####################
 
@@ -63,18 +63,4 @@ csum_dist99 <- total_bio %>%
 
 ### save data 
 saveRDS(csum_dist99, here("data", "rds", "cumul-dist-biomass99.rds"))
-
-
-# to compare the number of tows filtered to the number of tows in the dataset 
-#data %>% filter(SVSPP == 141, ) %>% count() #8102
-#1569/8102 # 20% of data 
-
-#check the number of tows in each strata
-#how many tows were in that strata compared to the total number of tows 
-data %>% 
-  mutate(code = str_c(STRATUM, SEASON)) %>%
-  group_by(SEASON,STRATUM) %>%
-  summarise(ct = length(unique(code)))
-
-
 
