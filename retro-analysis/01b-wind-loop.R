@@ -1,5 +1,5 @@
 ### created: 11/11/2022
-### last updated: 12/08/2022
+### last updated: 2/20/2023
 
 #### 01b - STRATIFIED CALCULATIONS: WITH WIND AREAS PRECLUDED ####
 
@@ -22,12 +22,15 @@ suppressPackageStartupMessages(library(tidyverse))
 
 #### LOAD DATA ####
 # dataset created from `02-complete-dataset.R` here("tidy-data"). Contains complete observations for each species and unique tow. 
-data <- readRDS(here("data", "rds", "merged_data_complete.rds")) %>% filter(AREA == "OUTSIDE") %>% mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT))
+#data <- readRDS(here("data", "rds", "merged_data_complete.rds")) %>% filter(AREA == "OUTSIDE") %>% mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT))
+
+# dataset created from `03b-spatial-filter-data.R` here("tidy-data"). Contains complete observations for each species and unique tow filtered based on 99% cumulative distribution of biomass. 
+data <- readRDS(here("data", "rds", "99filtered_complete_bts.rds")) %>% filter(AREA == "OUTSIDE")
  
 # species dataframe for adding to final dataset 
-species <- readRDS(here("data", "rds", "species.rds"))
+species <- readRDS(here("data", "rds", "99filtered-species.rds"))
 
-# load and manipulate the bottom trawl survey strata shapefile
+# load the bottom trawl survey strata shapefile
 strata <- readRDS(here("data", "rds", "strata.rds"))
 
 # calculate total survey area for use in future calculations  

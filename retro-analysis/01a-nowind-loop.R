@@ -1,5 +1,5 @@
 ### created: 11/11/2022
-### last updated: 02/06/2022
+### last updated: 02/20/2023
 
 #### 01a - STRATIFIED CALCULATIONS: WITH WIND AREAS INCLUDED ####
 
@@ -22,14 +22,17 @@ suppressPackageStartupMessages(library(tidyverse))
 
 #### LOAD DATA ####
 # dataset created from `02-complete-dataset.R` here("tidy-data"). Contains complete observations for each species and unique tow. 
-data <- readRDS(here("data", "rds", "merged_data_complete.rds")) %>% mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT))
+# data <- readRDS(here("data", "rds", "merged_data_complete.rds")) %>% mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT))
+
+# dataset created from `03b-spatial-filter-data.R` here("tidy-data"). Contains complete observations for each species and unique tow filtered based on 99% cumulative distribution of biomass. 
+data <- readRDS(here("data", "rds", "99filtered_complete_bts.rds"))
 
 # species dataframe for adding to final dataset 
 species <- data %>% 
   select(SVSPP, COMNAME, SCINAME) %>%
   unique()
 ### save the data 
-saveRDS(species, here("data", "rds", "species.rds"))
+saveRDS(species, here("data", "rds", "99filtered-species.rds"))
 
 # load and manipulate the bottom trawl survey strata shapefile
 strata <- sf::st_read(dsn = here("gis", "temp", "BTS_Strata", "BTS_Strata.shp")) %>% #read in data
@@ -40,13 +43,11 @@ strata <- sf::st_read(dsn = here("gis", "temp", "BTS_Strata", "BTS_Strata.shp"))
   mutate(RelWt = Area_SqNm / sum(Area_SqNm)) # calculate the relative weight of each stratum based on its proportion of the total survey footprint area; to be used in later calculations.
 
 ### save the data 
-saveRDS(strata, here("data", "rds", "strata.rds"))
+saveRDS(strata, here("data", "rds", "strata_wts.rds"))
 
 # calculate total survey area for use in future calculations  
 BTSArea <- as.integer(sum(strata$Area_SqNm))
 
-# statistical management areas 
-#geounits <- readRDS(here("data", "rds", "geounits.rds"))
 
 #### CALCULATE INDIVIDUAL MEANS AND VARIANCES ####
 # calculate individual means and variances for each combinations of species, year, and stratum

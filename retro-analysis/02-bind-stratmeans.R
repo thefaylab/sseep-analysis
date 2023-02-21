@@ -25,7 +25,7 @@ nowind_strat <- readRDS(here("data", "rds", "strat-mu_included.rds"))
 wind_strat <- readRDS(here("data", "rds", "strat-mu_preclusion.rds"))
 
 # species dataframe for adding to final dataset 
-species <- readRDS(here("data", "rds", "species.rds"))
+species <- readRDS(here("data", "rds", "99filtered-species.rds"))
 
 
 #### BIND DATASETS ####
@@ -36,3 +36,5 @@ stratmeans <- bind_rows(nowind_strat, wind_strat) %>% #bind rows of the two data
 
 #### BIND DATASETS ####
 saveRDS(stratmeans, here("data", "rds", "strat-mu_all.rds"))
+
+
