@@ -25,14 +25,14 @@ suppressPackageStartupMessages(library(tidyverse))
 # data <- readRDS(here("data", "rds", "merged_data_complete.rds")) %>% mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT))
 
 # dataset created from `03b-spatial-filter-data.R` here("tidy-data"). Contains complete observations for each species and unique tow filtered based on 99% cumulative distribution of biomass. 
-data <- readRDS(here("data", "rds", "99filtered_complete_bts.rds"))
+data <- readRDS(here("data", "rds", "95filtered_complete_bts.rds"))
 
 # species dataframe for adding to final dataset 
 species <- data %>% 
   select(SVSPP, COMNAME, SCINAME) %>%
   unique()
 ### save the data 
-saveRDS(species, here("data", "rds", "99filtered-species.rds"))
+saveRDS(species, here("data", "rds", "95filtered-species.rds"))
 
 # load and manipulate the bottom trawl survey strata shapefile
 strata <- sf::st_read(dsn = here("gis", "temp", "BTS_Strata", "BTS_Strata.shp")) %>% #read in data

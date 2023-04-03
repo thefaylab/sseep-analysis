@@ -25,13 +25,13 @@ suppressPackageStartupMessages(library(tidyverse))
 #data <- readRDS(here("data", "rds", "merged_data_complete.rds")) %>% filter(AREA == "OUTSIDE") %>% mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT))
 
 # dataset created from `03b-spatial-filter-data.R` here("tidy-data"). Contains complete observations for each species and unique tow filtered based on 99% cumulative distribution of biomass. 
-data <- readRDS(here("data", "rds", "99filtered_complete_bts.rds")) %>% filter(AREA == "OUTSIDE")
+data <- readRDS(here("data", "rds", "95filtered_complete_bts.rds")) %>% filter(AREA == "OUTSIDE")
  
 # species dataframe for adding to final dataset 
-species <- readRDS(here("data", "rds", "99filtered-species.rds"))
+species <- readRDS(here("data", "rds", "95filtered-species.rds"))
 
 # load the bottom trawl survey strata shapefile
-strata <- readRDS(here("data", "rds", "strata.rds"))
+strata <- readRDS(here("data", "rds", "strata_wts.rds"))
 
 # calculate total survey area for use in future calculations  
 BTSArea <- as.integer(sum(strata$Area_SqNm))
