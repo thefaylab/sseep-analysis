@@ -30,33 +30,47 @@ here()
 sf_fall <- readRDS(here("sdmtmb", "data", "sumflounder_fall.rds"))
 # sf_spring <- readRDS(here("sdmtmb", "data", "sumflounder_spring.rds"))
 
-
 # mesh 
 fall_mesh <- readRDS(here("sdmtmb", "data", "fall_mesh.rds"))
 
-
+# data wrangle
+sf_fall$scaled_depth <- (sf_fall$AVGDEPTH - mean(sf_fall$AVGDEPTH)) / sd(sf_fall$AVGDEPTH)
+sf_fall$scaled_year <- (sf_fall$EST_YEAR - mean(sf_fall$EST_YEAR)) / sd(sf_fall$EST_YEAR)
+sf_fall$scaled_area <- (sf_fall$AREA_CODE - mean(sf_fall$AREA_CODE)) / sd(sf_fall$AREA_CODE)
 
 #### MODEL FITS ####
-# M1 - logistic regression of summer flounder biomass in tows as a function of depth without spatial random effects
-m1_fall <- sdmTMB(EXPCATCHWT ~ AVGDEPTH, 
-             data = sf_fall, 
-             mesh = fall_mesh,
-             family = tweedie(link = "log"), # useful for positive continuous data, biomass 
-             spatial = "off")
 
-saveRDS(m1_fall, file = here("sdmtmb", "model-outputs", "m1_fall.rds"))
-
-tidy(m1_fall, conf.int = TRUE) 
-tidy(m1_fall, "ran_pars", conf.int = TRUE)
-sanity(m1_fall) 
-
-# M2 - no spatial random effects, but 
-m2_fall <- sdmTMB(EXPCATCHWT ~ s(AVGDEPTH) + as.factor(EST_YEAR) - 1, 
+##### No random effect models ####
+###### M1 ####
+# logistic regression of summer flounder biomass in tows as a function of depth without spatial random effects
+m1_fall <- sdmTMB(EXPCATCHWT ~ scaled_depth, 
              data = sf_fall, 
              mesh = fall_mesh,
              family = tweedie(link = "log"), # useful for positive continuous data, biomass 
              spatial = "off", 
-             control = sdmTMBcontrol(newton_loops = 1))
+             reml = TRUE, 
+             silent = FALSE)
+
+# look at intercepts and coefficients 
+tidy(m1_fall, conf.int = TRUE) 
+tidy(m1_fall, "ran_pars", conf.int = TRUE)
+sanity(m1_fall) 
+
+### save the data
+saveRDS(m1_fall, file = here("sdmtmb", "model-outputs", "m1_fall.rds"))
+
+
+
+###### M2 ####
+#no spatial random effects, but 
+m2_fall <- sdmTMB(EXPCATCHWT ~ s(scaled_depth) + as.factor(scaled_year) - 1, 
+             data = sf_fall, 
+             mesh = fall_mesh,
+             family = tweedie(link = "log"), # useful for positive continuous data, biomass 
+             spatial = "off", 
+             control = sdmTMBcontrol(newton_loops = 1), 
+             reml = TRUE, 
+             silent = FALSE)
 
 saveRDS(m2_fall, file = here("sdmtmb", "model-outputs", "m2_fall.rds"))
 
@@ -65,15 +79,18 @@ tidy(m2_fall, "ran_pars", conf.int = TRUE)
 sanity(m2_fall) 
 
 
+##### Spatial Only Models ####
 
-
-# M3 - logistic regression of summer flounder biomass in tows as a function of AVGDEPTH with spatial random effects
-m3_fall <- sdmTMB(EXPCATCHWT ~ AVGDEPTH, 
+###### M3 ####
+# logistic regression of summer flounder biomass in tows as a function of AVGDEPTH with spatial random effects
+m3_fall <- sdmTMB(EXPCATCHWT ~ scaled_depth, 
              data = sf_fall, 
              mesh = fall_mesh,
              family = tweedie(link = "log"), 
              spatial = "on", 
-             control = sdmTMBcontrol(newton_loops = 1) #extra optimization to help with convergence
+             control = sdmTMBcontrol(newton_loops = 1), #extra optimization to help with convergence
+             reml = TRUE, 
+             silent = FALSE
 )
              
 saveRDS(m3_fall, file = here("sdmtmb", "model-outputs", "m3_fall.rds"))
@@ -83,13 +100,16 @@ tidy(m3_fall, conf.int = TRUE)
 tidy(m3_fall, "ran_pars", conf.int = TRUE)
 sanity(m3_fall) 
 
-# M4 - logistic regression of summer flounder biomass in tows as a function of AVGDEPTH with spatial random effects and index standardization to estimate a separate intercept for each EST_YEAR
-m4_fall <- sdmTMB(EXPCATCHWT ~ s(AVGDEPTH) + as.factor(EST_YEAR) - 1, 
+###### M4 ####
+# logistic regression of summer flounder biomass in tows as a function of AVGDEPTH with spatial random effects and index standardization to estimate a separate intercept for each EST_YEAR
+m4_fall <- sdmTMB(EXPCATCHWT ~ s(scaled_depth) + as.factor(scaled_year) - 1, 
              data = sf_fall, 
              mesh = fall_mesh,
              family = tweedie(link = "log"),  
              spatial = "on", 
-             control = sdmTMBcontrol(newton_loops = 1))
+             control = sdmTMBcontrol(newton_loops = 1), 
+             reml = TRUE, 
+             silent = FALSE)
 
 saveRDS(m4_fall, file = here("sdmtmb", "model-outputs", "m4_fall.rds"))
 
@@ -97,60 +117,326 @@ tidy(m4_fall, conf.int = TRUE)
 tidy(m4_fall, "ran_pars", conf.int = TRUE)
 sanity(m4_fall) 
 
+##### Spatiotemporal Only Model ####
+###### M5 ####
+# tested a model fit with only spatiotemporal random fields to test dynamics of summer flounder. Coupled with similar spatial SDs; confirms that both spatial and spatiotemporal random fields are needed and summer flounder does not change significantly from year to year.
 
+#if spatiotemporal Sd is 10x spatial SD then indicates species is more dynamic (and shifting around a lot in space) and may not need spatial random fields
+m5_fall <- sdmTMB(EXPCATCHWT ~ s(scaled_depth) + as.factor(scaled_year)-1,
+                  data = sf_fall,
+                  mesh = fall_mesh,
+                  family = tweedie(link = "log"), 
+                  spatial = "off", 
+                  time = "EST_YEAR",
+                  spatiotemporal = "IID", 
+                  reml = TRUE, 
+                  silent = FALSE) 
+sanity(m5_fall)
 
-# M5 - logistic regression of summer flounder biomass in tows as a function of AVGDEPTH with spatial random effects and spatiotemporal random fields estimated according to EST_YEAR. Independent correlation, so each EST_YEAR is independent of each other 
-m5_fall <- sdmTMB(EXPCATCHWT ~ AVGDEPTH,  
+### save the data
+saveRDS(m5_fall, file = here("sdmtmb", "model-outputs", "m5_fall.rds"))
+
+##### IID Models ####
+###### M6 ####
+# logistic regression of summer flounder biomass in tows as a function of AVGDEPTH with spatial random effects and spatiotemporal random fields estimated according to EST_YEAR. Independent correlation, so each EST_YEAR is independent of each other 
+m6_fall <- sdmTMB(EXPCATCHWT ~ scaled_depth,  
              data = sf_fall,
              mesh = fall_mesh,
              family = tweedie(link = "log"), 
              spatial = "on", #spatial covariance with AVGDEPTH
              time = "EST_YEAR",
              spatiotemporal = "IID", #possbly AR1 (adapt slowly over time)? 
-             control = sdmTMBcontrol(nlminb_loops = 2)) # did not converge with one loop
+             control = sdmTMBcontrol(nlminb_loops = 2), # did not converge with one loop
+             reml = TRUE, 
+             silent = FALSE)
 
-sanity(m5_fall) 
-tidy(m5_fall, conf.int = TRUE) 
-tidy(m5_fall, "ran_pars", conf.int = TRUE)
+sanity(m6_fall) 
+tidy(m6_fall, conf.int = TRUE) 
+tidy(m6_fall, "ran_pars", conf.int = TRUE)
 
-saveRDS(m5_fall, file = here("sdmtmb", "model-outputs", "m5_fall.rds"))
+### save the data
+saveRDS(m6_fall, file = here("sdmtmb", "model-outputs", "m6_fall.rds"))
 
-# m6 logistic regression of summer flounder biomass in tows as a function of AVGDEPTH with spatial random effects and spatiotemporal random fields estimated by EST_YEAR and with a separate intercept for each.  
-m6_fall <- sdmTMB(EXPCATCHWT ~ s(AVGDEPTH) + as.factor(EST_YEAR)-1, #estimate separate intercepts by EST_YEAR; point est and uncertainty fed into SAs
+###### M7 ####
+#logistic regression of summer flounder biomass in tows as a function of AVGDEPTH with spatial random effects and spatiotemporal random fields estimated by EST_YEAR and with a separate intercept for each.  
+m7_fall <- sdmTMB(EXPCATCHWT ~ s(scaled_depth) + as.factor(scaled_year)-1, #estimate separate intercepts by EST_YEAR; point est and uncertainty fed into SAs
              data = sf_fall,
              mesh = fall_mesh,
              family = tweedie(link = "log"), 
              spatial = "on", #spatial covariance with AVGDEPTH
              time = "EST_YEAR",
-             spatiotemporal = "IID") #possbly AR1 (adapt slowly over time)?
+             spatiotemporal = "IID", #possbly AR1 (adapt slowly over time)?
+             reml = TRUE, 
+             silent = FALSE)
 
-sanity(m6_fall)
+sanity(m7_fall)
 
-saveRDS(m6_fall, file = here("sdmtmb", "model-outputs", "m6_fall.rds"))
+### save the data
+saveRDS(m7_fall, file = here("sdmtmb", "model-outputs", "m7_fall.rds"))
 
 # pull estimates and confidence intervals etc? 
-est <- tidy(m6_fall, conf.int = TRUE) 
-pars <- tidy(m6_fall, "ran_pars", conf.int = TRUE, exponentiate = TRUE)
+est <- tidy(m7_fall, conf.int = TRUE) 
+pars <- tidy(m7_fall, "ran_pars", conf.int = TRUE, exponentiate = TRUE)
 
-m6_fall_est <- bind_rows(est, pars)
+m7_fall_est <- bind_rows(est, pars)
 
-kable(m6_fall_est, align = "lcccc", caption = "M6 fall model estimates", format.args = list(big.mark = ","), booktabs = TRUE) %>%
+kable(m7_fall_est, align = "lcccc", caption = "M7 fall model estimates", format.args = list(big.mark = ","), booktabs = TRUE) %>%
   kable_styling(full_width = F, fixed_thead = T, font_size = 14)
 
 
-#if spatiotemporal Sd is 10x spatial SD then indicates species is more dynamic (and shifting around a lot in space) and may not need spatial random fields
+###### M8 ####
+#  
+m8_fall <- sdmTMB(EXPCATCHWT ~ s(scaled_depth) + 
+                    #as.factor(EST_YEAR) + 
+                    as.factor(scaled_area),#-1,
+                  data = sf_fall,
+                  mesh = fall_mesh,
+                  family = tweedie(link = "log"), 
+                  spatial = "on", 
+                  time = "EST_YEAR",
+                  spatiotemporal = "IID",
+                  extra_time = 2020L,
+                  spatial_varying = ~0 + as.factor(scaled_area), 
+                  control = sdmTMBcontrol(newton_loops = 1), 
+                  reml = TRUE, 
+                  silent = FALSE) 
+m8a_fall <- sdmTMB(EXPCATCHWT ~ s(scaled_depth) + 
+                    #as.factor(EST_YEAR) + 
+                    as.factor(scaled_area),#-1,
+                  data = sf_fall,
+                  mesh = fall_mesh,
+                  family = tweedie(link = "log"), 
+                  spatial = "on", 
+                  time = "EST_YEAR",
+                  spatiotemporal = "IID", 
+                  extra_time = 2020L,
+                  #spatial_varying = ~0 + as.factor(scaled_area), 
+                  control = sdmTMBcontrol(newton_loops = 1), 
+                  reml = TRUE, 
+                  silent = FALSE) 
+
+sanity(m8a_fall)
+#`sigma_Z` is smaller than 0.01
+#Consider omitting this part of the model
+
+### save the data
+saveRDS(m8_fall, file = here("sdmtmb", "model-outputs", "m8_fall.rds"))
+saveRDS(m8a_fall, file = here("sdmtmb", "model-outputs", "m8_fall2.rds"))
+
+##### AR1 Models ####
+###### M9 ####
+#  
+m9_fall <- sdmTMB(EXPCATCHWT ~ scaled_depth,
+                  data = sf_fall,
+                  mesh = fall_mesh,
+                  family = tweedie(link = "log"), 
+                  spatial = "on", 
+                  time = "EST_YEAR",
+                  spatiotemporal = "AR1",
+                  extra_time = 2020L, 
+                  control = sdmTMBcontrol(nlminb_loops = 2), 
+                  reml = TRUE, 
+                  silent = FALSE) 
+sanity(m9_fall)
+
+#m9_fall_ex <- run_extra_optimization(m9_fall, nlminb = 1)
+
+#sanity(m9_fall_ex)
+
+### save the data
+saveRDS(m9_fall, file = here("sdmtmb", "model-outputs", "m9_fall.rds"))
+
+###### M10 ####
+# 
+m10_fall <- sdmTMB(EXPCATCHWT ~ s(scaled_depth), # + as.factor(EST_YEAR)-1,
+                  data = sf_fall,
+                  mesh = fall_mesh,
+                  family = tweedie(link = "log"), 
+                  spatial = "on", 
+                  time = "EST_YEAR",
+                  spatiotemporal = "AR1", 
+                  extra_time = 2020L, 
+                  control = sdmTMBcontrol(newton_loops = 1), 
+                  reml = TRUE, 
+                  silent = FALSE) 
+sanity(m10_fall)
+
+### save the data
+saveRDS(m10_fall, file = here("sdmtmb", "model-outputs", "m10_fall.rds"))
+
+###### M11 ####
+#  revisit no convergence
+m11_fall <- sdmTMB(EXPCATCHWT ~ s(scaled_depth) + 
+                     #as.factor(EST_YEAR) + 
+                     as.factor(scaled_area),#-1,
+                  data = sf_fall,
+                  mesh = fall_mesh,
+                  family = tweedie(link = "log"), 
+                  spatial = "on", 
+                  time = "EST_YEAR",
+                  spatiotemporal = "AR1", 
+                  extra_time = 2020L, 
+                  spatial_varying = ~0 + as.factor(scaled_area), 
+                  control = sdmTMBcontrol(newton_loops = 1), 
+                  reml = TRUE, 
+                  silent = FALSE) 
+
+m11a_fall <- sdmTMB(EXPCATCHWT ~ s(scaled_depth) + 
+                     #as.factor(EST_YEAR) + 
+                     as.factor(scaled_area),#-1,
+                   data = sf_fall,
+                   mesh = fall_mesh,
+                   family = tweedie(link = "log"), 
+                   spatial = "on", 
+                   time = "EST_YEAR",
+                   spatiotemporal = "AR1", 
+                   extra_time = 2020L,
+                   #spatial_varying = ~0 + as.factor(scaled_area), 
+                   control = sdmTMBcontrol(newton_loops = 1), 
+                   reml = TRUE, 
+                   silent = FALSE) 
+sanity(m11a_fall)
+
+### save the data
+saveRDS(m11_fall, file = here("sdmtmb", "model-outputs", "m11_fall.rds"))
+saveRDS(m11a_fall, file = here("sdmtmb", "model-outputs", "m11_fall2.rds"))
+
+##### RW Models ####
+###### M12 ####
+# 
+m12_fall <- sdmTMB(EXPCATCHWT ~ scaled_depth,
+                  data = sf_fall,
+                  mesh = fall_mesh,
+                  family = tweedie(link = "log"), 
+                  spatial = "on", 
+                  time = "EST_YEAR",
+                  spatiotemporal = "RW", 
+                  extra_time = 2020L, 
+                  control = sdmTMBcontrol(nlminb_loops = 1), 
+                  reml = TRUE, 
+                  silent = FALSE) 
+sanity(m12_fall)
+
+### save the data
+saveRDS(m12_fall, file = here("sdmtmb", "model-outputs", "m12_fall.rds"))
+
+###### M13 ####
+#  
+m13_fall <- sdmTMB(EXPCATCHWT ~ s(scaled_depth) + as.factor(scaled_year),#-1,
+                  data = sf_fall,
+                  mesh = fall_mesh,
+                  family = tweedie(link = "log"), 
+                  spatial = "on", 
+                  time = "EST_YEAR",
+                  spatiotemporal = "RW", 
+                  extra_time = 2020L, 
+                  control = sdmTMBcontrol(nlminb_loops = 1), 
+                  reml = TRUE, 
+                  silent = FALSE) 
+sanity(m13_fall)
+
+### save the data
+saveRDS(m13_fall, file = here("sdmtmb", "model-outputs", "m13_fall.rds"))
+
+###### M14 ####
+# 
+m14_fall <- sdmTMB(EXPCATCHWT ~ s(scaled_depth) + 
+                    #as.factor(EST_YEAR) + 
+                     as.factor(scaled_area),#-1,
+                  data = sf_fall,
+                  mesh = fall_mesh,
+                  family = tweedie(link = "log"), 
+                  spatial = "on", 
+                  time = "EST_YEAR",
+                  spatiotemporal = "RW", 
+                  extra_time = 2020L, 
+                  spatial_varying = ~0 + as.factor(scaled_area), 
+                  reml = TRUE, 
+                  control = sdmTMBcontrol(newton_loops = 1), 
+                  silent = FALSE) 
+sanity(m14a_fall)
+
+m14a_fall <- sdmTMB(EXPCATCHWT ~ s(scaled_depth) + 
+                      #as.factor(EST_YEAR) + 
+                      as.factor(scaled_area),#-1,
+                    data = sf_fall,
+                    mesh = fall_mesh,
+                    family = tweedie(link = "log"), 
+                    spatial = "on", 
+                    time = "EST_YEAR",
+                    spatiotemporal = "RW", 
+                    extra_time = 2020L,
+                    #spatial_varying = ~0 + as.factor(scaled_area), 
+                    control = sdmTMBcontrol(newton_loops = 1), 
+                    reml = TRUE, 
+                    silent = FALSE)
+saveRDS(m14a_fall, file = here("sdmtmb", "model-outputs", "m14_fall2.rds"))
+
+###### M15 ####
+# m15_fall <- sdmTMB(EXPCATCHWT ~ s(AVGDEPTH), #+ 
+#                    #as.factor(EST_YEAR) + 
+#                    #as.factor(AREA),#-1,
+#                    data = sf_fall,
+#                    mesh = fall_mesh,
+#                    family = tweedie(link = "log"), 
+#                    spatial = "on", 
+#                    time = "EST_YEAR",
+#                    spatiotemporal = "AR1", 
+#                    extra_time = 2020L, 
+#                    spatial_varying = ~0 + as.factor(AREA), 
+#                    control = sdmTMBcontrol(newton_loops = 1), 
+#                    reml = TRUE)
+# m16_fall <- sdmTMB(EXPCATCHWT ~ s(AVGDEPTH, by = EST_YEAR) + 
+#                    #as.factor(EST_YEAR) + 
+#                    as.factor(AREA),#-1,
+#                    data = sf_fall,
+#                    mesh = fall_mesh,
+#                    family = tweedie(link = "log"), 
+#                    spatial = "on", 
+#                    time = "EST_YEAR",
+#                    spatiotemporal = "AR1", 
+#                    extra_time = 2020L, 
+#                    spatial_varying = ~0 + as.factor(AREA), 
+#                    control = sdmTMBcontrol(newton_loops = 1), 
+#                    reml = TRUE)
+
+ggplot(sf_fall, aes(EST_YEAR, EXPCATCHWT, colour = AREA_CODE)) +
+  geom_jitter() +
+  scale_colour_viridis_c() +
+  theme_light()
 
 
-# m7 
-# tested a model fit with only spatiotemporal random fields to test dynamics of summer flounder. Coupled with similar spatial SDs; confirms that both spatial and spatiotemporal random fields are needed and summer flounder does not change significantly from year to year. 
-m7_fall <- sdmTMB(EXPCATCHWT ~ s(AVGDEPTH) + as.factor(EST_YEAR)-1,
-             data = sf_fall,
-             mesh = fall_mesh,
-             family = tweedie(link = "log"), 
-             spatial = "off", 
-             time = "EST_YEAR",
-             spatiotemporal = "IID") 
-sanity(m7_fall)
+### save the data
+saveRDS(m14_fall, file = here("sdmtmb", "model-outputs", "m14_fall.rds"))
+
+
+
+
+#### AIC ####
+fall.mods <- str_c("m",seq(1:14)) |>
+  map(~list(.)) |>
+  map(~readRDS(here(sdmtmb.dir, "model-outputs", str_c(., "_fall.rds"))))
+fall.aic <- map(fall.mods, ~AIC(.))|> 
+  as.data.frame() |> t()
+mod.names <- str_c("m",seq(1:14))
+ 
+rownames(fall.aic) <- seq(1:14)
+fall.aic <- fall.aic |> 
+  bind_cols(mod.names) |>
+  rename(AIC = ...1, 
+         models = ...2) |> 
+  relocate(models, AIC)
+m8a_fall <- readRDS(here(sdmtmb.dir, "model-outputs", "m8_fall2.rds"))
+m11a_fall <- readRDS(here(sdmtmb.dir, "model-outputs", "m11_fall2.rds"))
+m14a_fall <- readRDS(here(sdmtmb.dir, "model-outputs", "m14_fall2.rds"))
+m8a <- data.frame(models = "m8b", AIC = AIC(m8a_fall))
+m11a <- data.frame(models = "m11b", AIC = AIC(m11a_fall))
+m14a<- data.frame(models = "m14b", AIC = AIC(m14a_fall))
+fall.aic <- bind_rows(fall.aic, m8a, m11a, m14a) |> mutate(AIC = round(AIC, 2)) |> arrange(desc(AIC))
+
+kable(fall.aic, align = "lcccc", caption = "Model AIC Values", format.args = list(big.mark = ","), booktabs = TRUE) %>%
+  kable_styling(full_width = F, fixed_thead = T, font_size = 14) #%>%
+  #row_spec(7, color = "red") 
 
 
 #### CONFIGURATIONS TABLE #####

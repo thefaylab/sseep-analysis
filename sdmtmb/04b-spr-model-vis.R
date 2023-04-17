@@ -1,5 +1,5 @@
 ### created: 12/10/2022
-### last updated: 03/05/2023
+### last updated: 04/11/2023
 
 #### 04b - SPRING MODEL VISUALIZATION ####
 
@@ -20,37 +20,75 @@ library(here)
 library(sf) 
 library(sdmTMB)
 library(ggeffects)
+library(visreg)
 # library(marmap)
 # library(raster)
+theme_set(theme_bw())
 
 here()
+
+sdmtmb.dir <- "../sseep-analysis/sdmtmb"
+sseep.dir <- "../sseep-analysis"
 
 #### LOAD DATA ####
 # worst fit generated from `02a-fit-models.R` here("sdmtmb")
 #m1 <- readRDS(file = here("sdmtmb", "model-outputs", "m1.rds"))
 
 # best fit generated from `02a-fit-models.R` here("sdmtmb")
-m6_spring <- readRDS(file = here("sdmtmb", "model-outputs", "m6_spring.rds"))
+m7_spring <- readRDS(file = here("sdmtmb", "model-outputs", "m7_spring.rds"))
+m8_spring <- readRDS(file = here(sdmtmb.dir, "model-outputs", "m8_spring2.rds"))
 
 # summer flounder data prepared in `01-prepare-data.R` here("sdmtmb")
-sf_spring <- readRDS(here("sdmtmb", "data", "sumflounder_spring.rds"))
+sf_spring <- readRDS(here(sdmtmb.dir, "data", "sumflounder_spring.rds"))
 
+# 
+spring_mesh <- readRDS(here("sdmtmb", "data", "spring_mesh.rds"))
 
 #### PREPARE RESIDUALS #### 
 
 ##### Best Fit Model ####
-sf_spring$m6_res <- residuals(m6_spring) # pull residuals from best fit model
-m6spr_mcres <- residuals(m6_spring, type = "mle-mcmc", mcmc_iter = 201, mcmc_warmup = 200)
-saveRDS(m6spr_mcres, here("sdmtmb", "data", "m6spr_mcres.rds"))
+sf_spring$m7_res <- residuals(m7_spring) # pull residuals from best fit model
+qqnorm(sf_spring$m7_res)
+qqline(sf_spring$m7_res)
 
-sf_spring$m6_mcres <- m6spr_mcres
+spr_fit7_ml <- update(m7_spring, reml = FALSE) #refit your model with `reml = FALSE` to use MCMC-MLE residuals.
+# Warning message:
+#   In doTryCatch(return(expr), name, parentenv, handler) :
+#   display list redraw incomplete
+saveRDS(spr_fit7_ml, here("sdmtmb", "data", "m7spring_reml-off.rds"))
+sanity(spr_fit7_ml)
+
+samps7 <- sdmTMBextra::predict_mle_mcmc(spr_fit7_ml, mcmc_iter = 201, mcmc_warmup = 200)
+
+m7spr_mcres <- residuals(m7_spring, type = "mle-mcmc", mcmc_samples = samps7)
+qqnorm(m7spr_mcres)
+qqline(m7spr_mcres)
+
+saveRDS(m7spr_mcres, here("sdmtmb", "data", "m7spr_mcres.rds"))
+
+sf_spring$m7_mcres <- m7spr_mcres
 
 
-##### Worst Fit Model ####
-#sumflounder$m1_res <- residuals(m1) # pull residuals from best fit model
-#m1_mcres <- residuals(m1, type = "mle-mcmc", mcmc_iter = 201, mcmc_warmup = 200)
-#sumflounder$m1_mcres <- m1_mcres
 
+sf_spring$m8_res <- residuals(m8_spring) # pull residuals from best fit model
+
+qqnorm(sf_spring$m8_res)
+qqline(sf_spring$m8_res)
+
+
+spr_fit8_ml <- update(m8_spring, reml = FALSE) #refit your model with `reml = FALSE` to use MCMC-MLE residuals.
+saveRDS(spr_fit8_ml, here("sdmtmb", "data", "m8spring_reml-off.rds"))
+
+samps8 <- sdmTMBextra::predict_mle_mcmc(spr_fit8_ml, mcmc_iter = 201, mcmc_warmup = 200)
+
+m8spr_mcres <- residuals(m8_spring, type = "mle-mcmc", mcmc_samples = samps8)
+hist(m8spr_mcres)
+qqnorm(m8spr_mcres)
+qqline(m8spr_mcres)
+
+saveRDS(m8spring_mcres, here("sdmtmb", "data", "m8spring_mcres.rds"))
+
+sf_spring$m8_mcres <- m8spr_mcres
 
 # save the data 
 saveRDS(sf_spring, file = here("sdmtmb", "data", "sf_spring-resids.rds"))
@@ -61,29 +99,32 @@ saveRDS(sf_spring, file = here("sdmtmb", "data", "sf_spring-resids.rds"))
 g <- ggeffect(m6_spring, "AVGDEPTH")
 plot(g)
 
+#the value of depth on the x-axis and the change in response on the y-axis, holding all other variables constant.
+visreg(fit, xvar = "depth_scaled")
+
 
 ##### Best fit model ####
 # plotting residuals of best fit model
-hist(sf_spring$m6_res) # plot frequency of residuals to find distribution 
-
-qqnorm(sf_spring$m6_res) # qplot 
-abline(a = 0, b = 1) # add trend line
-
-
-
-# from the mcmc residuals 
-hist(sf_spring$m6_mcres, 
-     main = "Spring MCMC Residuals for Summer Flounder", 
-     xlab = "Residuals")
-
-
-qqnorm(sf_spring$m6_mcres)
-abline(a = 0, b = 1) # add trend line
+# hist(sf_spring$m6_res) # plot frequency of residuals to find distribution 
+# 
+# qqnorm(sf_spring$m6_res) # qplot 
+# abline(a = 0, b = 1) # add trend line
+# 
+# 
+# 
+# # from the mcmc residuals 
+# hist(sf_spring$m6_mcres, 
+#      main = "Spring MCMC Residuals for Summer Flounder", 
+#      xlab = "Residuals")
+# 
+# 
+# qqnorm(sf_spring$m6_mcres)
+# abline(a = 0, b = 1) # add trend line
 #ggsave(filename = "sf_spring-m6qqplot.png", device = "png", path = here("sdmtmb", "plots"), width = 8, height = 8)
 
 
 # residuals plotted by year
-ggplot(sf_spring, aes(DECDEG_BEGLON, DECDEG_BEGLAT, color = m6_mcres)) +
+ggplot(sf_spring, aes(DECDEG_BEGLON, DECDEG_BEGLAT, color = m8_mcres)) +
   scale_color_gradient2()+#low = "#3f7f00", high = "#0a4c8a") +
   geom_point() + 
   facet_wrap(~EST_YEAR) + coord_fixed() +
@@ -94,16 +135,16 @@ ggplot(sf_spring, aes(DECDEG_BEGLON, DECDEG_BEGLAT, color = m6_mcres)) +
   theme(legend.position= c(0.8, 0.1),
         legend.direction = "horizontal",
         #legend.title = element_blank(), 
-        axis.title.y = element_text(margin = unit(c(0, 3, 0, 0), "mm")))
+        axis.title.y = element_text(margin = unit(c(0, 3, 0, 0), "mm"))) 
 
 ggsave(filename = "sf_spring-m6mcresids.png", device = "png", path = here("sdmtmb", "plots"), width = 8, height = 8)
 
 # subset years to get a closer look 
 sf_spring %>% 
-  filter(EST_YEAR %in% c(2018, 2019, 2021)) %>% 
-  ggplot(aes(X, Y, col = m6_mcres)) + scale_colour_gradient2() +
+  filter(EST_YEAR %in% c(2018, 2019, 2020, 2021)) %>% 
+  ggplot(aes(X, Y, col = m8_mcres)) + scale_colour_gradient2() +
   geom_point() + facet_wrap(~EST_YEAR) + coord_fixed() +
-  labs(title = "m6 MCMC Residuals") +
+  labs(title = "Spring IID Spatiotemporal Model Residuals") +
   theme(legend.position="bottom",
         #legend.title = element_blank(), 
         axis.title.y = element_text(margin = unit(c(0, 3, 0, 0), "mm"))) #+ 
