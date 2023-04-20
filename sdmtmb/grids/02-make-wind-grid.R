@@ -76,9 +76,8 @@ full_grid|>
 
 # subset our grid to cells that intersect our polygon:
 intersected <- sf::st_intersects(full_grid, wind_utm)
-
-selected_grid <- full_grid[lengths(intersectedw) > 0, ] #1171
-# 
+selected_grid <- full_grid[lengths(intersected) > 0, ] #1171
+ 
 selected_grid|>
   sf::st_centroid() |>
   sf::st_coordinates() |>
@@ -95,16 +94,32 @@ ggplot() +
 # join grid cells with strata by st_intersects to identify the strata in which each cell falls 
 join_strat <- sf::st_join(selected_grid, strata_utm, largest = TRUE)
 
+# if using to predict and calculate an index, calculate the area of each grid cell
+# find how much of each grid cell is within the outer polygon:
+# IMPORTANT STEP HERE!! take the union of your strata:
+wind_utm_union <- sf::st_union(wind_utm)
+# 
+# ggplot(strata_utm_union) + geom_sf()
+# 
+overlap <- sf::st_intersection(selected_grid, wind_utm_union) 
+nrow(overlap)
+nrow(selected_grid)
+ 
+ggplot(overlap) + geom_sf()
+ 
+calculated_area <- sf::st_area(overlap) 
+length(calculated_area)
 
 # find the center points of each grid cell, extract the coordinates, and add the area values
 coord <- join_strat|>
   sf::st_centroid() |>
   sf::st_coordinates() |>
   as_tibble() |>
-  mutate(across(c(X, Y), round, digits = 2)) 
+  mutate(area_m2 = as.integer(calculated_area), 
+         across(c(X, Y), round, digits = 2)) 
 
 # plot it 
-ggplot(coord, aes(X, Y)) +
+ggplot(coord, aes(X, Y, fill = area_m2)) +
   geom_tile(width = grid_spacing, height = grid_spacing, colour = "grey10") +
   scale_fill_viridis_c() +
   coord_equal()
@@ -128,7 +143,7 @@ depths <- get.depth(bts, grid_crs, locator = FALSE)
 
 # bind depth to coordinate grid
 wind_grid <- bind_cols(coord, depths, join_strat) |> 
-  select(X, Y, lon, lat, depth, STRATUM)
+  select(X, Y, lon, lat, depth, STRATUM, area_m2)
 
 ### save the data 
 saveRDS(wind_grid, here(sdmtmb.dir, "data", "wind_grid.rds"))

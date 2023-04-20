@@ -92,7 +92,6 @@ full_grid|>
 
 # subset our grid to cells that intersect our polygon:
 intersected <- sf::st_intersects(full_grid, strat_diff)
-
 selected_grid <- full_grid[lengths(intersected) > 0, ]
 
 # plot it
@@ -111,6 +110,17 @@ join <- sf::st_join(selected_grid, strata_utm, largest = TRUE)
 
 ggplot(join) + geom_sf()
 
+# if using to predict and calculate an index, calculate the area of each grid cell
+# find how much of each grid cell is within the outer polygon:
+overlap <- sf::st_intersection(selected_grid, strat_diff) 
+nrow(overlap)
+nrow(selected_grid)
+
+ggplot(overlap) + geom_sf()
+
+calculated_area <- sf::st_area(overlap) 
+length(calculated_area)
+
 
 # find the center points of each grid cell, extract the coordinates, and add the area values
 coord <- join|>
@@ -119,10 +129,11 @@ coord <- join|>
   as_tibble() |>
   bind_cols(join) |>
   select(X, Y, STRATUM) |>
-  mutate(across(c(X, Y), round, digits = 2)) #|>
+  mutate(area_m2 = as.integer(calculated_area),
+         across(c(X, Y), round, digits = 2)) #|>
 
 
-ggplot(coord, aes(X, Y)) +
+ggplot(coord, aes(X, Y, fill = area_m2)) +
   geom_tile(width = grid_spacing, height = grid_spacing, colour = "grey10") +
   scale_fill_viridis_c() +
   coord_equal()
@@ -144,7 +155,7 @@ depths <- get.depth(bts, grid_crs, locator = FALSE)
 
 # bind depth to coordinate grid
 grid <- bind_cols(coord, depths) |>
-  select(X, Y, STRATUM, lon, lat, depth)
+  select(X, Y, STRATUM, lon, lat, depth, area_m2)
 
 ### save the data 
 saveRDS(grid, here(sdmtmb.dir, "data", "outside_grid.rds"))
