@@ -20,6 +20,8 @@ library(raster)
 library(sdmTMB)
 library(marmap)
 library(oce)
+library(rnaturalearth)
+library(rnaturalearthdata)
 suppressPackageStartupMessages(library(tidyverse))
 theme_set(theme_bw())
 #source()
@@ -27,44 +29,39 @@ theme_set(theme_bw())
 sdmtmb.dir <- "../sseep-analysis/sdmtmb"
 sseep.dir <- "../sseep-analysis"
 
-
-state_data <- rnaturalearth::ne_states(country = "united states of america", returnclass = "sf") |>
-  filter(region %in% c("Northeast", "South"))
-
-ne_states <- suppressWarnings(suppressMessages(
-  st_crop(state_data,
-          c(xmin = -80, ymin = 32, xmax = -60, ymax = 46))))
+#### LOAD DATA ####
+fall_preds <- readRDS(file = here(sdmtmb.dir, "data", "fall_projects.rds"))
+spring_preds <- readRDS(file = here(sdmtmb.dir, "data", "spring_projects.rds"))
+east_coast <- st_read(here(sseep.dir, "gis", "east_coast.shp"))
 
 
-utm_zone18 <- 32618
-ne_states_proj <- sf::st_transform(ne_states, crs = utm_zone18)
-sf::st_boundary(ne_coast_proj)
-
-ggplot(ne_states_proj) + geom_sf() +
-  geom_tile(data = spring_preds, aes(x = X * 1000, y = Y * 1000, fill = exp(est)), width = 10000, height = 10000) +
-  #xlim(230957.7, 1157991 - 300000) +
-  #ylim(5366427, 6353456 - 200000) +
-  scale_fill_viridis_c() +
-  theme_bw() +
-  labs(fill = "Predicted\ndensity") +
-  labs(x = "Longitude", y = "Latitude")
-
-ggplot(ne_states_proj) + geom_sf() +
-  geom_tile(data = fall_preds, aes(x = X * 1000, y = Y * 1000, fill = exp(est)), width = 10000, height = 10000) +
-  #xlim(230957.7, 1157991 - 300000) +
-  #ylim(5366427, 6353456 - 200000) +
-  scale_fill_viridis_c() +
-  theme_bw() +
-  labs(fill = "Predicted\ndensity") +
-  labs(x = "Longitude", y = "Latitude")
+#### PLOTS ####
+# ggplot(ne_states_proj) + geom_sf() +
+#   geom_tile(data = spring_preds, aes(x = X * 1000, y = Y * 1000, fill = exp(est)), width = 10000, height = 10000) +
+#   #xlim(230957.7, 1157991 - 300000) +
+#   #ylim(5366427, 6353456 - 200000) +
+#   scale_fill_viridis_c() +
+#   theme_bw() +
+#   labs(fill = "Predicted\ndensity") +
+#   labs(x = "Longitude", y = "Latitude")
+# 
+# ggplot() + #geom_sf() +
+#   geom_tile(data = fall_preds, aes(x = X * 1000, y = Y * 1000, fill = exp(est)), width = 10000, height = 10000) +
+#   #xlim(230957.7, 1157991 - 300000) +
+#   #ylim(5366427, 6353456 - 200000) +
+#   geom_sf(data = ne_states_proj) +
+#   scale_fill_viridis_c(trans = "sqrt", option = "H") +
+#   theme_bw() +
+#   labs(fill = "Predicted\ndensity") +
+#   labs(x = "Longitude", y = "Latitude")
 
 
 # main effects only
-plot_map(spring_preds, exp(est_non_rf))
+plot_map(sf = east_coast, dat = fall_preds |> filter(EST_YEAR %in% c(2018:2021)), column = exp(est_non_rf))
 
 # spatial random effects
-plot_map(fall_preds|> filter(EST_YEAR %in% c(2021)), omega_s) + scale_fill_gradient2()
+plot_map(sf = east_coast, dat = fall_preds |> filter(EST_YEAR %in% c(2018:2021)), column = omega_s) + scale_fill_gradient2()
 
 # spatiotemporal random effects
-plot_map(fall_preds |> filter(EST_YEAR %in% c(2018:2021)), epsilon_st) + scale_fill_gradient2()
+plot_map(sf = east_coast, dat = fall_preds |> filter(EST_YEAR %in% c(2018:2021)), column = epsilon_st) + scale_fill_gradient2()
 
