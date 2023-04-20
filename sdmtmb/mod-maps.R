@@ -30,9 +30,12 @@ sdmtmb.dir <- "../sseep-analysis/sdmtmb"
 sseep.dir <- "../sseep-analysis"
 
 #### LOAD DATA ####
+# read in predictions created here("mod-forecasts.R")
 fall_preds <- readRDS(file = here(sdmtmb.dir, "data", "fall_projects.rds"))
 spring_preds <- readRDS(file = here(sdmtmb.dir, "data", "spring_projects.rds"))
-east_coast <- st_read(here(sseep.dir, "gis", "east_coast.shp"))
+
+# read in shapefile created here(sseep.dir, "tidy-data", "extract-usa-data.R")
+east_coast <- st_read(here(sseep.dir, "gis", "eastern_coast_UTM.shp"))
 
 
 #### PLOTS ####
