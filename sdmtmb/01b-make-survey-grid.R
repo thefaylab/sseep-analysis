@@ -98,7 +98,7 @@ ggplot() +
 ## CREATE WIND ID ####
 wind_utm_union <- sf::st_union(wind_utm)
 
-join_strat$AREA <- st_intersects(join_strat, wind_utm_union) |>
+join_strat$AREA_CODE <- st_intersects(join_strat, wind_utm_union) |>
   as.integer() |>
   dplyr::coalesce(2L) 
 
@@ -166,18 +166,18 @@ ggplot(grid_coords, aes(X, Y, fill = AVGDEPTH)) +
 # create dataframe of cells and keep important data columns
 join_strat_df <- join_strat |>
   st_set_geometry(NULL) |>
-  dplyr::select(STRATUM, cell, AREA)
+  dplyr::select(STRATUM, cell, AREA_CODE)
 
 # join merge data frames to combine all final columns, add AREA_CODE for metadata
 survey_grid <- grid_coords |>
   left_join(join_strat_df, by = "cell") |> 
-  mutate(AREA_CODE = case_when(
-    AREA == 1 ~ "WIND", 
-    AREA == 2 ~ "OUTSIDE"), 
+  mutate(AREA = case_when(
+    AREA_CODE == 1 ~ "WIND", 
+    AREA_CODE == 2 ~ "OUTSIDE"), 
          AVGDEPTH = AVGDEPTH * (-1))
 
 # plot it 
-ggplot(survey_grid, aes(X, Y, fill = as.factor(AREA_CODE))) + 
+ggplot(survey_grid, aes(X, Y, fill = as.factor(AREA))) + 
   geom_tile(width = grid_spacing, height = grid_spacing) +
   scale_fill_discrete() +
   coord_equal()
