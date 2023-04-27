@@ -134,7 +134,7 @@ ggplot() +
 
 ## REMOVE LAND CELLS IN THE GRID #### 
 # identify cells that intersect with the east coastline
-land_cells <- st_intersects(bathy_intersect, east_coast)
+land_cells <- st_within(bathy_intersect, east_coast)
 
 # remove the land cells
 bathy_intersect <- bathy_intersect[lengths(land_cells) == 0, ]
@@ -161,6 +161,11 @@ ggplot(grid_coords, aes(X, Y, fill = AVGDEPTH)) +
   geom_tile(width = grid_spacing, height = grid_spacing) +
   scale_fill_viridis_c() +
   coord_equal()
+
+ggplot() +
+  geom_sf(data = strata_utm, fill = "yellow") +
+  geom_tile(data = grid_coords, aes(X, Y), width = grid_spacing, height = grid_spacing, colour = NA, alpha = 0.5) +
+  coord_sf()
 
 ## FINAL MERGE ####
 # create dataframe of cells and keep important data columns
