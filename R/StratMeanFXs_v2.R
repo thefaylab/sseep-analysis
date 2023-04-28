@@ -3,8 +3,9 @@
   # mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT), 
   #        tow_code = str_c(STRATUM, CRUISE6, STATION)) %>% 
   # filter(SVSPP == 141, EST_YEAR %in% c(2018, 2021))
-  
-#strata <- readRDS(here("data", "rds", "strata.rds"))
+sseep.analysis <- "../sseep-analysis"
+
+strata_wts <- readRDS(here(sseep.analysis, "data", "rds", "strata_wts.rds"))
 
 strata.mean <- function(x){
   
