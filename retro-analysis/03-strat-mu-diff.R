@@ -33,10 +33,21 @@ specieslookup <- data %>%
   mutate(spname = str_to_lower(gsub(" ", "_", COMNAME)))
 
 #### CALCULATE MEAN SQUARED DIFFERENCES #####  
-mudiff_dat <- data %>%
-  filter(EST_YEAR %in% c(2016:2019, 2021)) %>% #filter for recent 5 years, skipping 2020
+mudiff_dat <- data %>% 
+  mutate(stratmu = ifelse(stratmu==0, 1, stratmu)) |>
+  #filter(EST_YEAR %in% c(2016:2019, 2021)) %>% #filter for recent 5 years, skipping 2020
+  mutate(log_mu = log(stratmu)) |>
+  arrange(desc(log_mu)) |>
   group_by(SVSPP, EST_YEAR, SEASON) %>% #, GEO_AREA) %>%
-  summarize(sq_diff = (exp(diff(log(stratmu)))-1)^2, .groups = "drop") %>% # calculate the relative differences and square them; drop the groups for further analysis
+  #summarize(sq_diff = (exp(diff(log(stratmu)))-1)^2, .groups = "drop") |>
+  summarise(diff_mu = diff(log_mu)) |>
+  arrange(desc(diff_mu)) |>
+  mutate(exp_mu = (exp(diff_mu))-1) |>
+  arrange(desc(exp_mu)) |>
+  mutate(sq_diff = exp_mu^2) |>
+  arrange(desc(sq_diff))|>
+  ungroup()|>
+  #summarize(sq_diff = (diff(stratmu))^2, .groups = "drop") %>% # calculate the relative differences and square them; drop the groups for further analysis
   group_by(SVSPP, SEASON) %>%
   summarize(mudiff = mean(sq_diff), .groups = "drop") %>% # calculate the average; drop the grouping factor 
   arrange(desc(mudiff)) %>% # arrange highest to lowest 
@@ -76,7 +87,7 @@ saveRDS(mudiff_dat, file = here("data", "rds", "species_mean-sq-diff.rds"))
 
 #### PLOT THE DISTRIBUTION #####
 mudiff_dat %>%
-  ggplot() + aes(mudiff) + geom_histogram()
+  ggplot() + aes(mudiff) + geom_histogram(bins = 10)
 
 ### save the plot
 ggsave(filename ="species_mean-sq-diff.png", device = "png" , path = here("outputs", "plots"), width = 5, height = 5)
