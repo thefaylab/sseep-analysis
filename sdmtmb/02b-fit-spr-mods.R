@@ -1,17 +1,12 @@
 ### created: 12/10/2022
 ### last updated: 03/03/2023
 
-#### 02b - FIT SPRING MODELS ####
+# 02b - FIT SPRING MODELS ####
 
-###################
-#### OBJECTIVE ####
-###################
-# fit various forms of models using prepared summer flounder data  
+## OBJECTIVE ####
+# fit various forms of models using prepared summer flounder data for the spring season
 
-####################
-
-
-#### LOAD PACKAGES ####
+## LOAD PACKAGES ####
 # install.packages("remotes")
 # library(remotes)
 # remotes::install_github("pbs-assess/sdmTMB", dependencies = TRUE)
@@ -24,27 +19,17 @@ library(kableExtra)
 here()
 
 
-#### LOAD DATA ####
+## LOAD DATA ####
 # summer flounder data 
-#sumflounder <- readRDS(here("sdmtmb", "data", "sumflounder.rds"))
-# sf_fall <- readRDS(here("sdmtmb", "data", "sumflounder_fall.rds"))
 sf_spring <- readRDS(here("sdmtmb", "data", "sumflounder_spring.rds"))
-
 
 # mesh 
 spring_mesh <- readRDS(here("sdmtmb", "data", "spring_mesh.rds"))
 
-#### DATA WRANGLING ####
+## MODEL FITS ####
 
-sf_spring$scaled_depth <- (sf_spring$AVGDEPTH - mean(sf_spring$AVGDEPTH)) / sd(sf_spring$AVGDEPTH)
-sf_spring$scaled_year <- (sf_spring$EST_YEAR - mean(sf_spring$EST_YEAR)) / sd(sf_spring$EST_YEAR)
-sf_spring$scaled_area <- (sf_spring$AREA_CODE - mean(sf_spring$AREA_CODE)) / sd(sf_spring$AREA_CODE)
-
-
-#### MODEL FITS ####
-
-##### No random effect models ####
-###### M1 ####
+### No random effect models ####
+#### M1 ####
 #logistic regression of summer flounder biomass in tows as a function of depth without spatial random effects
 m1_spring <- sdmTMB(EXPCATCHWT ~ scaled_depth, 
              data = sf_spring, 
@@ -66,7 +51,7 @@ tidy(m1_spring, "ran_pars", conf.int = TRUE)
 saveRDS(m1_spring, file = here("sdmtmb", "model-outputs", "m1_spring.rds"))
 
 
-###### M2 ####
+#### M2 ####
 # 
 m2_spring <- sdmTMB(EXPCATCHWT ~ s(scaled_depth) + as.factor(scaled_year) - 1, 
              data = sf_spring, 
@@ -87,9 +72,9 @@ tidy(m2_spring, "ran_pars", conf.int = TRUE)
 ### save the data 
 saveRDS(m2_spring, file = here("sdmtmb", "model-outputs", "m2_spring.rds"))
 
-##### Spatial Only Models ####
+### Spatial Only Models ####
 
-###### M3 ####
+#### M3 ####
 # logistic regression of summer flounder biomass in tows as a function of depth with spatial random effects
 m3_spring <- sdmTMB(EXPCATCHWT ~ scaled_depth, #revisit =  NA/NaN function evaluation, but converges
              data = sf_spring, 
@@ -110,7 +95,7 @@ tidy(m3_spring, "ran_pars", conf.int = TRUE)
 ### save the data
 saveRDS(m3_spring, file = here("sdmtmb", "model-outputs", "m3_spring.rds"))
 
-###### M4 ####
+#### M4 ####
 # logistic regression of summer flounder biomass in tows as a function of depth with spatial random effects and index standardization to estimate a separate intercept for each year
 m4_spring <- sdmTMB(EXPCATCHWT ~ s(scaled_depth) + as.factor(scaled_year) - 1, 
              data = sf_spring, 
@@ -131,8 +116,8 @@ tidy(m4_spring, "ran_pars", conf.int = TRUE)
 ### save the data
 saveRDS(m4_spring, file = here("sdmtmb", "model-outputs", "m4_spring.rds"))
 
-##### Spatiotemporal Only Model ####
-###### M5 ####
+### Spatiotemporal Only Model ####
+#### M5 ####
 # tested a model fit with only spatiotemporal random fields to test dynamics of summer flounder. Coupled with similar spatial SDs; confirms that both spatial and spatiotemporal random fields are needed and summer flounder does not change significantly from year to year. 
 m5_spring <- sdmTMB(EXPCATCHWT ~ s(scaled_depth) + as.factor(scaled_year)-1,
                     data = sf_spring,
@@ -155,8 +140,8 @@ tidy(m5_spring, "ran_pars", conf.int = TRUE)
 ### save the data
 saveRDS(m5_spring, file = here("sdmtmb", "model-outputs", "m5_spring.rds"))
 
-##### IID Models ####
-###### M6 ####
+### IID Models ####
+#### M6 ####
 # logistic regression of summer flounder biomass in tows as a function of depth with spatial random effects and spatiotemporal random fields estimated according to year. Independent correlation, so each year is independent of each other 
 m6_spring <- sdmTMB(EXPCATCHWT ~ scaled_depth, # revisit = NA/NaN function, but converges
              data = sf_spring,
@@ -179,7 +164,7 @@ tidy(m6_spring, "ran_pars", conf.int = TRUE)
 ### save the data 
 saveRDS(m6_spring, file = here("sdmtmb", "model-outputs", "m6_spring.rds"))
 
-###### M7 ####
+#### M7 ####
 #logistic regression of summer flounder biomass in tows as a function of depth with spatial random effects and spatiotemporal random fields estimated by year and with a separate intercept for each.  
 m7_spring <- sdmTMB(EXPCATCHWT ~ s(scaled_depth) + as.factor(scaled_year)-1, #estimate separate intercepts by year; point est and uncertainty fed into SAs
              data = sf_spring,
@@ -210,7 +195,7 @@ kable(m7_spr_est, align = "lcccc", caption = "M7 spring model estimates", format
 
 #if spatiotemporal Sd is 10x spatial SD then indicates species is more dynamic (and shifting around a lot in space) and may not need spatial random fields
 
-###### M8 ####
+#### M8 ####
 # 
 m8_spring <- sdmTMB(EXPCATCHWT ~ s(scaled_depth) + as.factor(scaled_year)+ as.factor(scaled_area),#-1,
                   data = sf_spring,
@@ -248,8 +233,8 @@ tidy(m8_spring, "ran_pars", conf.int = TRUE)
 saveRDS(m8_spring, file = here("sdmtmb", "model-outputs", "m8_spring.rds"))
 saveRDS(m8_spring2, file = here("sdmtmb", "model-outputs", "m8_spring2.rds"))
 
-##### AR1 Models ####
-###### M9 ####
+### AR1 Models ####
+#### M9 ####
 # 
 m9_spring <- sdmTMB(EXPCATCHWT ~ scaled_depth,
                   data = sf_spring,
@@ -272,7 +257,7 @@ tidy(m9_spring, "ran_pars", conf.int = TRUE)
 ### save the data 
 saveRDS(m9_spring, file = here("sdmtmb", "model-outputs", "m9_spring.rds"))
 
-###### M10 ####
+#### M10 ####
 # 
 m10_spring <- sdmTMB(EXPCATCHWT ~ s(scaled_depth) + as.factor(scaled_year)-1,
                    data = sf_spring,
@@ -295,7 +280,7 @@ tidy(m10_spring, "ran_pars", conf.int = TRUE)
 ### save the data 
 saveRDS(m10_spring, file = here("sdmtmb", "model-outputs", "m10_spring.rds"))
 
-###### M11 ####
+#### M11 ####
 # 
 # m11_spring <- sdmTMB(EXPCATCHWT ~ s(scaled_depth) + as.factor(scaled_year) + as.factor(scaled_area), #-1,
 #                    data = sf_spring,
@@ -344,8 +329,8 @@ tidy(m11_spring, "ran_pars", conf.int = TRUE)
 saveRDS(m11_spring, file = here("sdmtmb", "model-outputs", "m11_spring.rds"))
 saveRDS(m11_spring2, file = here("sdmtmb", "model-outputs", "m11_spring2.rds"))
 
-##### RW Models ####
-###### M12 ####
+### RW Models ####
+#### M12 ####
 # 
 m12_spring <- sdmTMB(EXPCATCHWT ~ scaled_depth,
                    data = sf_spring,
@@ -371,7 +356,7 @@ tidy(m12_spring, "ran_pars", conf.int = TRUE)
 ### save the data 
 saveRDS(m12_spring, file = here("sdmtmb", "model-outputs", "m12_spring.rds"))
 
-###### M13 ####
+#### M13 ####
 # 
 m13_spring <- sdmTMB(EXPCATCHWT ~ s(scaled_depth) + as.factor(scaled_year)-1,
                    data = sf_spring,
@@ -395,7 +380,7 @@ tidy(m13_spring, "ran_pars", conf.int = TRUE)
 saveRDS(m13_spring, file = here("sdmtmb", "model-outputs", "m13_spring.rds"))
 
 
-###### M14 ####
+#### M14 ####
 # 
 m14_spring <- sdmTMB(EXPCATCHWT ~ s(scaled_depth) + as.factor(scaled_year) + as.factor(scaled_area),#-1,
                    data = sf_spring,
@@ -433,7 +418,7 @@ tidy(m14_spring, "ran_pars", conf.int = TRUE)
 saveRDS(m14_spring, file = here("sdmtmb", "model-outputs", "m14_spring.rds"))
 saveRDS(m14_spring2, file = here("sdmtmb", "model-outputs", "m14_spring.rds"))
 
-#### AIC ####
+## AIC ####
 mods <- str_c("m",seq(1:14)) |>
   map(~list(.)) |>
   map(~readRDS(here(sdmtmb.dir, "model-outputs", str_c(., "_spring.rds"))))
@@ -477,7 +462,7 @@ kable(spr.aic, align = "lcccc", caption = "Model AIC Values", format.args = list
 map(mods, ~logLik(.))
 
 
-#### CONFIGURATIONS TABLE #####
+## CONFIGURATIONS TABLE #####
 spr.mods.config <- data.frame("Models" = c("m1", "m2", "m3", "m4", "m5", "m6", "m7"),
                           "Formula" = c("EXPCATCHWT ~ AVGDEPTH", "EXPCATCHWT ~ s(AVGDEPTH) + as.factor(EST_YEAR) - 1", "EXPCATCHWT ~ AVGDEPTH",
                                         "EXPCATCHWT ~ s(AVGDEPTH) + as.factor(EST_YEAR) - 1", "EXPCATCHWT ~ AVGDEPTH", 
@@ -495,7 +480,7 @@ kable(spr.mods.config, align = "lcccc", caption = "Spring Model Configurations",
   kable_styling(full_width = F, fixed_thead = T, font_size = 14) #%>%
   #row_spec(7, color = "red") 
 
-#### DEPTH RELATIONSHIP TABLE #####
+## DEPTH RELATIONSHIP TABLE #####
 spr.dep.rel <- data.frame("Models" = c("m1", "m2", "m3", "m4", "m5", "m6", "m7"),
                       "depth_rel" = c(m1_spring$model$par[2], m2_spring$model$par[14], m3_spring$model$par[2], m4_spring$model$par[14],
                                       m5_spring$model$par[2], m6_spring$model$par[14], m7_spring$model$par[14])) 
