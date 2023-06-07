@@ -24,10 +24,11 @@ library(rnaturalearth)
 library(rnaturalearthdata)
 suppressPackageStartupMessages(library(tidyverse))
 theme_set(theme_bw())
-#source()
+
 
 sdmtmb.dir <- "../sseep-analysis/sdmtmb"
 sseep.dir <- "../sseep-analysis"
+source(here(sdmtmb.dir, "plot_fns.R"))
 
 #### LOAD DATA ####
 # read in predictions created here("mod-forecasts.R")
