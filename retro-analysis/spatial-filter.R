@@ -46,11 +46,13 @@ saveRDS(total_bio, here("data", "rds", "total_biomass.rds"))
 #          prop = csum_bio/max(csum_bio))
 
 #####
-# filter 95% of the distribution 
-csum_dist95 <- total_bio %>% 
+csum_dist <- total_bio %>% 
   group_by(SVSPP, COMNAME, SEASON) %>% 
   mutate(csum_bio = cumsum(EXPCATCHWT), # calculate the cumulative sum of biomass
-         prop = round(csum_bio/max(csum_bio), 2)) %>% # divide each value of cumulative sum by the maximum sum for each COMNAME and SEASON combination to find the proportion each sum makes up of the total distribution of sums
+         prop = round(csum_bio/max(csum_bio), 2)) # divide each value of cumulative sum by the maximum sum for each COMNAME and SEASON combination to find the proportion each sum makes up of the total distribution of sums
+
+# filter 95% of the distribution 
+csum_dist95 <- csum_dist |>
   filter(prop <= 0.95) # filter the data where the proportion is less than or equal to 95% of the total distribution of biomass for each COMNAME and SEASON group to identify which strata make up the majority of the biomass.
   
 
@@ -58,10 +60,7 @@ csum_dist95 <- total_bio %>%
 #saveRDS(csum_dist95, here("data", "rds", "cumul-dist-biomass95.rds"))
 
 # filter 99% of the distribution
-csum_dist99 <- total_bio %>% 
-  group_by(SVSPP, COMNAME, SEASON) %>% 
-  mutate(csum_bio = cumsum(EXPCATCHWT), # calculate the cumulative sum of biomass
-         prop = round(csum_bio/max(csum_bio), 2)) %>% # divide each value of cumulative sum by the maximum sum for each COMNAME and SEASON combination to find the proportion each sum makes up of the total distribution of sums
+csum_dist99 <- csum_dist |> 
   filter(prop <= 0.99) # filter the data where the proportion is less than or equal to 99% of the total distribution of biomass for each COMNAME and SEASON group to identify which strata make up the majority of the biomass.
 
 ### save data 
