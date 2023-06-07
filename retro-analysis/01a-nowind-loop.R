@@ -35,7 +35,7 @@ species <- data %>%
 saveRDS(species, here("data", "rds", "95filtered-species.rds"))
 
 # load and manipulate the bottom trawl survey strata shapefile
-strata <- sf::st_read(dsn = here("gis", "temp", "BTS_Strata", "BTS_Strata.shp")) %>% #read in data
+strata <- sf::st_read(dsn = here("gis", "NEFSC_BTS_AllStrata_Jun2022.shp")) %>% #read in data
   dplyr::select(Strata_Num, Area_SqNm) %>% # select variables to be used in calculations below
   sf::st_set_geometry(NULL) %>% # remove the coordinates; changes the sf to a df
   unique() %>% # identify unique stratum only 

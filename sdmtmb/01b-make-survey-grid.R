@@ -83,8 +83,10 @@ selected_grid|>
   ggplot(aes(X, Y)) + geom_tile(width = grid_spacing, height = grid_spacing, colour = "grey40", fill = "white")
 
 ggplot() +
+  #geom_sf(data = coastline) + 
   geom_sf(data = strata_utm) +
-  geom_sf(data = selected_grid, fill = NA)
+  geom_sf(data = selected_grid, fill = NA) + 
+  labs(y = "Latitude", x = "Longitude")
 
 ## ADD STRATA ####
 # join the grid cells with the strata in order to obtain a stratum for each cell 
