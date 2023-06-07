@@ -35,7 +35,7 @@ specieslookup <- data %>%
 #### CALCULATE MEAN SQUARED DIFFERENCES #####  
 mudiff_dat <- data %>% 
   mutate(stratmu = ifelse(stratmu==0, 1, stratmu)) |>
-  #filter(EST_YEAR %in% c(2016:2019, 2021)) %>% #filter for recent 5 years, skipping 2020
+  filter(EST_YEAR %in% c(2016:2019, 2021)) %>% #filter for recent 5 years, skipping 2020
   mutate(log_mu = log(stratmu)) |>
   arrange(desc(log_mu)) |>
   group_by(SVSPP, EST_YEAR, SEASON) %>% #, GEO_AREA) %>%
@@ -86,8 +86,25 @@ saveRDS(mudiff_dat, file = here("data", "rds", "species_mean-sq-diff.rds"))
 
 
 #### PLOT THE DISTRIBUTION #####
-mudiff_dat %>%
-  ggplot() + aes(mudiff) + geom_histogram(bins = 10)
+
+sf_mudiff <- mudiff_dat |>
+  filter(SVSPP == 103) |> 
+  mutate(count = 1, 
+         across(mudiff, round, 3))
+
+mudiff_dat <- mudiff_dat %>%
+  mutate(across(mudiff, round, 3))
+
+ggplot() +  
+  geom_histogram(data = mudiff_dat, breaks = seq(0, 0.525, 0.025), aes(mudiff, after_stat(count)), color = "white", fill = "#5dc5e9") +
+  #scale_x_continuous(breaks = seq(0, 0.525, 0.025)) + 
+  #geom_point(data = sf_mudiff, aes(x = mudiff, y = count), color = "#0a4c8a", size = 2.5, shape = 7) +
+  #geom_text(data = sf_mudiff, aes(x = mudiff, y = count, label = mudiff), vjust = -2.5, color = "#0a4c8a", angle= 45, nudge_x = 0.045, size = 4) +
+  facet_wrap(~SEASON) +
+  labs(x = "Mean differences", y = "Count") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90))
+
 
 ### save the plot
 ggsave(filename ="species_mean-sq-diff.png", device = "png" , path = here("outputs", "plots"), width = 5, height = 5)

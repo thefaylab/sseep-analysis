@@ -153,9 +153,10 @@ slope_plot <- ggplot(slopes) +
   coord_flip() +
   facet_wrap(~SEASON) +
   #theme_minimal() +
-  labs(y = "Slope",
+  labs(y = "Linear regression slope of abundance index",
        x = "Number of years precluded") +
   #facet_grid(cols = vars(METHOD), rows = vars(SEASON)) + 
+  theme_bw() +
   theme(legend.position="bottom",
         #legend.title = element_blank(), 
         #axis.text.x = element_text(angle = 15, vjust = 0.5), 
@@ -163,6 +164,4 @@ slope_plot <- ggplot(slopes) +
         axis.title.y = element_text(margin = unit(c(0, 3, 0, 0), "mm")))
 
 ### save plot
-ggsave(slope_plot, plot = last_plot(), device = "png", path = here())
-
-       
+ggsave("slope_plot.jpeg", plot = last_plot(), device = "jpeg", path = here("outputs"), width = 12, height = 6)
