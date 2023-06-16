@@ -59,6 +59,16 @@ east_coast <- st_read(here(sseep.dir, "gis", "eastern_coast_UTM.shp"))
 #   labs(fill = "Predicted\ndensity") +
 #   labs(x = "Longitude", y = "Latitude")
 
+ggplot(east_coast) + 
+  geom_sf() +
+  geom_raster(data = fall_preds, aes(x = X * 1000, y = Y * 1000, fill = exp(est))) +
+  #xlim(230957.7, 1157991 - 300000) +
+  #ylim(5366427, 6353456 - 200000) +
+  scale_fill_viridis_c() +
+  theme_light() +
+  labs(fill = "Predicted\ndensity") +
+  labs(x = "Longitude", y = "Latitude")
+
 
 # main effects only
 plot_map(sf = east_coast, dat = fall_preds |> filter(EST_YEAR %in% c(2018:2021)), column = exp(est_non_rf))
