@@ -319,6 +319,124 @@ write_csv(jac_spring, file = "jac_spring.csv")
 
 ### full data ###
 
+#JACCARD SIMILARITY INDEX - SPRING
+
+#Data wrangling
+st.df.spring <- subset (st.df.spring, select = -code)
+#Create a jaccard index storage data frame
+jac_spring <- data.frame(matrix(nrow=16,ncol=16)) 
+colnames(jac_spring) <- c("bsb", "ytf", "winf", "atlm", "spdog", "bfish", "atlh", 
+                          "silhk", "lfsq", "barsk", "winsk", "clesk", "rossk", "litsk", "sumf", "scup")
+rownames(jac_spring) <- c("bsb", "ytf", "winf", "atlm", "spdog", "bfish", "atlh", 
+                          "silhk", "lfsq", "barsk", "winsk", "clesk", "rossk", "litsk", "sumf", "scup")
+
+jac_spring
+#jaccard index of bsb against all the 15 spp
+for (i in 1:ncol(st.df.spring)){
+  jac_spring[i,1]<-jaccard(st.df.spring[,1],st.df.spring[,i]) 
+  print(jac_spring[i,1])
+}
+
+#jaccard index of ytf against all the 15 spp
+for (i in 1:ncol(st.df.spring)){
+  jac_spring[i,2]<-jaccard(st.df.spring[,2],st.df.spring[,i]) 
+  print(jac_spring[i,2])
+}
+
+#jaccard index of winf against all the 15 spp
+for (i in 1:ncol(st.df.spring)){
+  jac_spring[i,3]<-jaccard(st.df.spring[,3],st.df.spring[,i]) 
+  print(jac_spring[i,3])
+}
+
+#jaccard index of atlm against all the 15 spp
+for (i in 1:ncol(st.df.spring)){
+  jac_spring[i,4]<-jaccard(st.df.spring[,4],st.df.spring[,i]) 
+  print(jac_spring[i,4])
+}
+
+#jaccard index of spdog against all the 15 spp
+for (i in 1:ncol(st.df.spring)){
+  jac_spring[i,5]<-jaccard(st.df.spring[,5],st.df.spring[,i]) 
+  print(jac_spring[i,5])
+}
+
+#jaccard index of bfish against all the 15 spp
+for (i in 1:ncol(st.df.spring)){
+  jac_spring[i,6]<-jaccard(st.df.spring[,6],st.df.spring[,i]) 
+  print(jac_spring[i,6])
+}
+
+#jaccard index of atlh against all the 15 spp
+for (i in 1:ncol(st.df.spring)){
+  jac_spring[i,7]<-jaccard(st.df.spring[,7],st.df.spring[,i]) 
+  print(jac_spring[i,7])
+}
+
+#jaccard index of silhk against all the 15 spp
+for (i in 1:ncol(st.df.spring)){
+  jac_spring[i,8]<-jaccard(st.df.spring[,8],st.df.spring[,i]) 
+  print(jac_spring[i,8])
+}
+
+#jaccard index of lfsq against all the 15 spp
+for (i in 1:ncol(st.df.spring)){
+  jac_spring[i,9]<-jaccard(st.df.spring[,9],st.df.spring[,i]) 
+  print(jac_spring[i,9])
+}
+
+#jaccard index of barsk against all the 15 spp
+for (i in 1:ncol(st.df.spring)){
+  jac_spring[i,10]<-jaccard(st.df.spring[,10],st.df.spring[,i]) 
+  print(jac_spring[i,10])
+}
+
+#jaccard index of winsk against all the 15 spp
+for (i in 1:ncol(st.df.spring)){
+  jac_spring[i,11]<-jaccard(st.df.spring[,11],st.df.spring[,i]) 
+  print(jac_spring[i,11])
+}
+
+#jaccard index of clesk against all the 15 spp
+for (i in 1:ncol(st.df.spring)){
+  jac_spring[i,12]<-jaccard(st.df.spring[,12],st.df.spring[,i]) 
+  print(jac_spring[i,12])
+}
+
+#jaccard index of rossk against all the 15 spp
+for (i in 1:ncol(st.df.spring)){
+  jac_spring[i,13]<-jaccard(st.df.spring[,13],st.df.spring[,i]) 
+  print(jac_spring[i,13])
+}
+
+#jaccard index of litsk against all the 15 spp
+for (i in 1:ncol(st.df.spring)){
+  jac_spring[i,14]<-jaccard(st.df.spring[,14],st.df.spring[,i]) 
+  print(jac_spring[i,14])
+}
+
+#jaccard index of sumf against all the 15 spp
+for (i in 1:ncol(st.df.spring)){
+  jac_spring[i,15]<-jaccard(st.df.spring[,15],st.df.spring[,i]) 
+  print(jac_spring[i,15])
+}
+
+#jaccard index of scup against all the 15 spp
+for (i in 1:ncol(st.df.spring)){
+  jac_spring[i,16]<-jaccard(st.df.spring[,16],st.df.spring[,i]) 
+  print(jac_spring[i,16])
+}
+
+jac_spring
+
+
+write_csv(jac_fall, file = "jac_fall.csv")
+write_csv(jac_spring, file = "jac_spring.csv")
+
+
+
+### full data ###
+
 st.df <- data %>% 
   select(code) %>% 
   unique()
@@ -335,127 +453,140 @@ for (i in sp.names){
 }
 
 #Filtering for sp of interes
-species <- c(141, 105, 106, 121,15,131,32,72,503,22,23,24,25,26, 103, 143) 
+species <- c(141, 105, 106, 121,15,131,32,72,503,22,23,24,25,26,27,28, 103, 143) 
 sp.names <- c("BLACK SEA BASS", "YELLOWTAIL FLOUNDER", "WINTER FLOUNDER", "ATLANTIC MACKEREL", "SPINY DOGFISH",
               "BUTTERFISH", "ATLANTIC HERRING", "SILVER HAKE", "LONGFIN SQUID", "BARNDOOR SKATE", "WINTER SKATE",
-              "CLEARNOSE SKATE", "ROSETTE SKATE", "LITTLE SKATE", "SUMMER FLOUNDER", "SCUP")
+              "CLEARNOSE SKATE", "ROSETTE SKATE", "LITTLE SKATE",  "SMOOTH SKATE", "THORNY SKATE","SUMMER FLOUNDER", "SCUP")
 
 
 
 #Data wrangling
 st.df <- subset (st.df, select = -code)
 #Create a jaccard index storage data frame
-jac <- data.frame(matrix(nrow=16,ncol=16)) 
+jac <- data.frame(matrix(nrow=18,ncol=18)) 
 colnames(jac) <- c("bsb", "ytf", "winf", "atlm", "spdog", "bfish", "atlh", 
-                        "silhk", "lfsq", "barsk", "winsk", "clesk", "rossk", "litsk", "sumf", "scup")
+                   "silhk", "lfsq", "barsk", "winsk", "clesk", "rossk", "litsk","smosk", "thosk","sumf", "scup")
 rownames(jac) <- c("bsb", "ytf", "winf", "atlm", "spdog", "bfish", "atlh", 
-                        "silhk", "lfsq", "barsk", "winsk", "clesk", "rossk", "litsk", "sumf", "scup")
+                   "silhk", "lfsq", "barsk", "winsk", "clesk", "rossk", "litsk","smosk", "thosk","sumf", "scup")
 
 
-#jaccard index of bsb against all the 15 spp
+#jaccard index of bsb against all the 17 spp
 for (i in 1:ncol(st.df)){
   jac[i,1]<-jaccard(st.df[,1],st.df[,i]) 
   print(jac[i,1])
 }
 
-#jaccard index of ytf against all the 15 spp
+#jaccard index of ytf against all the 17 spp
 for (i in 1:ncol(st.df)){
   jac[i,2]<-jaccard(st.df[,2],st.df[,i]) 
   print(jac[i,2])
 }
 
 
-#jaccard index of winf against all the 15 spp
+#jaccard index of winf against all the 17 spp
 for (i in 1:ncol(st.df)){
   jac[i,3]<-jaccard(st.df[,3],st.df[,i]) 
   print(jac[i,3])
 }
 
-#jaccard index of atlf against all the 15 spp
+#jaccard index of atlf against all the 17 spp
 for (i in 1:ncol(st.df)){
   jac[i,4]<-jaccard(st.df[,4],st.df[,i]) 
   print(jac[i,4])
 }
 
-#jaccard index of spdog against all the 15 spp
+#jaccard index of spdog against all the 17 spp
 for (i in 1:ncol(st.df)){
   jac[i,5]<-jaccard(st.df[,5],st.df[,i]) 
   print(jac[i,5])
 }
 
-#jaccard index of bfish against all the 15 spp
+#jaccard index of bfish against all the 17 spp
 for (i in 1:ncol(st.df)){
   jac[i,6]<-jaccard(st.df[,6],st.df[,i]) 
   print(jac[i,6])
 }
 
 
-#jaccard index of atlh against all the 15 spp
+#jaccard index of atlh against all the 17 spp
 for (i in 1:ncol(st.df)){
   jac[i,7]<-jaccard(st.df[,7],st.df[,i]) 
   print(jac[i,7])
 }
 
 
-#jaccard index of silh against all the 15 spp
+#jaccard index of silh against all the 17 spp
 for (i in 1:ncol(st.df)){
   jac[i,8]<-jaccard(st.df[,8],st.df[,i]) 
   print(jac[i,8])
 }
 
 
-#jaccard index of lfsq against all the 15 spp
+#jaccard index of lfsq against all the 17 spp
 for (i in 1:ncol(st.df)){
   jac[i,9]<-jaccard(st.df[,9],st.df[,i]) 
   print(jac[i,9])
 }
 
 
-#jaccard index of barsk against all the 15 spp
+#jaccard index of barsk against all the 17 spp
 for (i in 1:ncol(st.df)){
   jac[i,10]<-jaccard(st.df[,10],st.df[,i]) 
   print(jac[i,10])
 }
 
 
-#jaccard index of winsk against all the 15 spp
+#jaccard index of winsk against all the 17 spp
 for (i in 1:ncol(st.df)){
   jac[i,11]<-jaccard(st.df[,11],st.df[,i]) 
   print(jac[i,11])
 }
 
 
-#jaccard index of clesk against all the 15 spp
+#jaccard index of clesk against all the 17 spp
 for (i in 1:ncol(st.df)){
   jac[i,12]<-jaccard(st.df[,12],st.df[,i]) 
   print(jac[i,12])
 }
 
-#jaccard index of rossk against all the 15 spp
+#jaccard index of rossk against all the 17 spp
 for (i in 1:ncol(st.df)){
   jac[i,13]<-jaccard(st.df[,13],st.df[,i]) 
   print(jac[i,13])
 }
 
 
-#jaccard index of litsk against all the 15 spp
+#jaccard index of litsk against all the 17 spp
 for (i in 1:ncol(st.df)){
   jac[i,14]<-jaccard(st.df[,14],st.df[,i]) 
   print(jac[i,14])
 }
 
 
-#jaccard index of sumf against all the 15 spp
+#jaccard index of smooth skate against all the 17 spp
 for (i in 1:ncol(st.df)){
   jac[i,15]<-jaccard(st.df[,15],st.df[,i]) 
   print(jac[i,15])
 }
 
-#jaccard index of scup against all the 15 spp
+#jaccard index of thorny skate against all the 17 spp
 for (i in 1:ncol(st.df)){
   jac[i,16]<-jaccard(st.df[,16],st.df[,i]) 
   print(jac[i,16])
 }
 
+#jaccard index of sumf against all the 17 spp
+for (i in 1:ncol(st.df)){
+  jac[i,17]<-jaccard(st.df[,17],st.df[,i]) 
+  print(jac[i,17])
+}
+
+#jaccard index of scup against all the 17 spp
+for (i in 1:ncol(st.df)){
+  jac[i,18]<-jaccard(st.df[,18],st.df[,i]) 
+  print(jac[i,18])
+}
 
 jac
+write_csv(jac, file = "jac_complete.csv")
+
