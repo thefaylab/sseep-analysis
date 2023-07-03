@@ -20,7 +20,8 @@ suppressPackageStartupMessages(library(tidyverse))
 
 ## LOAD DATA ####
 # all bottom trawl survey strata 
-strata <- sf::st_read(dsn = here("gis", "NEFSC_BTS_AllStrata_Jun2022.shp"))
+strata <- sf::st_read(dsn = here("gis", "NEFSC_BTS_AllStrata_Jun2022.shp")) |>
+  dplyr::rename(STRATUM = "Strata_Num")
 
 # completed tow data created from here("tidy-data", "02-complete-datasets.R")
 merged_data <- readRDS(here("data", "rds", "merged_data_complete.rds"))
@@ -30,11 +31,12 @@ merged_data <- readRDS(here("data", "rds", "merged_data_complete.rds"))
 tow_strata <- unique(merged_data$STRATUM)
 
 # filter strata shapefile by unique strata values 
-current <- strata |> filter(Strata_Num %in% tow_strata)
+current <- strata |> 
+  filter(STRATUM %in% tow_strata) 
 current_tbl <- as_tibble(current)
 
 # verify unique strata sampled includes all current strata from the strata shapefile 
-anti <- as_tibble(strata) |> anti_join(current, by = "Strata_Num") # 177 - 82
+anti <- as_tibble(strata) |> anti_join(current, by = "STRATUM") # 177 - 82
 
 # save current strata
 write.csv(current_tbl, here("data", "clean-data", "current_strata.csv"))
