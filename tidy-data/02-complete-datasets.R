@@ -13,10 +13,10 @@ library(stringr)
 here()
 
 ### Load Data ###
-wind <- read_csv(here("data", "clean-data", "tidy-wind.csv"))
-bts <- read_csv(here("data", "clean-data", "tidy-bts.csv"))
-outside <- read_csv(here("data", "clean-data", "tidy-outside.csv"))
-species <- read_csv(here("data", "clean-data", "species-v2.csv"))
+wind <- readRDS(here("data", "rds", "tidy-wind.rds"))
+bts <- readRDS(here("data", "rds", "tidy-bts.rds"))
+outside <- readRDS(here("data", "rds", "tidy-outside.rds"))
+#species <- read_csv(here("data", "clean-data", "species-v2.csv"))
 
 ## Create Unique Codes #####
 
@@ -76,7 +76,8 @@ wind_coords <- wind %>% select(DECDEG_BEGLON, DECDEG_BEGLAT, ID) %>% unique()
 merged_data <- bind_rows(outside, wind)
 
 # Write binded data to CSV
-write_csv(merged_data, here("data", "clean-data", "mergedpresence.csv"))
+write_csv(merged_data, here("data", "clean-data", "merged_present-only.csv"))
+saveRDS(merged_data, here("data", "rds", "merged_present-only.rds"))
 
 # Complete data by using every possible combination of ID and SVSPP 
 merged_data <- merged_data %>% 
@@ -156,4 +157,5 @@ merged_data$DAYTIME <- paste(ifelse(merged_data$HOUR <= 5 | merged_data$HOUR >= 
 # })
 
 write.csv(merged_data, here("data", "clean-data", "merged_data_clean.csv"))
+saveRDS(merged_data, here("data", "rds", "merged_data_complete.rds"))
 
