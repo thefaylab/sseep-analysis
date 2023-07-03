@@ -81,3 +81,5 @@ ggplot() +
 ### save the data 
 st_write(wind_areas1, here("gis", "wind_areas_merge2023.shp"))
 st_write(wind_areas2, here("gis", "all_wind_areas_2023.shp"))
+saveRDS(wind_areas1, here("data", "rds", "merged_wind_areas_Jan2023.rds"))
+saveRDS(wind_areas2, here("data", "rds", "all_wind_areas_Jan2023.rds"))
