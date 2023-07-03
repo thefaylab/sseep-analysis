@@ -55,7 +55,7 @@ ne_leases <- leases |>
   st_make_valid()
 
 # create a single polygon that encompasses all individual lease areas
-ne_lease_union <- st_union(ne_leases)
+ne_leases_union <- st_union(ne_leases)
 
 # plot it 
 ggplot(ne_leases_union) + geom_sf()
@@ -65,7 +65,7 @@ st_write(ne_leases, here("gis", "ne_wind_leases2023.shp"))
 
 #### MERGE WIND AREAS 
 # combine unioned planning and lease areas to create one full wind area reference object
-wind_areas1 <- append(ne_lease_union, ne_plan_union) |>
+wind_areas1 <- append(ne_leases_union, ne_plan_union) |>
   st_as_sf()
 
 # bind planning and lease areas to have in one dataframe 
