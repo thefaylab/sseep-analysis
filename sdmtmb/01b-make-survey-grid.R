@@ -26,11 +26,13 @@ sdmtmb.dir <- "../sseep-analysis/sdmtmb"
 sseep.dir <- "../sseep-analysis"
 
 ### LOAD DATA ####
-strata <- sf::st_read(here("gis", "NEFSC_BTS_AllStrata_Jun2022.shp")) %>%
-  rename(STRATUM = "Strata_Num")
+strata <- readRDS(here("data", "rds", "current_strata.rds"))
 
 # read in wind areas where they are one large polygon
-wind_areas <- sf::st_read(here(sseep.dir, "gis", "wind_areas_merge2023.shp")) 
+wind_areas <- readRDS(here("data", "rds", "merged_wind_areas_Jan2023.rds"))
+
+# read in east coastline
+east_coast <- sf::st_read(here("gis", "eastern_coast_UTM.shp"))
 
 ### DATA WRANGLE ####
 # IMPORTANT STEP: turn into UTMs first
@@ -44,11 +46,11 @@ sf::st_crs(wind_utm)
 # plot 
 ggplot() +
   geom_sf(data = strata_utm) + 
-  geom_sf(data = wind_utm)
+  geom_sf(data = wind_utm, fill = "lightblue", alpha = 0.5)
 
 ## MAKE FULL GRID ####
 # choose a grid size in units of our polygon shape file
-grid_spacing <- 10000 
+grid_spacing <- 10000 #m
 
 # create grid over the bounding box of the polygon
 full_grid <- sf::st_make_grid(
@@ -73,7 +75,7 @@ full_grid|>
 intersected <- sf::st_intersects(full_grid, strata_utm)
 selected_grid <- full_grid[lengths(intersected) > 0, ]
 
-nrow(selected_grid) #4064
+nrow(selected_grid) #2994
 
 # plot it
 selected_grid|>
@@ -89,7 +91,7 @@ ggplot() +
   labs(y = "Latitude", x = "Longitude")
 
 ## ADD STRATA ####
-# join the grid cells with the strata in order to obtain a stratum for each cell 
+# find the intersection of each cell based on the largest overlap within a given stratum and attach that stratum data to the cell  
 join_strat <- sf::st_join(selected_grid, strata_utm, largest = TRUE) |>
   mutate(cell = seq(1:length(geometry)))
 
@@ -98,11 +100,13 @@ ggplot() +
   geom_sf(data = join_strat, fill = NA)
 
 ## CREATE WIND ID ####
+# combine multipolygons for faster intersect calculation
 wind_utm_union <- sf::st_union(wind_utm)
 
+# find the intersection of each cell based on its intersection within a given wind polygon; if intersects, value > 0
 join_strat$AREA_CODE <- st_intersects(join_strat, wind_utm_union) |>
   as.integer() |>
-  dplyr::coalesce(2L) 
+  dplyr::coalesce(2L) # find NAs within column and replace with the number 2 to represent the "outside wind area" ID
 
 
 ## EXTRACT BATHYMETRIC DATA ####
@@ -121,7 +125,7 @@ bathy_grid <- marmap::as.xyz(bts) |>
 st_crs(bathy_grid) <- st_crs(strata)
 
 # transform the lat/long values to utm values 
-bathy_grid <- st_transform(bathy_grid, crs = 32618)
+bathy_grid <- sf::st_transform(bathy_grid, crs = 32618)
 
 # spatial join the grid with the depth points to find all the depth points in a given cell
 bathy_intersect <- sf::st_join(join_strat, bathy_grid, left = FALSE) |> # inner spatial join
@@ -131,11 +135,11 @@ bathy_intersect <- sf::st_join(join_strat, bathy_grid, left = FALSE) |> # inner 
 # plot it 
 ggplot() + 
   geom_sf(data = strata_utm) + 
-  geom_sf(data = bathy_intersect)
+  geom_sf(data = bathy_intersect, aes(fill = AVGDEPTH))
 
 
 ## REMOVE LAND CELLS IN THE GRID #### 
-# identify cells that intersect with the east coastline
+# identify cells that are completely within the east coastline; if intersects, values > 0
 land_cells <- st_within(bathy_intersect, east_coast)
 
 # remove the land cells
@@ -172,16 +176,17 @@ ggplot() +
 ## FINAL MERGE ####
 # create dataframe of cells and keep important data columns
 join_strat_df <- join_strat |>
-  st_set_geometry(NULL) |>
+  sf::st_set_geometry(NULL) |>
   dplyr::select(STRATUM, cell, AREA_CODE)
 
-# join merge data frames to combine all final columns, add AREA_CODE for metadata
+# join merge data frames to combine all final columns 
 survey_grid <- grid_coords |>
   left_join(join_strat_df, by = "cell") |> 
-  mutate(AREA = case_when(
+  mutate(AREA = case_when(                 # add AREA_CODE for metadata
     AREA_CODE == 1 ~ "WIND", 
     AREA_CODE == 2 ~ "OUTSIDE"), 
-         AVGDEPTH = AVGDEPTH * (-1))
+    AVGDEPTH = AVGDEPTH * (-1)) |> #multiply depths by -1 to match depth values used in BTS data
+  as.data.frame()
 
 # plot it 
 ggplot(survey_grid, aes(X, Y, fill = as.factor(AREA))) + 
