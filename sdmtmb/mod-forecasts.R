@@ -1,5 +1,5 @@
 ### created: 04/01/2023
-### last updated: 04/17/2023
+### last updated: 07/07/2023
 
 # PREDICT AND FORECAST ####
 
@@ -23,11 +23,11 @@ suppressPackageStartupMessages(library(tidyverse))
 theme_set(theme_bw())
 
 sdmtmb.dir <- "../sseep-analysis/sdmtmb"
-sseep.dir <- "../sseep-analysis"
+# sseep.dir <- "../sseep-analysis"
 
 ## LOAD DATA ####
-strata <- sf::st_read(dsn = here("gis", "NEFSC_BTS_AllStrata_Jun2022.shp")) %>% 
-  rename(STRATUM = "Strata_Num")
+# load active strata shapefile 
+strata <- readRDS(here("data", "rds", "active_strata.rds"))
 
 ### FALL DATA ####
 # read in fall data for model fitting
@@ -52,23 +52,26 @@ spring_extra_years <- c(2022:2026)
 grid <- readRDS(here(sdmtmb.dir, "data", "survey_grid.rds")) 
 
 ## DATA WRANGLE ####
+# convert the data frame to a simple feature to crop the grid to areas of historical summer flounder catch rates
 grid_sf <- grid |> 
-  st_as_sf(coords = c("X", "Y"))
-st_crs(grid_sf) <-32618
+  st_as_sf(coords = c("X", "Y")) # convert to sf using X and Y UTM coords
+st_crs(grid_sf) <-32618 # establish coordinate system as UTM 18N zone 
 
 ### FALL GRID ####
-sf_fall_strat <- right_join(strata, sf_fall, by = "STRATUM")
-fall_strat_utm <- st_transform(sf_fall_strat, crs = 32618)
-fall_strat_union <- st_union(fall_strat_utm)
-intersected <- sf::st_intersects(grid_sf, fall_strat_union)
-selected_grid <- grid_sf[lengths(intersected) > 0, ]  
+sf_fall_strat <- right_join(strata, sf_fall, by = "STRATUM") # filter strata sf based on fall catch data 
+fall_strat_utm <- st_transform(sf_fall_strat, crs = 32618) # transform coordinate system to UTM 18N
+fall_strat_union <- st_union(fall_strat_utm) # merge strata to create one polygon
+intersected <- sf::st_intersects(grid_sf, fall_strat_union) # identify cells that intersect with the fall strata polygon 
+selected_grid <- grid_sf[lengths(intersected) > 0, ] # filter the grid for only intersecting cells, where intersected has a value greater than 0. 
 
+# retrieve the coordinates from the selected grid matrix
 coords <- selected_grid |>
   st_coordinates()
-  
+
+# bind the coordinates with the selected grid 
 fall_grid <- bind_cols(coords, selected_grid) |> 
   select(-geometry) |>
-  mutate(X = X/1000,
+  mutate(X = X/1000, # convert coordinate to km to match coordinates in bts data
          Y = Y/1000, 
          SEASON = "FALL")
 
@@ -78,18 +81,20 @@ ggplot(fall_grid, aes(X, Y, fill = AVGDEPTH)) +
   coord_equal()
 
 ### SPRING GRID ####
-sf_spr_strat <- right_join(strata, sf_spring, by = "STRATUM")
-spr_strat_utm <- st_transform(sf_spr_strat, crs = 32618)
-spr_strat_union <- st_union(spr_strat_utm)
-intersected <- sf::st_intersects(grid_sf, spr_strat_union)
-selected_grid <- grid_sf[lengths(intersected) > 0, ]  
+sf_spr_strat <- right_join(strata, sf_spring, by = "STRATUM") # filter strata sf based on spring catch data 
+spr_strat_utm <- st_transform(sf_spr_strat, crs = 32618) # transform coordinate system to UTM 18N
+spr_strat_union <- st_union(spr_strat_utm) # merge strata to create one polygon
+intersected <- sf::st_intersects(grid_sf, spr_strat_union) # identify cells that intersect with the fall strata polygon 
+selected_grid <- grid_sf[lengths(intersected) > 0, ]  # filter the grid for only intersecting cells, where intersected has a value greater than 0. 
 
+# retrieve the coordinates from the selected grid matrix
 coords <- selected_grid |>
   st_coordinates()
 
+# bind the coordinates with the selected grid 
 spr_grid <- bind_cols(coords, selected_grid) |> 
   select(-geometry) |>
-  mutate(X = X/1000,
+  mutate(X = X/1000,  # convert coordinate to km to match coordinates in bts data
          Y = Y/1000, 
          SEASON = "SPRING")
 
@@ -133,7 +138,7 @@ saveRDS(spring_mod, here("sdmtmb", "mar-536-project", "data", "spring_mod.rds"))
 #spring_mod <- readRDS(here("sdmtmb", "mar-536-project", "data", "spring_mod.rds"))
 
 #### MAKE PREDICTIONS ####
-# replicate our grid across all necessary years
+# replicate our grids across all necessary years
 fall_grid <- sdmTMB::replicate_df(fall_grid, "EST_YEAR", c(2009:2026)) 
 spr_grid <- sdmTMB::replicate_df(spr_grid, "EST_YEAR", c(2009:2026)) 
 
