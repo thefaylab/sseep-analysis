@@ -1,18 +1,15 @@
 ### created: 11/11/2022
-### last updated: 02/20/2023
+### last updated: 07/07/2023
 
-#### 01a - STRATIFIED CALCULATIONS: WITH WIND AREAS INCLUDED ####
+# 01a - STRATIFIED CALCULATIONS: WITH WIND AREAS INCLUDED ####
 
-###################
-#### OBJECTIVE ####
-###################
+
+## OBJECTIVE ####
+
 # calculate stratified means for each species, strata, and year combination based on the historical time series data. The analysis contained herein calculates the stratified means for the full time series without any change to represent the base/control scenario. No tows/observations have been subtracted from this dataset 
 
-# awaiting new full raw dataset from Catherine to run in here(...); when received run and check code. Derived data from tidy-data script will be called to run in the loops. 
-####################
 
-
-#### LOAD PACKAGES ####
+## LOAD PACKAGES ####
 library(stringr)
 library(sf)
 library(patchwork)
@@ -20,7 +17,7 @@ library(here)
 suppressPackageStartupMessages(library(tidyverse))
 
 
-#### LOAD DATA ####
+## LOAD DATA ####
 # dataset created from `02-complete-dataset.R` here("tidy-data"). Contains complete observations for each species and unique tow. 
 # data <- readRDS(here("data", "rds", "merged_data_complete.rds")) %>% mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT))
 
@@ -31,15 +28,15 @@ data <- readRDS(here("data", "rds", "95filtered_complete_bts.rds"))
 species <- data %>% 
   select(SVSPP, COMNAME, SCINAME) %>%
   unique()
+
 ### save the data 
 saveRDS(species, here("data", "rds", "95filtered-species.rds"))
 
 # load and manipulate the bottom trawl survey strata shapefile
-strata <- sf::st_read(dsn = here("gis", "NEFSC_BTS_AllStrata_Jun2022.shp")) %>% #read in data
-  dplyr::select(Strata_Num, Area_SqNm) %>% # select variables to be used in calculations below
-  sf::st_set_geometry(NULL) %>% # remove the coordinates; changes the sf to a df
-  unique() %>% # identify unique stratum only 
-  rename(STRATUM = Strata_Num) %>% # rename Strat_Num to STRATUM for further analyses below
+strata <- readRDS(here("data", "rds", "active_strata.rds")) |> #read in data
+  dplyr::select(STRATUM, Area_SqNm) |> # select variables to be used in calculations below
+  sf::st_set_geometry(NULL) |> # remove the coordinates; changes the sf to a df
+  unique() |> # identify unique stratum only 
   mutate(RelWt = Area_SqNm / sum(Area_SqNm)) # calculate the relative weight of each stratum based on its proportion of the total survey footprint area; to be used in later calculations.
 
 ### save the data 
@@ -49,7 +46,7 @@ saveRDS(strata, here("data", "rds", "strata_wts.rds"))
 BTSArea <- as.integer(sum(strata$Area_SqNm))
 
 
-#### CALCULATE INDIVIDUAL MEANS AND VARIANCES ####
+## CALCULATE INDIVIDUAL MEANS AND VARIANCES ####
 # calculate individual means and variances for each combinations of species, year, and stratum
 nowind_means <- data %>%  
   #mutate(tow_code = str_c(STRATUM, CRUISE6, STATION)) %>% 
@@ -71,7 +68,7 @@ saveRDS(nowind_means, here("data", "rds", "indiv-mu_included.rds"))
 
 
 
-#### COMPLETE STRATIFIED MEAN AND VARIANCE CALCULATIONS ####
+## COMPLETE STRATIFIED MEAN AND VARIANCE CALCULATIONS ####
 # calculate stratified means and variances for each combinations of species and year based on individual stratum means and variances 
 nowind_stratmu <- nowind_means %>% 
   group_by(SVSPP, EST_YEAR, SEASON) %>% #, GEO_AREA) %>% 

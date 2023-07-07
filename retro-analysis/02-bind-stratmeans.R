@@ -25,12 +25,12 @@ nowind_strat <- readRDS(here("data", "rds", "strat-mu_included.rds"))
 wind_strat <- readRDS(here("data", "rds", "strat-mu_preclusion.rds"))
 
 # species dataframe for adding to final dataset 
-species <- readRDS(here("data", "rds", "99filtered-species.rds"))
+species <- readRDS(here("data", "rds", "95filtered-species.rds"))
 
 
 #### BIND DATASETS ####
-stratmeans <- bind_rows(nowind_strat, wind_strat) %>% #bind rows of the two datasets
-  left_join(species, by = "SVSPP") %>% # add common names to the dataset by joining the species dataframe based on species code
+stratmeans <- bind_rows(nowind_strat, wind_strat) |> #bind rows of the two datasets
+  left_join(species, by = "SVSPP") |> # add common names to the dataset by joining the species dataframe based on species code
   arrange(SVSPP)
 
 

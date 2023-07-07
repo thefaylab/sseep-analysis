@@ -1,18 +1,14 @@
 ### created: 11/11/2022
-### last updated: 2/20/2023
+### last updated: 07/07/2023
 
-#### 01b - STRATIFIED CALCULATIONS: WITH WIND AREAS PRECLUDED ####
+# 01b - STRATIFIED CALCULATIONS: WITH WIND AREAS PRECLUDED ####
 
-###################
-#### OBJECTIVE ####
-###################
+
+## OBJECTIVE ####
 # calculate stratified means for each species, strata, and year combination based on the historical time series data. The analysis contained herein calculates the stratified means for the time series minus tows that overlapped in potential wind energy areas. 
 
-# awaiting new full raw dataset from Catherine to run in here(...); when received run and check code. Derived data from tidy-data script will be called to run in the loops. 
-####################
 
-
-#### LOAD PACKAGES ####
+## LOAD PACKAGES ####
 library(stringr)
 library(sf)
 library(patchwork)
@@ -20,7 +16,7 @@ library(here)
 suppressPackageStartupMessages(library(tidyverse))
 
 
-#### LOAD DATA ####
+## LOAD DATA ####
 # dataset created from `02-complete-dataset.R` here("tidy-data"). Contains complete observations for each species and unique tow. 
 #data <- readRDS(here("data", "rds", "merged_data_complete.rds")) %>% filter(AREA == "OUTSIDE") %>% mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT))
 

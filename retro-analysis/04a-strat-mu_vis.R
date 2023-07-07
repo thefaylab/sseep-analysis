@@ -60,7 +60,7 @@ specieslookup <- data %>%
 
 #### FORMAT GGPLOT FOR LOOP ####
 
-x <- data %>% filter(SVSPP == 15)
+x <- data %>% filter(SVSPP == 103)
 
 y <- ggplot(x) +
   aes(x = as.factor(EST_YEAR), y = stratmu, color = TYPE, shape = TYPE) +
@@ -111,7 +111,7 @@ mu_plots <- compact(mu_plots)
 
 
 ### save the plot list 
-saveRDS(mu_plots, file = here("data", "rds", "mu-species-plots2.rds"))
+saveRDS(mu_plots, file = here("data", "rds", "mu-species-plots-July2023.rds"))
 
 
 ##### PRINT AND SAVE #####
@@ -130,7 +130,7 @@ for(i in seq_along(species)){ # move along the sequence of values in the species
   
   # save the printed plot with the species name based on the list value generated
   #ggsave(filename = paste(unique(mu_plots[[i]]$data$COMNAME), ".png"), device = "png", path = here("outputs", "plots", "strat_mu"), width = 5, height = 5)
-  ggsave(filename = paste0(specieslookup$spname[i], ".png"), device = "png" , plot = mu_plots[[i]], path = here("outputs", "plots", "strat_mu3"), width = 10, height = 5)
+  ggsave(filename = paste0(specieslookup$spname[i], ".png"), device = "png" , plot = mu_plots[[i]], path = here("outputs", "plots", "strat_mu_July2023"), width = 10, height = 5)
 
 }
 
