@@ -17,10 +17,17 @@ library(sf)
 library(here)
 suppressPackageStartupMessages(library(tidyverse))
 
+## OPTION A ####
+# read active bottom trawl survey strata from geodatabase 
+strata <- sf::st_read(here("gis", "NEFSC-BTS_strata_Jun2022.gdb"), layer = "NEFSC_BTS_ActiveStrata_Jun2022") |> 
+  rename(STRATUM = Strata_Num)
 
-## LOAD DATA ####
-# all bottom trawl survey strata 
-strata <- sf::st_read(dsn = here("gis", "NEFSC_BTS_AllStrata_Jun2022.shp")) |>
+saveRDS(strata, here("data", "rds", "active_strata.rds"))
+
+## OPTION B ####
+### LOAD DATA ####
+# read all bottom trawl survey strata from geodatabase 
+all_strata <- sf::st_read(dsn = here("gis", "NEFSC_BTS_AllStrata_Jun2022.shp")) |>
   dplyr::rename(STRATUM = "Strata_Num")
 
 # completed tow data created from here("tidy-data", "02-complete-datasets.R")
@@ -39,8 +46,8 @@ current_tbl <- as_tibble(current)
 anti <- as_tibble(strata) |> anti_join(current, by = "STRATUM") # 177 - 82
 
 # save current strata
-write.csv(current_tbl, here("data", "clean-data", "current_strata.csv"))
-write_sf(current, dsn = here("gis", "current_strata.shp"))
-saveRDS(current, here("data", "rds", "current_strata.rds"))
+write.csv(current_tbl, here("data", "clean-data", "active_strata.csv"))
+write_sf(current, dsn = here("gis", "active_strata.shp"))
+saveRDS(current, here("data", "rds", "active_strata.rds"))
 
 

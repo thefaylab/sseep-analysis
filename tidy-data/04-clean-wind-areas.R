@@ -14,7 +14,7 @@
 # write an rds, and shapefile for each object 
 
 
-#### LOAD PACKAGES ####
+### LOAD PACKAGES ####
 library(stringr)
 library(sf)
 library(patchwork)
@@ -23,22 +23,14 @@ suppressPackageStartupMessages(library(tidyverse))
 theme_set(theme_bw())
 #source()
 
-### OPTION A ###
 
-strata <- sf::st_read(here("gis", "NEFSC-BTS_strata_Jun2022.gdb"), layer = "NEFSC_BTS_ActiveStrata_Jun2022") |> 
-  rename(STRATUM = Strata_Num)
-
-
-
-### OPTION B ###
-#### LOAD DATA ####
+### LOAD DATA ####
 #strata <- readRDS(here("data", "rds", "current_strata.rds")) 
-
 
 leases <- sf::st_read(here("gis", "BOEM Wind Areas_2023Feb09.gdb"), layer = "WindLeases_2022Dec06") 
 planning <- sf::st_read(here("gis", "BOEM Wind Areas_2023Feb09.gdb"), layer = "WindPlanningAreas_2023Jan10")
 
-#### DATA WRANGLING ####
+## DATA WRANGLING ####
 # transform the strata crs to match the crs of the wind shapefiles
 strata_tran <- st_transform(strata, "WGS84")
 
@@ -57,7 +49,7 @@ ggplot(ne_plan_union) + geom_sf()
 ### save the individual planning areas 
 st_write(ne_plan, here("gis", "ne_wind_planning2023.shp"))
 
-#### LEASE AREAS
+## LEASE AREAS
 # filter out lease areas occurring on the west coast 
 ne_leases <- leases |>
   filter(STATE != "CA") |>
@@ -72,7 +64,7 @@ ggplot(ne_leases_union) + geom_sf()
 ### save the individual lease areas 
 st_write(ne_leases, here("gis", "ne_wind_leases2023.shp"))
 
-#### MERGE WIND AREAS 
+## MERGE WIND AREAS 
 # combine unioned planning and lease areas to create one full wind area reference object
 wind_areas1 <- append(ne_leases_union, ne_plan_union) |>
   st_as_sf()
@@ -92,4 +84,4 @@ st_write(wind_areas1, here("gis", "wind_areas_merge2023.shp"), append=FALSE)
 st_write(wind_areas2, here("gis", "all_wind_areas_2023.shp"), append=FALSE)
 saveRDS(wind_areas1, here("data", "rds", "merged_wind_areas_Jan2023.rds"))
 saveRDS(wind_areas2, here("data", "rds", "all_wind_areas_Jan2023.rds"))
-saveRDS(strata, here("data", "rds", "active_strata.rds"))
+
