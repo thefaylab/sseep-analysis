@@ -26,7 +26,7 @@ data <- readRDS(here("data", "rds", "95filtered_complete_bts.rds")) %>% filter(A
 # species dataframe for adding to final dataset 
 species <- readRDS(here("data", "rds", "95filtered-species.rds"))
 
-# load the bottom trawl survey strata shapefile
+# # load starat weights rds object created in here(retro-analysis, "01a-nowind-loop.R")
 strata <- readRDS(here("data", "rds", "strata_wts.rds"))
 
 # calculate total survey area for use in future calculations  

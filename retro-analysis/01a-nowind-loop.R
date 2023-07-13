@@ -32,7 +32,7 @@ species <- data %>%
 ### save the data 
 saveRDS(species, here("data", "rds", "95filtered-species.rds"))
 
-# load and manipulate the bottom trawl survey strata shapefile
+# load and manipulate the shapefile of active bottom trawl survey strata created in here(tidy-data, "03-filter-current-strata.R")
 strata <- readRDS(here("data", "rds", "active_strata.rds")) |> #read in data
   dplyr::select(STRATUM, Area_SqNm) |> # select variables to be used in calculations below
   sf::st_set_geometry(NULL) |> # remove the coordinates; changes the sf to a df
@@ -40,7 +40,7 @@ strata <- readRDS(here("data", "rds", "active_strata.rds")) |> #read in data
   mutate(RelWt = Area_SqNm / sum(Area_SqNm)) # calculate the relative weight of each stratum based on its proportion of the total survey footprint area; to be used in later calculations.
 
 ### save the data 
-saveRDS(strata, here("data", "rds", "strata_wts.rds"))
+saveRDS(strata, here("data", "rds", "active_strata_wts.rds"))
 
 # calculate total survey area for use in future calculations  
 BTSArea <- as.integer(sum(strata$Area_SqNm))
