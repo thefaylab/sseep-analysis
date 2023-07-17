@@ -101,7 +101,7 @@ bts$HOUR <- as.integer(bts$HOUR)
 # classify time of day based on HOUR values 
 bts$DAYTIME <- paste(ifelse(bts$HOUR <= 5 | bts$HOUR >= 20, "Night", "Day"))
 # paste in unique codes
-bts$CODE <- paste(bts$YEAR, bts$SEASON, bts$STRATUM, bts$EST_TIME)
+bts$CODE <- paste(bts$CRUISE6, bts$STRATUM, bts$STATION)
 bts <- bts %>% 
   group_by(CODE) %>% 
   mutate(TOWID = cur_group_id()) %>% 
@@ -570,5 +570,5 @@ bts <- bts %>%
 # write.csv(wind, here("data", "clean-data", "tidy-wind.csv"), row.names=FALSE)
 # write.csv(outside, here("data", "clean-data", "tidy-outside.csv"), row.names=FALSE)
 write_csv(bts, here("data", "clean-data", "tidy-full-bts.csv"))
-saveRDS(bts, file = here("data", "clean-data", "tidy-full-bts.rds"))
+saveRDS(bts, file = here("data", "rds", "tidy-data", "tidy-full-bts.rds"))
 #write.csv(overlap, here("data", "clean-data", "tidy-overlap.csv"), row.names=FALSE)
