@@ -1,7 +1,7 @@
 ### created: 04/01/2023
-### last updated: 07/03/2023
+### last updated: 07/19/2023
 
-# 04 - PREPARE WIND AREAS ####
+# 02a - PREPARE WIND AREAS ####
 
 ## OBJECTIVE ####
 # read and prepare shapefiles of the East Coast wind areas, using the current wind area shapefiles as of January 2023 and downloaded from the BOEM website 
