@@ -1,8 +1,8 @@
 ### created:      07/03/2023
-### last update:  
+### last update:  07/19/2023
 ###
 
-# CURRENTLY SAMPLED STRATA ####
+# 02b - FILTER FOR CURRENTLY SAMPLED STRATA ####
 
 ## OBJECTIVE #### 
 # Filter the BTS strata for all the currently sampled strata for subsequent analysis. 

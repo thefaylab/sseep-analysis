@@ -4,9 +4,11 @@
 # 05b - INDEX WIND TOWS ####
 
 ## OBJECTIVE ####
+# find the area of overlap imposed by offshore wind area on the bottom trawl survey strata
 
-
-
+# script will: 
+# find the intersection between offshore wind area and a given survey strata
+# calculate the percent of area overlapped, or percent of area impacted upon survey strata by offshore wind areas
 
 
 ### LOAD PACKAGES ####
@@ -78,6 +80,7 @@ ggplot() + geom_sf(data = strata_impacts, aes(fill = percent_area_impacted)) + s
 
 ggsave(filename = "strata_impacts.png", plot = last_plot(), device = "png", width = 6, height = 8, path = here("outputs"))
 
+# pull out only the strata that are impacted
 impacted_strata <- strata_impacts |> 
   filter(percent_area_impacted > 0) |> 
   select(STRATUM) |> 
