@@ -56,7 +56,7 @@ filter_sp <- filter_n |>
 
 ### save data 
 saveRDS(filter_n, here("data", "rds", "spatial-filter", "filtering-summaries.rds"))
-saveRDS(filter_sp, here("data", "rds", "spatial-filter", "filtered species.rds"))
+saveRDS(filter_sp, here("data", "rds", "spatial-filter", "criteria-filtered-species.rds"))
 
 ### FILTER BY IMPACTED STRATA ####
 # find the species that were observed in strata proposed for wind overlap
@@ -70,7 +70,7 @@ species_imp <- data |>
 #impacted_species <- unique(species_imp$code) # n = 241
 
 ### save data 
-saveRDS(species_imp, here("data", "rds", "spatial-filter", "impacted-species.rds"))
+saveRDS(species_imp, here("data", "rds", "spatial-filter", "wind-impacted-species.rds"))
 
 ### FIND SPECIES INTERSECTION ####
 # find the species that appear in 3 or more strata, 3 or more years, and also any strata impacted by offshore wind
