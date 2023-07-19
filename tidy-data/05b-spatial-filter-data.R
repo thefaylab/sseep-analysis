@@ -36,20 +36,37 @@ filter99 <- readRDS(here("data", "rds", "spatial-filter", "cumul-biomass99.rds")
 
 
 ## FILTER AND JOIN DATASETS ####
+### 95% DISTRIBUTION ####
 # filter the full dataset based on the same observations that appear in the 95% cumulative distribution dataset
 data95 <- semi_join(data, filter95, by = c("SVSPP", "SEASON", "STRATUM"))
 
 ### save data 
 saveRDS(data95, here("data", "rds", "95filtered_complete_bts.rds"))
 
+#### EXTRACT SPECIES DATA ####
+species95 <- data95 %>% 
+  select(SVSPP, COMNAME, SCINAME) %>%
+  unique()
+
+### save the data 
+saveRDS(species95, here("data", "rds", "95filtered-species.rds"))
 
 
+### 99% DISTRIBUTION ####
 # filter the full dataset based on the same observations that appear in the 99% cumulative distribution dataset
 data99 <- semi_join(data, filter99, by = c("SVSPP", "SEASON", "STRATUM"))
 # filters from 3962124 to 287533 -- 10% of the full data set? 
 
 ### save data 
 saveRDS(data99, here("data", "rds", "99filtered_complete_bts.rds"))
+
+#### EXTRACT SPECIES DATA ####
+species99 <- data99 %>% 
+  select(SVSPP, COMNAME, SCINAME) %>%
+  unique()
+
+### save the data 
+saveRDS(species99, here("data", "rds", "99filtered-species.rds"))
 
 
 #### COMPARE TOW COUNTS ####
