@@ -54,7 +54,7 @@ grid <- readRDS(here(sdmtmb.dir, "data", "survey_grid.rds"))
 ## DATA WRANGLE ####
 # convert the data frame to a simple feature to crop the grid to areas of historical summer flounder catch rates
 grid_sf <- grid |> 
-  st_as_sf(coords = c("X", "Y")) # convert to sf using X and Y UTM coords
+  sf::st_as_sf(coords = c("X", "Y")) # convert to sf using X and Y UTM coords
 st_crs(grid_sf) <-32618 # establish coordinate system as UTM 18N zone 
 
 ### FALL GRID ####
@@ -97,6 +97,8 @@ spr_grid <- bind_cols(coords, selected_grid) |>
   mutate(X = X/1000,  # convert coordinate to km to match coordinates in bts data
          Y = Y/1000, 
          SEASON = "SPRING")
+
+saveRDS(spr_grid, here("sdmtmb", "data", "sf_spr_grid_Jul2023.rds"))
 
 ggplot(spr_grid, aes(X, Y, fill = AVGDEPTH)) + 
   geom_tile(width = 10, height = 10) +
