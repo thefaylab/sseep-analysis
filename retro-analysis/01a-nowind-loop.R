@@ -1,5 +1,5 @@
 ### created: 11/11/2022
-### last updated: 07/07/2023
+### last updated: 07/19/2023
 
 # 01a - STRATIFIED CALCULATIONS: WITH WIND AREAS INCLUDED ####
 
@@ -9,7 +9,7 @@
 # calculate stratified means for each species, strata, and year combination based on the historical time series data. The analysis contained herein calculates the stratified means for the full time series without any change to represent the base/control scenario. No tows/observations have been subtracted from this dataset 
 
 
-## LOAD PACKAGES ####
+### LOAD PACKAGES ####
 library(stringr)
 library(sf)
 library(patchwork)
@@ -17,20 +17,12 @@ library(here)
 suppressPackageStartupMessages(library(tidyverse))
 
 
-## LOAD DATA ####
-# dataset created from `02-complete-dataset.R` here("tidy-data"). Contains complete observations for each species and unique tow. 
-# data <- readRDS(here("data", "rds", "merged_data_complete.rds")) %>% mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT))
-
-# dataset created from `03b-spatial-filter-data.R` here("tidy-data"). Contains complete observations for each species and unique tow filtered based on 99% cumulative distribution of biomass. 
+### LOAD DATA ####
+# dataset created from `05b-spatial-filter-data.R` here("tidy-data"). Contains complete observations for each species and unique tow filtered based on 99% cumulative distribution of biomass. 
 data <- readRDS(here("data", "rds", "95filtered_complete_bts.rds"))
 
 # species dataframe for adding to final dataset 
-species <- data %>% 
-  select(SVSPP, COMNAME, SCINAME) %>%
-  unique()
-
-### save the data 
-saveRDS(species, here("data", "rds", "95filtered-species.rds"))
+species <- readRDS(here("data", "rds", "95filtered-species.rds"))
 
 # load and manipulate the shapefile of active bottom trawl survey strata created in here(tidy-data, "03-filter-current-strata.R")
 strata <- readRDS(here("data", "rds", "active_strata.rds")) |> #read in data
@@ -64,7 +56,7 @@ nowind_means <- data %>%
 
 
 ### save the data 
-saveRDS(nowind_means, here("data", "rds", "indiv-mu_included.rds"))
+saveRDS(nowind_means, here("data", "rds", "retro-analysis", "indiv-mu_included.rds"))
 
 
 
@@ -78,22 +70,22 @@ nowind_stratmu <- nowind_means %>%
 
 
 ### save the data 
-saveRDS(nowind_stratmu, here("data", "rds", "strat-mu_included.rds"))
+saveRDS(nowind_stratmu, here("data", "rds", "retro-analysis", "strat-mu_included.rds"))
 
 
 # tow count by area 
-data %>%
-  mutate(code = str_c(STRATUM, CRUISE6, STATION)) %>%
-  #group_by(SVSPP, SEASON, AREA) %>%
-  summarise(towct = length(code)) #%>%
-
-data %>%
-  mutate(code = str_c(STRATUM, CRUISE6, STATION)) %>%
-  #group_by(SVSPP, SEASON, AREA) %>%
-  summarise(towct = length(unique(code))) #%>%
-
-data %>%  
-  mutate(code = str_c(STRATUM, CRUISE6, STATION)) %>% 
-  group_by(SEASON, AREA) %>% 
-  summarise(towct = length(unique(code))) #%>% 
-  #left_join(specieslookup, by = "SVSPP")
+# data %>%
+#   mutate(code = str_c(STRATUM, CRUISE6, STATION)) %>%
+#   #group_by(SVSPP, SEASON, AREA) %>%
+#   summarise(towct = length(code)) #%>%
+# 
+# data %>%
+#   mutate(code = str_c(STRATUM, CRUISE6, STATION)) %>%
+#   #group_by(SVSPP, SEASON, AREA) %>%
+#   summarise(towct = length(unique(code))) #%>%
+# 
+# data %>%  
+#   mutate(code = str_c(STRATUM, CRUISE6, STATION)) %>% 
+#   group_by(SEASON, AREA) %>% 
+#   summarise(towct = length(unique(code))) #%>% 
+#   #left_join(specieslookup, by = "SVSPP")

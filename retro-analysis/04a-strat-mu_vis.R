@@ -26,7 +26,7 @@ library(nationalparkcolors)
 
 #### LOAD DATA ####
 # dataset created from `02-bind-stratmeans.R` here("retro-analysis"). Contains stratified means and variances for each species and unique tow over time.
-data <- readRDS(here("data", "rds", "strat-mu_all.rds")) 
+data <- readRDS(here("data", "rds", "retro-analysis", "strat-mu_all.rds")) 
 
 # calculate the logistic standard deviation and logistic normal distribution 
 data <- data %>% 
@@ -47,7 +47,7 @@ mu_plots <- list()
 
 # create universal aesthetics for ggplot
 # names(park_palettes)
-# pal <- park_palette("SmokyMountains", 2)
+pal <- park_palette("Badlands")
 
 # create a lookup table with filename-friendly species names
 specieslookup <- data %>% 
@@ -75,8 +75,8 @@ y <- ggplot(x) +
         legend.title = element_blank(), 
         axis.text.x = element_text(angle = 90, hjust = -1), 
         axis.title.x = element_text(margin = unit(c(5, 0, 0, 0), "mm")), 
-        axis.title.y = element_text(margin = unit(c(0, 3, 0, 0), "mm")))# + 
-  #scale_color_manual(values = pal)
+        axis.title.y = element_text(margin = unit(c(0, 3, 0, 0), "mm"))) + 
+  scale_color_manual(values = pal)
 
 
 #### GGPLOT LOOPS ####
@@ -103,15 +103,15 @@ for(i in species){ # for each value i in the species vector
           legend.title = element_blank(), # leave legend title blank
           axis.text.x = element_text(angle = 90, hjust = -1), # rotate axis labels 90 deg
           axis.title.x = element_text(margin = unit(c(5, 0, 0, 0), "mm")), # increase space between axis labels and title
-          axis.title.y = element_text(margin = unit(c(0, 3, 0, 0), "mm"))) #+ # increase space between axis labels and title
-    #scale_color_manual(values = pal) # set color palette 
+          axis.title.y = element_text(margin = unit(c(0, 3, 0, 0), "mm"))) + # increase space between axis labels and title
+    scale_color_manual(values = pal) # set color palette 
 }
 
-mu_plots <- compact(mu_plots)
+mu_plots <- compact(mu_plots) # remove NULL list items
 
 
 ### save the plot list 
-saveRDS(mu_plots, file = here("data", "rds", "mu-species-plots-July2023.rds"))
+saveRDS(mu_plots, file = here("data", "rds","retro-analysis",  "stratmu-plots.rds"))
 
 
 ##### PRINT AND SAVE #####
@@ -130,7 +130,7 @@ for(i in seq_along(species)){ # move along the sequence of values in the species
   
   # save the printed plot with the species name based on the list value generated
   #ggsave(filename = paste(unique(mu_plots[[i]]$data$COMNAME), ".png"), device = "png", path = here("outputs", "plots", "strat_mu"), width = 5, height = 5)
-  ggsave(filename = paste0(specieslookup$spname[i], ".png"), device = "png" , plot = mu_plots[[i]], path = here("outputs", "plots", "strat_mu_July2023"), width = 10, height = 5)
+  ggsave(filename = paste0(specieslookup$spname[i], ".png"), device = "png" , plot = mu_plots[[i]], path = here("outputs", "plots", "stratmu-plots"), width = 10, height = 5)
 
 }
 

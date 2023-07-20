@@ -1,5 +1,5 @@
 ### created: 11/11/2022
-### last updated: 07/07/2023
+### last updated: 07/19/2023
 
 # 01b - STRATIFIED CALCULATIONS: WITH WIND AREAS PRECLUDED ####
 
@@ -17,17 +17,14 @@ suppressPackageStartupMessages(library(tidyverse))
 
 
 ## LOAD DATA ####
-# dataset created from `02-complete-dataset.R` here("tidy-data"). Contains complete observations for each species and unique tow. 
-#data <- readRDS(here("data", "rds", "merged_data_complete.rds")) %>% filter(AREA == "OUTSIDE") %>% mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT))
-
-# dataset created from `03b-spatial-filter-data.R` here("tidy-data"). Contains complete observations for each species and unique tow filtered based on 99% cumulative distribution of biomass. 
-data <- readRDS(here("data", "rds", "95filtered_complete_bts.rds")) %>% filter(AREA == "OUTSIDE")
+# dataset created from `05b-spatial-filter-data.R` here("tidy-data"). Contains complete observations for each species and unique tow filtered based on 95% cumulative distribution of biomass. 
+data <- readRDS(here("data", "rds", "95filtered_complete_bts.rds")) |> filter(AREA == "OUTSIDE")
  
 # species dataframe for adding to final dataset 
 species <- readRDS(here("data", "rds", "95filtered-species.rds"))
 
 # # load starat weights rds object created in here(retro-analysis, "01a-nowind-loop.R")
-strata <- readRDS(here("data", "rds", "strata_wts.rds"))
+strata <- readRDS(here("data", "rds", "active_strata_wts.rds"))
 
 # calculate total survey area for use in future calculations  
 BTSArea <- as.integer(sum(strata$Area_SqNm))
@@ -54,7 +51,7 @@ wind_means <- data %>%
 
 
 ### save the data 
-saveRDS(wind_means, here("data", "rds", "indiv-mu_preclusion.rds"))
+saveRDS(wind_means, here("data", "rds", "retro-analysis", "indiv-mu_preclusion.rds"))
 
 
 #### COMPLETE STRATIFIED MEAN AND VARIANCE CALCULATIONS ####
@@ -67,5 +64,5 @@ wind_stratmu <- wind_means %>%
 
 
 ### save the data
-saveRDS(wind_stratmu, here("data", "rds", "strat-mu_preclusion.rds"))
+saveRDS(wind_stratmu, here("data", "rds", "retro-analysis", "strat-mu_preclusion.rds"))
 

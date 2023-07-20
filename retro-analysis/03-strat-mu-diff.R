@@ -27,8 +27,7 @@ library(patchwork)
 
 #### LOAD DATA ####
 # dataset created from `02-bind-stratmeans.R` here("retro-analysis"). Contains stratified means and variances for each species and unique tow over time.
-data <- readRDS(here("data", "rds", "strat-mu_all.rds")) 
-
+data <- readRDS(here("data", "rds", "retro-analysis", "strat-mu_all.rds")) 
 
 # create a lookup table with filename-friendly species names
 specieslookup <- data |>
@@ -39,7 +38,7 @@ specieslookup <- data |>
 
 #### CALCULATE MEAN SQUARED DIFFERENCES #####  
 mudiff_dat <- data |> 
-  mutate(stratmu = ifelse(stratmu==0, 1, stratmu)) |>
+  #mutate(stratmu = ifelse(stratmu==0, 1, stratmu)) |>
   filter(EST_YEAR %in% c(2016:2019, 2021)) |> #filter for recent 5 years, skipping 2020
   mutate(log_mu = log(stratmu)) |>
   arrange(desc(log_mu)) |>
