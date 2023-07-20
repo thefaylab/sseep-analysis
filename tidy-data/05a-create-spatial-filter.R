@@ -1,5 +1,5 @@
 ### created: 01/27/2023
-### last updated: 07/19/2023 
+### last updated: 07/20/2023 
 
 # 05a - CREATE SPATIAL FILTER ####
 
@@ -35,50 +35,72 @@ data <- readRDS(here("data", "rds", "merged_data_complete.rds")) |> mutate(EXPCA
 impacted_strata <- readRDS(here("data", "rds", "impacted_strata.rds"))
 strata <- impacted_strata$STRATUM
 
+specieslookup <- data %>% 
+  select(SVSPP, COMNAME, SCINAME) %>%
+  unique()
+
 
 ## CREATE FILTER ####
 ### FILTER BY NUMBER OF STRATA AND YEARS ####
 # find the number of strata where each species was present and observed by the survey
-filter_n <- data |> 
-  group_by(SVSPP, SEASON) |>
+strat_filter <- data |>
+  group_by(SVSPP, COMNAME, EST_YEAR, SEASON) |>
   filter(PRESENCE == 1) |> # filter for observations where species were caught
-  summarise(strat_n = length(unique(STRATUM)),  # calculate number of strata species were observed 
-            year_n = length(unique(EST_YEAR)))
+  summarise(strat_n = length(unique(STRATUM))) |>#,  # calculate number of strata species were observed 
+            #year_n = length(unique(EST_YEAR))) 
+  filter(strat_n >= 3)
 
 # filter species where strat_n >= 3 and year_n >= 3 for each season
-filter_sp <- filter_n |> 
-  group_by(SVSPP, SEASON) |>
-  filter(strat_n >= 3 & year_n >= 3) |> 
+year_filter <- strat_filter |> 
+  group_by(SVSPP, COMNAME, SEASON) |>
+  summarise(year_n = length(EST_YEAR)) |>
+  filter(year_n >= 3) |> 
   mutate(code = str_c(SVSPP, SEASON))
 
+
+criteria_species <- year_filter |> 
+   select(!year_n)
+
 # number of species observed with this filter 
-#filtered_species <- unique(filter_sp$SVSPP)  # n = 311 spp
+length(unique(criteria_species$SVSPP))  # n = 199 spp
+
 
 ### save data 
-saveRDS(filter_n, here("data", "rds", "spatial-filter", "filtering-summaries.rds"))
-saveRDS(filter_sp, here("data", "rds", "spatial-filter", "criteria-filtered-species.rds"))
+saveRDS(strat_filter, here("data", "rds", "spatial-filter", "min-strata_filtered-species.rds"))
+saveRDS(criteria_species, here("data", "rds", "spatial-filter", "min-year-strat_filtered-species.rds"))
+
 
 ### FILTER BY IMPACTED STRATA ####
 # find the species that were observed in strata proposed for wind overlap
-species_imp <- data |>
-  dplyr::group_by(SVSPP, SEASON) |>
+impacted_species <- data |>
   filter(PRESENCE == 1, # filter for observations where species were caught
+         #SVSPP %in% species,
          STRATUM %in% strata) |> # filter for observations occurring in impacted strata 
-  mutate(code = str_c(SVSPP, SEASON))
+  mutate(code = str_c(SVSPP, SEASON)) |> 
+  select(c(SVSPP, COMNAME, SEASON, code))
   
-# number of species observed with this filter 
-#impacted_species <- unique(species_imp$code) # n = 241
+# number of species observed with this filter
+length(unique(impacted_species$SVSPP)) # n = 241
 
 ### save data 
-saveRDS(species_imp, here("data", "rds", "spatial-filter", "wind-impacted-species.rds"))
+saveRDS(impacted_species, here("data", "rds", "spatial-filter", "wind-impacted-species.rds"))
+
 
 ### FIND SPECIES INTERSECTION ####
 # find the species that appear in 3 or more strata, 3 or more years, and also any strata impacted by offshore wind
-species_df <- semi_join(filter_sp, species_imp, by = "code") # filtering join, filter x, by matches in y
+species_df <- semi_join(impacted_species, criteria_species, by = "code") # filtering join, filter x, by matches in y
 species <- unique(species_df$SVSPP)
+
+#### REMOVED SPECIES ####
+# identify the species that was removed by the criteria above.
+# anti_species_df <- anti_join(impacted_species, criteria_species, by = "code") # filtering join, filter x, by matches in y
+# anti_species <- unique(anti_species_df$SVSPP)
+# removed <-filter(specieslookup, SVSPP %in% anti_species)
 
 ### save data 
 saveRDS(species_df, here("data", "rds", "spatial-filter", "spatial-filter-species.rds"))
+saveRDS(removed, here("data", "rds", "spatial-filter", "removed-species.rds"))
+
 
 
 ## CALCULATE TOTAL BIOMASS ####
@@ -91,7 +113,7 @@ total_bio <- data |>
   arrange(desc(EXPCATCHWT)) #arrange dataframe in descending order based on total biomass and stratum.
 
 ### save data 
-saveRDS(total_bio, here("data", "rds", "spatial-filter", "total_biomass.rds"))
+saveRDS(total_bio, here("data", "rds", "spatial-filter", "total-biomass_impacted-species.rds"))
 
 
 ## CALCULATE CUMULATIVE DISTRIBUTION ####
@@ -107,7 +129,7 @@ csum_dist <- total_bio |>
   mutate(csum_prop = round((cumsum(EXPCATCHWT)/max(cumsum(EXPCATCHWT))),2)) # calculate the cumulative sum of biomass; divide each value of cumulative sum by the maximum sum for each COMNAME and SEASON combination to find the proportion each sum makes up of the total distribution of sums
 
 ### save the data
-saveRDS(csum_dist, here("data", "rds", "spatial-filter", "cumulative_biomass.rds"))
+saveRDS(csum_dist, here("data", "rds", "spatial-filter", "cumul-biomass_impacted-species.rds"))
 
 ### 95% of the distribution ####
 filter95 <- csum_dist |> 
