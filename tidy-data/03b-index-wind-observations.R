@@ -1,7 +1,7 @@
 ### created: 11/09/2022
-### last updated: 07/19/2022
+### last updated: 07/24/2022
 
-# 05b - INDEX WIND TOWS ####
+# 03b - INDEX WIND OBSERVATIONS ####
 
 ## OBJECTIVE ####
 # identify historical observations as spatially-intersecting offshore wind energy areas by creating a wind id index and/or code. 
@@ -12,7 +12,7 @@
 # add an ID and/or value to the data for observations that were found as not intersecting offshore wind energy areas
 
 
-## LOAD PACKAGES ####
+### LOAD PACKAGES ####
 library(stringr)
 library(patchwork)
 library(sf)
@@ -20,7 +20,7 @@ library(here)
 suppressPackageStartupMessages(library(tidyverse))
 #install.packages()
 
-## LOAD DATA ####
+### LOAD DATA ####
 
 # dataset created from `02-complete-dataset.R` here("tidy-data"). Contains complete observations for each species and unique tow. 
 data <- readRDS(file = here("data", "rds", "tidy-data", "tidy-full-bts.rds"))
@@ -57,36 +57,24 @@ data_sf$AREA_CODE <- st_intersects(data_sf, wind_union) |>
   as.integer() |>
   dplyr::coalesce(2L) # find NAs within column and replace with the number 2 to represent the "outside wind area" ID
 
+# add column that characterizes the AREA value 
 data_sf <- data_sf |>
   mutate(AREA = case_when(
     AREA_CODE == 1 ~ "WIND", 
     TRUE ~ "OUTSIDE"
   ))
 
+# plot it 
 ggplot() + 
   geom_sf(data = strata) + 
   geom_sf(data = wind_areas, fill = "red") +
   geom_sf(data = data_sf |> filter(AREA_CODE ==1), color = "white", alpha = 0.5)
 
 
+# coerce to a dataframe 
 data <- sf::st_set_geometry(data_sf, NULL) 
 
 
 # save the new shapefiles and rds objects
-# saveRDS(outsidetows, here(""))
-# saveRDS(windtows, here(""))
-# sf_save(windtows, here("gis", ))
-# sf_save(outsidetows, here("gis", ))
 saveRDS(data, here("data", "rds", "tidy-data", "full-bts-indexed.rds"))
 
-
-#########################################
-#### CREATE PRESENCE/ABSENCE COLUMNS ####
-#########################################
-# Create a column for assigning an integer to presence/absence of a species based on EXPCATCHNUM
-# 00 = ABSENT; 01 = PRESENT
-# merged_data$PRESENCE <- ifelse(merged_data$EXPCATCHNUM == 0, as.integer(0), as.integer(1))
-# 
-# # save the new shapefiles and rds objects 
-# saveRDS(merged_data, here(""))
-# sf_save(merged_data, here("gis", ))

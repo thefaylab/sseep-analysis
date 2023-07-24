@@ -11,8 +11,9 @@
 # read in the bottom trawl strata shapefile and tow data 
 # filter for unique strata currently sampled using strata recorded in the tow data  
 # write a csv, rds, and shapefile containing the filtered strata object
+# calculate the relative weight of strata area for stratified mean calculations
 
-## LOAD PACKAGES ####
+### LOAD PACKAGES ####
 library(sf)
 library(here)
 suppressPackageStartupMessages(library(tidyverse))
@@ -33,7 +34,7 @@ all_strata <- sf::st_read(dsn = here("gis", "NEFSC_BTS_AllStrata_Jun2022.shp")) 
 # completed tow data created from here("tidy-data", "02-complete-datasets.R")
 merged_data <- readRDS(here("data", "rds", "merged_data_complete.rds"))
 
-## DATA WRANGLE ####
+### DATA WRANGLE ####
 # identify unique strata sampled from 2009-2021 tow data
 tow_strata <- unique(merged_data$STRATUM)
 
@@ -50,4 +51,12 @@ write.csv(current_tbl, here("data", "clean-data", "active_strata.csv"))
 write_sf(current, dsn = here("gis", "active_strata.shp"))
 saveRDS(current, here("data", "rds", "active_strata.rds"))
 
+## CALCULATE RELATIVE AREA ####
+strata <- strata |> #read in data
+  dplyr::select(STRATUM, Area_SqNm) |> # select variables to be used in calculations below
+  sf::st_set_geometry(NULL) |> # remove the coordinates; changes the sf to a df
+  unique() |> # identify unique stratum only 
+  mutate(RelWt = Area_SqNm / sum(Area_SqNm)) # calculate the relative weight of each stratum based on its proportion of the total survey footprint area; to be used in later calculations.
 
+# save the data
+saveRDS(strata, here("data", "rds", "active_strata_wts.rds"))
