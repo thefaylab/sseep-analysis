@@ -1,19 +1,15 @@
 ### created: 11/25/2022
-### last updated: 2/20/2023
+### last updated: 07/24/2023
 
-#### 04a - PLOTTING STRATIFIED MEANS BY SPECIES ####
+# 04a - PLOTTING STRATIFIED MEANS BY SPECIES ####
 
-###################
-#### OBJECTIVE ####
-###################
+
+## OBJECTIVE ####
 # write loops to call stratified means and variance data and plot by species across time. 
-
 # compare plots to identify potential impacts to abundance indexes when wind tows are removed. 
 
-####################
 
-
-#### LOAD PACKAGES ####
+### LOAD PACKAGES ####
 library(stringr)
 library(patchwork)
 library(here)
@@ -24,17 +20,18 @@ suppressPackageStartupMessages(library(tidyverse))
 library(nationalparkcolors)
 
 
-#### LOAD DATA ####
+### LOAD DATA ####
 # dataset created from `02-bind-stratmeans.R` here("retro-analysis"). Contains stratified means and variances for each species and unique tow over time.
 data <- readRDS(here("data", "rds", "retro-analysis", "strat-mu_all.rds")) 
 
+### DATA WRANGLE ####
 # calculate the logistic standard deviation and logistic normal distribution 
-data <- data %>% 
-  #filter(GEO_AREA %in% c("MAB", "GOM"))%>%
-  group_by(SVSPP, EST_YEAR, TYPE, SEASON) %>% #, GEO_AREA) %>%
+data <- data |> 
+  #filter(GEO_AREA %in% c("MAB", "GOM"))|>
+  group_by(SVSPP, EST_YEAR, TYPE, SEASON) |> #, GEO_AREA) |>
   mutate(sdlog = sqrt(log(1+(sqrt(stratvar)/stratmu)^2)), #logistic standard deviation
          lower = qlnorm(0.025, log(stratmu), sdlog), # lower quantile of the logistic normal distribution
-         upper = qlnorm(0.975, log(stratmu), sdlog)) %>% # upper quantile of the logistic normal distribution
+         upper = qlnorm(0.975, log(stratmu), sdlog)) |> # upper quantile of the logistic normal distribution
   mutate(sdlog = ifelse(is.nan(sdlog), 0, sdlog), # if sdlog is NaN, replace with 0
          lower = ifelse(is.nan(lower), 0, lower), # if the lower quantile is NaN, replace with 0
          upper = ifelse(is.nan(upper), 0, upper)) # if the upper quantile is NaN, replace with 0
@@ -50,17 +47,17 @@ mu_plots <- list()
 pal <- park_palette("Badlands")
 
 # create a lookup table with filename-friendly species names
-specieslookup <- data %>% 
-  ungroup() %>%
-  select(SVSPP, COMNAME) %>% 
-  distinct() %>% 
-  mutate(spname = str_to_lower(gsub(" ", "_", COMNAME)))%>% 
+specieslookup <- data |> 
+  ungroup() |>
+  select(SVSPP, COMNAME) |> 
+  distinct() |> 
+  mutate(spname = str_to_lower(gsub(" ", "_", COMNAME)))|> 
   arrange(SVSPP)
 
 
-#### FORMAT GGPLOT FOR LOOP ####
+### FORMAT GGPLOT FOR LOOP ####
 
-x <- data %>% filter(SVSPP == 103)
+x <- data |> filter(SVSPP == 103)
 
 y <- ggplot(x) +
   aes(x = as.factor(EST_YEAR), y = stratmu, color = TYPE, shape = TYPE) +
@@ -79,14 +76,14 @@ y <- ggplot(x) +
   scale_color_manual(values = pal)
 
 
-#### GGPLOT LOOPS ####
+## GGPLOT LOOPS ####
 # two loops created due to available device storage 
 
-##### Loop 01 #####
+### Loop 01 #####
 # loop over the species vector and create stratified mean plots over time for each species and save into the empty plot list 
 for(i in species){ # for each value i in the species vector
   
-  x <- data %>% filter(SVSPP == i) # filter the dataset where the species code is the value of i
+  x <- data |> filter(SVSPP == i) # filter the dataset where the species code is the value of i
   
   mu_plots[[i]] <- ggplot(x) + 
     aes(as.factor(EST_YEAR), # x value 
@@ -119,7 +116,7 @@ saveRDS(mu_plots, file = here("data", "rds","retro-analysis",  "stratmu-plots.rd
 # print(mu_plots[[###]])
 
 
-##### Loop 02 #####
+### Loop 02 #####
 # loop over the species vector, save the plot within the list object
 
 for(i in seq_along(species)){ # move along the sequence of values in the species vector

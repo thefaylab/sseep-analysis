@@ -1,17 +1,15 @@
 ### created: 11/28/2022
 ### last updated: 12/8/2022
 
-#### 03 - CALCULATING MEAN SQUARED DIFFERENCES FOR STRATIFIED MEANS BY SPECIES ####
-
-###################
-#### OBJECTIVE ####
-###################
-# calculate mean squared differences for each species to attempt to identify species to prioritize  
-
-####################
+# 03 - CALCULATING MEAN SQUARED DIFFERENCES FOR STRATIFIED MEANS BY SPECIES ####
 
 
-#### LOAD PACKAGES ####
+## OBJECTIVE ####
+# calculate mean squared relative differences for each species as a metric of bias between scenarios (status quo and preclusion)
+
+
+
+### LOAD PACKAGES ####
 library(stringr)
 library(patchwork)
 library(here)
@@ -25,7 +23,7 @@ library(patchwork)
 # webshot::install_phantomjs()
 
 
-#### LOAD DATA ####
+### LOAD DATA ####
 # dataset created from `02-bind-stratmeans.R` here("retro-analysis"). Contains stratified means and variances for each species and unique tow over time.
 data <- readRDS(here("data", "rds", "retro-analysis", "strat-mu_all.rds")) 
 
@@ -36,15 +34,15 @@ specieslookup <- data |>
   distinct() |>
   mutate(spname = str_to_lower(gsub(" ", "_", COMNAME)))
 
-#### CALCULATE MEAN SQUARED DIFFERENCES #####  
+## CALCULATE MEAN SQUARED RELATIVE DIFFERENCES #####  
 mudiff_dat <- data |> 
   #mutate(stratmu = ifelse(stratmu==0, 1, stratmu)) |>
   filter(EST_YEAR %in% c(2016:2019, 2021)) |> #filter for recent 5 years, skipping 2020
-  mutate(log_mu = log(stratmu)) |>
-  arrange(desc(log_mu)) |>
+  #mutate(log_mu = log(stratmu)) |>
+  arrange(desc(stratmu)) |>
   group_by(SVSPP, EST_YEAR, SEASON) |> #, 
   #summarize(sq_diff = (exp(diff(log(stratmu)))-1)^2, .groups = "drop") |>
-  summarise(diff_mu = diff(log_mu)) |>
+  summarise(diff_mu = diff(stratmu)) |>
   arrange(desc(diff_mu)) |>
   mutate(exp_mu = (exp(diff_mu))-1) |>
   arrange(desc(exp_mu)) |>
@@ -69,7 +67,7 @@ topten_fall <- mudiff_dat |>
          "Relative Percent Difference" = mudiff)
 
 fall_table <- kable(topten_fall[,c(4,3,2)], align = "lcccc", caption = "Ten Highest Percent Differences in Abundance Indices by Species", format.args = list(big.mark = ","), booktabs = TRUE) |>
-  kable_styling(full_width = F, fixed_thead = T, font_size = 14) |>
+  kable_styling(full_width = F, fixed_thead = T, font_size = 14) #|>
 
 save_kable(fall_table, here("outputs", "fall_mudiff.png"))
 
@@ -93,12 +91,12 @@ save_kable(spring_table, here("outputs", "spring_mudiff.png"))
 saveRDS(mudiff_dat, file = here("data", "rds", "species_mean-sq-diff.rds"))
 
 
-#### PLOT THE DISTRIBUTION #####
+## PLOT THE DISTRIBUTION #####
 
-sf_mudiff <- mudiff_dat |>
-  filter(SVSPP == 103) |> 
-  mutate(count = 1, 
-         across(mudiff, round, 3))
+# sf_mudiff <- mudiff_dat |>
+#   filter(SVSPP == 103) |> 
+#   mutate(count = 1, 
+#          across(mudiff, round, 3))
 
 mudiff_dat <- mudiff_dat |>
   mutate(across(mudiff, round, 3))
@@ -115,7 +113,7 @@ ggplot() +
 
 
 ### save the plot
-ggsave(filename ="species_mean-sq-diff.png", device = "png" , path = here("outputs", "plots"), width = 10, height = 8)
+ggsave(filename ="species_mean-sq-diff.png", plot = last_plot(), device = "png" , path = here("outputs", "plots"), width = 10, height = 8)
 #ggsave(filename ="sf_mudiff.jpeg", device = "jpeg" , path = here("outputs", "sumflounder"), width = 10, height = 5)
 
 

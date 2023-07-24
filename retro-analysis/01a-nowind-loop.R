@@ -1,5 +1,5 @@
 ### created: 11/11/2022
-### last updated: 07/19/2023
+### last updated: 07/24/2023
 
 # 01a - STRATIFIED CALCULATIONS: WITH WIND AREAS INCLUDED ####
 
@@ -18,21 +18,21 @@ suppressPackageStartupMessages(library(tidyverse))
 
 
 ### LOAD DATA ####
-# dataset created from `05b-spatial-filter-data.R` here("tidy-data"). Contains complete observations for each species and unique tow filtered based on 99% cumulative distribution of biomass. 
+# dataset created from `05b-spatial-filter-data.R` here("tidy-data"). Contains complete observations for each species and unique tow filtered based on 95% cumulative distribution of biomass. 
 data <- readRDS(here("data", "rds", "95filtered_complete_bts.rds"))
 
 # species dataframe for adding to final dataset 
 species <- readRDS(here("data", "rds", "95filtered-species.rds"))
 
-# load and manipulate the shapefile of active bottom trawl survey strata created in here(tidy-data, "03-filter-current-strata.R")
-strata <- readRDS(here("data", "rds", "active_strata.rds")) |> #read in data
-  dplyr::select(STRATUM, Area_SqNm) |> # select variables to be used in calculations below
-  sf::st_set_geometry(NULL) |> # remove the coordinates; changes the sf to a df
-  unique() |> # identify unique stratum only 
-  mutate(RelWt = Area_SqNm / sum(Area_SqNm)) # calculate the relative weight of each stratum based on its proportion of the total survey footprint area; to be used in later calculations.
-
-### save the data 
-saveRDS(strata, here("data", "rds", "active_strata_wts.rds"))
+# load the active bottom trawl survey strata and their relative area weights created here(tidy-data, "02b-filter-current-strata.R")
+strata <- readRDS(here("data", "rds", "active_strata_wts.rds")) #|> #read in data
+#   dplyr::select(STRATUM, Area_SqNm) |> # select variables to be used in calculations below
+#   sf::st_set_geometry(NULL) |> # remove the coordinates; changes the sf to a df
+#   unique() |> # identify unique stratum only 
+#   mutate(RelWt = Area_SqNm / sum(Area_SqNm)) # calculate the relative weight of each stratum based on its proportion of the total survey footprint area; to be used in later calculations.
+# 
+# ### save the data 
+# saveRDS(strata, here("data", "rds", "active_strata_wts.rds"))
 
 # calculate total survey area for use in future calculations  
 BTSArea <- as.integer(sum(strata$Area_SqNm))

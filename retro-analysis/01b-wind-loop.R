@@ -1,5 +1,5 @@
 ### created: 11/11/2022
-### last updated: 07/19/2023
+### last updated: 07/24/2023
 
 # 01b - STRATIFIED CALCULATIONS: WITH WIND AREAS PRECLUDED ####
 
@@ -23,11 +23,11 @@ data <- readRDS(here("data", "rds", "95filtered_complete_bts.rds")) |> filter(AR
 # species dataframe for adding to final dataset 
 species <- readRDS(here("data", "rds", "95filtered-species.rds"))
 
-# # load starat weights rds object created in here(retro-analysis, "01a-nowind-loop.R")
-strata <- readRDS(here("data", "rds", "active_strata_wts.rds"))
+# # load relative area weights of survey strata created here("tidy-data", "03a-find-wind-intersection.R")
+strata <- readRDS(here("data", "rds", "preclusion_wts.rds"))
 
 # calculate total survey area for use in future calculations  
-BTSArea <- as.integer(sum(strata$Area_SqNm))
+BTSArea <- sum(strata$Area_SqM_remain) #in meters
 
 # statistical management areas 
 #geounits <- readRDS(here("data", "rds", "geounits.rds"))
@@ -46,8 +46,8 @@ wind_means <- data %>%
             var = ifelse(towct == 1, 0, # if the tow count equals 1, then variance about the mean should be 0
                          sum((EXPCATCHWT - mu)^2)/(towct - 1))) %>% # if tow count does not equal 1, then find the variance of biomass
   left_join(strata, by = "STRATUM") %>% # add each stratum area and relative weight to the dataset based on STRATUM number
-  mutate(wt_mu = Area_SqNm * mu, # part one of the stratified mean formula
-         wt_var = (((((RelWt)^2) * var) / towct) * (1 - (towct / Area_SqNm)))) # part one of the stratified variance formula
+  mutate(wt_mu = Area_SqM_remain * mu, # part one of the stratified mean formula
+         wt_var = (((((RelWt)^2) * var) / towct) * (1 - (towct / Area_SqM_remain)))) # part one of the stratified variance formula
 
 
 ### save the data 
