@@ -85,8 +85,8 @@ fall_incl_plot <- ggplot(fall_incl_dist) +
   geom_histogram(aes(x = estimate, fill = "#3f7f00")) + 
   scale_fill_manual(values = c("#3f7f00"), labels = c("With Wind Included"), name = NULL) +
   shade_confidence_interval(endpoints = fall_incl_ci, color = "#5dc5e9", fill = "#5dc5e9") +
-  geom_vline(xintercept = as.numeric(obs_slopes[1,6]), linetype = 6, color = "#0a4c8a", linewidth = 1) +
-  annotate("text", x = -0.102, y = 42, label = str_c("Observed Slope", round(obs_slopes[1,6], 4), sep = ": "), angle = 90) +
+  geom_vline(xintercept = as.numeric(obs_slopes[2,6]), linetype = 6, color = "#0a4c8a", linewidth = 1) +
+  annotate("text", x = -0.074, y = 95, label = str_c("Observed Slope", round(obs_slopes[2,6], 4), sep = ": "), angle = 90) +
   facet_wrap(~SEASON) +
   labs(x = "Linear regression slope of abundance index", y = "Number of linear regression slopes") +
   theme_bw() +
@@ -98,8 +98,8 @@ spr_incl_plot <- ggplot(spr_incl_dist) +
   geom_histogram(aes(x = estimate, fill = "#3f7f00")) + 
   scale_fill_manual(values = c("#3f7f00"), labels = c("With Wind Included"), name = NULL) +
   shade_confidence_interval(endpoints = spr_incl_ci, color = "#5dc5e9", fill = "#5dc5e9") +
-  geom_vline(xintercept = as.numeric(obs_slopes[3,6]), linetype = 6, color = "#0a4c8a", linewidth = 1) +
-  annotate("text", x = -0.052, y = 45, label = str_c("Observed Slope", round(obs_slopes[3,6], 4), sep = ": "), angle = 90) +
+  geom_vline(xintercept = as.numeric(obs_slopes[4,6]), linetype = 6, color = "#0a4c8a", linewidth = 1) +
+  annotate("text", x = -0.050, y = 45, label = str_c("Observed Slope", round(obs_slopes[4,6], 4), sep = ": "), angle = 90) +
   facet_wrap(~SEASON) +
   labs(x = "Linear regression slope of abundance index", y = "Number of linear regression slopes") +
   theme_bw() +
@@ -112,7 +112,7 @@ fall_precl_plot <- ggplot(fall_precl_dist) +
   scale_fill_manual(values = c("orange"), labels = c("With Wind Precluded"), name = NULL) + 
   shade_confidence_interval(endpoints = fall_precl_ci, color = "#5dc5e9", fill = "#5dc5e9") +
   geom_vline(xintercept = as.numeric(obs_slopes[2,6]), linetype = 6, color = "#0a4c8a", linewidth = 1) +
-  annotate("text", x = -0.071, y = 95, label = str_c("Observed Slope", round(obs_slopes[2,6], 4), sep = ": "), angle = 90) +
+  annotate("text", x = -0.075, y = 100, label = str_c("Observed Slope", round(obs_slopes[2,6], 4), sep = ": "), angle = 90) +
   facet_wrap(~SEASON) +
   labs(x = "Linear regression slope of abundance index", y = "") +
   theme_bw() +
@@ -126,7 +126,7 @@ spr_precl_plot <- ggplot(spr_precl_dist) +
   scale_fill_manual(values = c("orange"), labels = c("With Wind Precluded"), name = NULL) +
   shade_confidence_interval(endpoints = spr_precl_dist_ci, color = "#5dc5e9", fill = "#5dc5e9") +
   geom_vline(xintercept = as.numeric(obs_slopes[4,6]), linetype = 6, color = "#0a4c8a", linewidth = 1) +
-  annotate("text", x = -0.048, y = 45, label = str_c("Observed Slope", round(obs_slopes[4,6], 4), sep = ": "), angle = 90) +
+  annotate("text", x = -0.050, y = 45, label = str_c("Observed Slope", round(obs_slopes[4,6], 4), sep = ": "), angle = 90) +
   facet_wrap(~SEASON) +
   labs(x = "Linear regression slope of abundance index", y = "") +
   theme_bw() +
