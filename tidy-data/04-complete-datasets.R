@@ -13,9 +13,10 @@ library(stringr)
 here()
 
 ### Load Data ###
-wind <- readRDS(here("data", "rds", "tidy-wind.rds"))
-bts <- readRDS(here("data", "rds", "tidy-bts.rds"))
-outside <- readRDS(here("data", "rds", "tidy-outside.rds"))
+#wind <- readRDS(here("data", "rds", "tidy-wind.rds"))
+data <- readRDS(file = here("data", "rds", "Feb2023", "tidy-full-bts.rds"))
+bts <- readRDS(here("data", "rds", "Feb2023", "full-bts-indexed.rds"))
+#outside <- readRDS(here("data", "rds", "tidy-outside.rds"))
 #species <- read_csv(here("data", "clean-data", "species-v2.csv"))
 
 ## Create Unique Codes #####
@@ -23,37 +24,37 @@ outside <- readRDS(here("data", "rds", "tidy-outside.rds"))
 ### Season Code ######
 # Create a column for assigning an integer to the season values
 # 01 = FALL; 02 = SPRING
-outside$SEASON2 = ifelse(outside$SEASON=="FALL", as.integer(01), as.integer(02))
-wind$SEASON2 = ifelse(wind$SEASON=="FALL", as.integer(01), as.integer(02))
+#outside$SEASON2 = ifelse(outside$SEASON=="FALL", as.integer(01), as.integer(02))
+#wind$SEASON2 = ifelse(wind$SEASON=="FALL", as.integer(01), as.integer(02))
 
 
 ### Area Code #####
 # Assign a character and integer as to whether it is wind or outside data 
 
 #### Outside #####
-outside$AREA <- paste("OUTSIDE")  
-outside$AREA_CODE <- paste(as.integer(2))
+#outside$AREA <- paste("OUTSIDE")  
+#outside$AREA_CODE <- paste(as.integer(2))
 
 #### Wind #####
-wind$AREA <- paste("WIND")
-wind$AREA_CODE <- paste(as.integer(1))
+#wind$AREA <- paste("WIND")
+#wind$AREA_CODE <- paste(as.integer(1))
 
 
 ### Tow ID #####
 # Create unique Tow ID column by joining together unique tow information
 
 #### Outside #####
-outside$ID = str_c(outside$CRUISE6, outside$STATION, outside$STRATUM,
-                   outside$EST_MONTH, outside$EST_DAY, outside$YEAR, 
-                   outside$SEASON2, outside$HOUR, outside$MINUTE, 
-                   outside$SECONDS, outside$AREA_CODE, 
-                   sep = "-")
+# outside$ID = str_c(outside$CRUISE6, outside$STATION, outside$STRATUM,
+#                    outside$EST_MONTH, outside$EST_DAY, outside$YEAR, 
+#                    outside$SEASON2, outside$HOUR, outside$MINUTE, 
+#                    outside$SECONDS, outside$AREA_CODE, 
+#                    sep = "-")
 
 #### Wind #####
-wind$ID = str_c(wind$CRUISE6, wind$STATION, wind$STRATUM, wind$EST_MONTH,
-                wind$EST_DAY, wind$YEAR, wind$SEASON2, wind$HOUR, wind$MINUTE,
-                wind$SECONDS, wind$AREA_CODE, 
-                sep = "-")
+# wind$ID = str_c(wind$CRUISE6, wind$STATION, wind$STRATUM, wind$EST_MONTH,
+#                 wind$EST_DAY, wind$YEAR, wind$SEASON2, wind$HOUR, wind$MINUTE,
+#                 wind$SECONDS, wind$AREA_CODE, 
+#                 sep = "-")
 
 
 
@@ -61,35 +62,54 @@ wind$ID = str_c(wind$CRUISE6, wind$STATION, wind$STRATUM, wind$EST_MONTH,
 # Creates a data frame using the longitude, latitude, and the ID 
 
 #### Outside #####
-out_coords <- outside %>% select(DECDEG_BEGLON, DECDEG_BEGLAT, ID) %>% unique()
+# out_coords <- outside %>% select(DECDEG_BEGLON, DECDEG_BEGLAT, ID) %>% unique()
 #coordso$LNL = stri_join(coordso$DECDEG_BEGLON, coordso$DECDEG_BEGLAT, sep = " : ")
 
 #### Wind #####
-wind_coords <- wind %>% select(DECDEG_BEGLON, DECDEG_BEGLAT, ID) %>% unique()
+# wind_coords <- wind %>% select(DECDEG_BEGLON, DECDEG_BEGLAT, ID) %>% unique()
 # coordsw$LNL = stri_join(coordsw$DECDEG_BEGLON, coordsw$DECDEG_BEGLAT, sep = " : ")
-
+# coords <- data %>% dplyr::select(DECDEG_BEGLON, DECDEG_BEGLAT, TOWID) %>% unique()
+# 
+# info <- data %>% dplyr::select(DECDEG_BEGLON, DECDEG_BEGLAT, TOWID, CRUISE6, STATION, STRATUM, CODE, HOUR, MINUTE, SECONDS, ) %>% unique()
 
   
 ## Compete #####
 
 # Binds two datasets together
-merged_data <- bind_rows(outside, wind)
+#merged_data <- bind_rows(outside, wind)
 
 # Write binded data to CSV
-write_csv(merged_data, here("data", "clean-data", "merged_present-only.csv"))
-saveRDS(merged_data, here("data", "rds", "merged_present-only.rds"))
+#write_csv(merged_data, here("data", "clean-data", "merged_present-only.csv"))
+#saveRDS(merged_data, here("data", "rds", "merged_present-only.rds"))
 
 # Complete data by using every possible combination of ID and SVSPP 
-merged_data <- merged_data %>% 
-  complete(ID, 
+comp_data <- bts %>% 
+  complete(TOWID, 
            SVSPP, 
            fill=list(EXPCATCHNUM = as.integer(0),   #fill with 0
-                     EXPCATCHWT = as.integer(0),    #fill with 0
-                     STATUS_CODE = as.integer(10),  #fill with 10
-                     PURPOSE_CODE = as.integer(10), #fill with 10
-                     TOWCT = as.integer(1)          #fill with 1 for summarising
+                     EXPCATCHWT = as.integer(0)#,    #fill with 0
+                     #STATUS_CODE = as.integer(10),  #fill with 10
+                     #PURPOSE_CODE = as.integer(10), #fill with 10
+                     #TOWCT = as.integer(1)          #fill with 1 for summarising
                      ),
            explicit = FALSE)
+
+info <- bts |> 
+  dplyr::select(!c(X, SVSPP, COMNAME, EXPCATCHNUM, EXPCATCHWT, CATCHSEX))
+
+nas <- comp_data |> 
+  filter(is.na(CODE))
+
+test <- nas |> 
+  inner_join(info, by = "TOWID")
+
+#complete_dat <- inner_join(bts, comp_data, by = "TOWID")
+
+sub_complete <- comp_data |> 
+  dplyr::select(TOWID, SVSPP, EXPCATCHNUM, EXPCATCHWT) |> 
+  mutate(EXPCATCHNUM = ifelse(is.na(EXPCATCHNUM), as.integer(0), EXPCATCHNUM), 
+         EXPCATCHWT = ifelse(is.na(EXPCATCHWT), as.integer(0), EXPCATCHWT), 
+         PRESENCE = ifelse(EXPCATCHNUM == 0, as.integer(0), as.integer(1)))
 
 
 ### Fill/Create Columns #####
@@ -97,17 +117,17 @@ merged_data <- merged_data %>%
 #### Presence/Absence #####
 # Create a column for assigning an integer to presence/absence of a species based on EXPCATCHNUM
 # 00 = ABSENT; 01 = PRESENT
-merged_data$PRESENCE <- ifelse(merged_data$EXPCATCHNUM == 0, as.integer(0), as.integer(1))
+comp_data$PRESENCE <- ifelse(comp_data$EXPCATCHNUM == 0, as.integer(0), as.integer(1))
 
 #### Break up ID column ##### 
-merged_data <- merged_data %>% 
-  separate(ID, 
-           into = c("CRUISE6", "STATION", "STRATUM","EST_MONTH", "EST_DAY",
-                    "EST_YEAR", "SEASON2","HOUR", "MINUTE", "SECONDS", 
-                    "AREA_CODE"),
-           sep="-", 
-           remove=FALSE, 
-           convert=TRUE)
+# com_data <- merged_data %>% 
+#   separate(ID, 
+#            into = c("CRUISE6", "STATION", "STRATUM","EST_MONTH", "EST_DAY",
+#                     "EST_YEAR", "SEASON2","HOUR", "MINUTE", "SECONDS", 
+#                     "AREA_CODE"),
+#            sep="-", 
+#            remove=FALSE, 
+#            convert=TRUE)
 
 # Recreate the AREA / AREA_CODE columns
 merged_data$AREA = ifelse(merged_data$AREA_CODE==1, "WIND", "OUTSIDE")
