@@ -1,5 +1,5 @@
 ### created: 03/15/2023
-### last updated: 04/17/2023
+### last updated: 08/02/2023
 
 # 01b - MAKE SURVEY GRID ####
 
@@ -22,14 +22,14 @@ suppressPackageStartupMessages(library(tidyverse))
 theme_set(theme_bw())
 #source()
 
-sdmtmb.dir <- "../sseep-analysis/sdmtmb"
-sseep.dir <- "../sseep-analysis"
+sdmtmb.dir <- "C:/Users/amiller7/Documents/cinar-osse/sseep-analysis/sdmtmb"
+sseep.dir <- "C:/Users/amiller7/Documents/cinar-osse/sseep-analysis"
 
 ### LOAD DATA ####
-strata <- readRDS(here("data", "rds", "current_strata.rds"))
+strata <- readRDS(here("data", "rds", "active_strata.rds"))
 
 # read in wind areas where they are one large polygon
-wind_areas <- readRDS(here("data", "rds", "merged_wind_areas_Jan2023.rds"))
+wind_areas <- readRDS(here("data", "rds", "wind_areas_062022", "merged_wind_areas_Jun2022.rds"))
 
 # read in east coastline
 east_coast <- sf::st_read(here("gis", "eastern_coast_UTM.shp"))
@@ -195,7 +195,7 @@ ggplot(survey_grid, aes(X, Y, fill = as.factor(AREA))) +
   coord_equal()
 
 ## SAVE THE FINAL GRID ####
-saveRDS(survey_grid, here(sdmtmb.dir, "data", "survey_grid.rds"))
+saveRDS(survey_grid, here(sdmtmb.dir, "survey_grid_Jun2022.rds"))
 
 
 
