@@ -1,18 +1,14 @@
 ### created: 03/06/2023
-### last updated:
+### last updated: 08/16/2023
 
-####  ####
-
-###################
-#### OBJECTIVE ####
-###################
-# 
+# 02 - DISTRIBUTION OF SIMULATED LINEAR REGRESSION SLOPE ESTIMATES ####
 
 
-####################
+## OBJECTIVE ####
+# plot the distribution of 1000 linear regression estimates for each season and scenario
 
 
-#### LOAD PACKAGES ####
+### LOAD PACKAGES ####
 library(stringr)
 library(sf)
 library(patchwork)
@@ -20,146 +16,120 @@ library(here)
 library(infer)
 suppressPackageStartupMessages(library(tidyverse))
 
+sseep.analysis <- "C:/Users/amiller7/Documents/cinar-osse/sseep-analysis"
 
-#### LOAD DATA ####
-# observed stratified mean 
-sf_stratmu <- readRDS(here("data", "rds", "strat-mu_all.rds")) %>% filter(SVSPP == 103)
+### LOAD DATA ####
+# observed change in abundance index over time. created here(sseep.analysis, "retro-analysis", "05-AI-linear-regressions.R") and filtered for summer flounder
+obs_slopes <- readRDS( here("data", "sumflounder", "sf_obs-slopes.rds"))
 
-# without wind tows 
-FallSimMu_wow <- readRDS(here("sdmtmb", "data", "sfall_sim-wow-means.rds"))
-SprSimMu_wow <- readRDS(here("sdmtmb", "data", "spr_sim-wow-means.rds"))
+# simulated changes in fall abundance indices over time for each scenario, created here("sdmtmb", "sumflounder", "04-mod-posterior-check", "01a-fall-mod-ppcheck1.R") 
+## with wind included
+fall_ww_lms <- readRDS(file = here("sdmtmb", "sumflounder", "data", "post-check", "fall_ww_slopes.rds"))
+## without wind (wind precluded)
+fall_wow_lms <- readRDS(file = here("sdmtmb", "sumflounder", "data", "post-check", "fall_wow_slopes.rds"))
 
-# with wind tows
-FallSimMu_ww <- readRDS(here("sdmtmb", "data", "fall_sim-ww-means.rds"))
-SprSimMu_ww <- readRDS(here("sdmtmb", "data", "spr_sim-ww-means.rds"))
+# simulated changes in spring abundance indices over time for each scenario, created here("sdmtmb", "sumflounder", "04-mod-posterior-check", "01b-spring-mod-ppcheck1.R") 
+## with wind included
+spr_ww_lms <- readRDS( file = here("sdmtmb", "sumflounder", "data", "post-check", "spring_ww_slopes.rds"))
+## without wind (wind precluded)
+spr_wow_lms <- readRDS(file = here("sdmtmb", "sumflounder", "data", "post-check", "spring_wow_slopes.rds"))
 
-# FIND CHANGES IN TREND (eg slopes) #
-# observed data
-sf_stratmu_lm <- sf_stratmu %>% 
-  group_by(SEASON, TYPE) %>% 
-  nest() %>%
-  mutate(model = map(data, ~lm(stratmu ~ EST_YEAR, data = .x))) %>% 
-  mutate(coefs = map(model, broom::tidy, conf.int = TRUE)) %>% 
-  unnest(coefs) 
-saveRDS(sf_stratmu_lm, file = here(sdmtmb.dir, "data", "sf_obs_lm.rds"))
+## CALCULATE CONFIDENCE INTERVALS OF SIMULATED ESTIMATES ####
+# without wind (wind precluded)
+fall.wow.ci <- fall_wow_lms %>%
+  ungroup() %>%
+  summarise(lower = quantile(estimate, 0.025),
+            upper = quantile(estimate, 0.975))
 
-# Simulated data
-# with wind removed
-fall_wow_lms <- FallSimMu_wow %>%
-  select(nsim, stratmu) %>% 
-  mutate(model = map(stratmu, ~lm(stratmu ~ EST_YEAR, data = .))) %>%  #same code as before to run the models
-  mutate(coef = map(model, broom::tidy, conf.int = TRUE)) %>% 
-  unnest(coef) %>% 
-  select(nsim, term, estimate, conf.low, conf.high) %>%
-  filter(term == "EST_YEAR") |> 
-  mutate(SEASON = "FALL", 
-         TYPE = "With Wind Precluded")
-saveRDS(fall_wow_lms, file = here(sdmtmb.dir, "data", "fall_wow_lm.rds"))
+spr.wow.ci <- spr_wow_lms %>%
+  ungroup() %>%
+  summarise(lower = quantile(estimate, 0.025),
+            upper = quantile(estimate, 0.975))
 
-spr_wow_lms <- SprSimMu_wow %>%
-  select(nsim, stratmu) %>% 
-  mutate(model = map(stratmu, ~lm(stratmu ~ EST_YEAR, data = .))) %>%  #same code as before to run the models
-  mutate(coef = map(model, broom::tidy, conf.int = TRUE)) %>% 
-  unnest(coef) %>% 
-  select(nsim, term, estimate, conf.low, conf.high) %>%
-  filter(term == "EST_YEAR") |> 
-  mutate(SEASON = "SPRING", 
-         TYPE = "With Wind Precluded")
-saveRDS(spr_wow_lms, file = here(sdmtmb.dir, "data", "spr_wow_lm.rds"))
 
 # with wind included
-fall_ww_lms <- FallSimMu_ww %>%
-  select(nsim, stratmu) %>% 
-  mutate(model = map(stratmu, ~lm(stratmu ~ EST_YEAR, data = .))) %>%  #same code as before to run the models
-  mutate(coef = map(model, broom::tidy, conf.int = TRUE)) %>% 
-  unnest(coef) %>% 
-  select(nsim, term, estimate, conf.low, conf.high) %>%
-  filter(term == "EST_YEAR") |> 
-  mutate(SEASON = "FALL", 
-         TYPE = "With Wind Included")
-saveRDS(fall_ww_lms, file = here(sdmtmb.dir, "data", "fall_ww_lm.rds"))
+fall.ww.ci <- fall_ww_lms %>%
+  ungroup() %>%
+  summarise(lower = quantile(estimate, 0.025),
+            upper = quantile(estimate, 0.975))
 
-spr_ww_lms <- SprSimMu_ww %>%
-  select(nsim, stratmu) %>% 
-  mutate(model = map(stratmu, ~lm(stratmu ~ EST_YEAR, data = .))) %>%  #same code as before to run the models
-  mutate(coef = map(model, broom::tidy, conf.int = TRUE)) %>% 
-  unnest(coef) %>% 
-  select(nsim, term, estimate, conf.low, conf.high) %>%
-  filter(term == "EST_YEAR") |> 
-  mutate(SEASON = "SPRING", 
-         TYPE = "With Wind Included")
-saveRDS(spr_ww_lms, file = here(sdmtmb.dir, "data", "spr_ww_lm.rds"))
+spr.ww.ci <- spr_ww_lms %>%
+  ungroup() %>%
+  summarise(lower = quantile(estimate, 0.025),
+            upper = quantile(estimate, 0.975))
 
-# # 
-#observed data 
-obs_slopes <- filter(sf_stratmu_lm, term == "EST_YEAR") %>% 
-  select(SEASON, TYPE, estimate, conf.high, conf.low) %>%
-  rename(slope = estimate, 
-         lower = conf.low, 
-         upper = conf.high) %>% 
-  mutate(METHOD = "Observed") %>% 
-  relocate(METHOD, .after = TYPE) %>%
-  arrange(SEASON)
-saveRDS(obs_slopes, file = here(sdmtmb.dir, "data", "obs_changes.rds"))
- 
-# with wind removed
-fall_wow_slope <- fall_wow_lms %>% 
-  ungroup() %>% 
-  summarise(slope = median(estimate), 
-            lower = quantile(estimate, 0.025), 
-            upper = quantile(estimate, 0.975)) %>% 
-  mutate(SEASON = "FALL", 
-         TYPE = "With Wind Precluded", 
-         METHOD = "Simulated") %>% 
-  relocate(c(SEASON, TYPE, METHOD), .before = everything())
-percentile_fwowslope <- fall_wow_slope %>% 
-  select(lower, upper)
-saveRDS(fall_wow_slope, file = here(sdmtmb.dir, "data", "fall_wow_slope.rds"))
 
-spr_wow_slope <- spr_wow_lms %>% 
-  ungroup() %>% 
-  summarise(slope = median(estimate), 
-            lower = quantile(estimate, 0.025), 
-            upper = quantile(estimate, 0.975)) %>% 
-  mutate(SEASON = "SPRING", 
-         TYPE = "With Wind Precluded",
-         METHOD = "Simulated") %>% 
-  relocate(c(SEASON, TYPE, METHOD), .before = everything())
-percentile_swowslope <- spr_wow_slope %>% 
-  select(lower, upper)
-saveRDS(spr_wow_slope, file = here(sdmtmb.dir, "data", "spr_wow_slope.rds"))
+## PLOT DISTRIBUTION OF SLOPES ####
 
-# with wind included
-fall_ww_slope <- fall_ww_lms %>% 
-  ungroup() %>% 
-  summarise(slope = median(estimate), 
-            lower = quantile(estimate, 0.025), 
-            upper = quantile(estimate, 0.975)) %>% 
-  mutate(SEASON = "FALL", 
-         TYPE = "With Wind Included", 
-         METHOD = "Simulated") %>% 
-  relocate(c(SEASON, TYPE, METHOD), .before = everything())
+### WITH WIND PRECLUDED: FALL ####
+fall_precl_plot <- ggplot(fall_wow_lms) +
+  geom_histogram(aes(x = estimate, fill = "orange")) + 
+  scale_fill_manual(values = c("orange"), labels = c("With Wind Precluded"), name = NULL) +
+  shade_confidence_interval(endpoints = fall.wow.ci, color = "#5dc5e9", fill = "#5dc5e9") +
+  geom_vline(xintercept = as.numeric(obs_slopes[2,6]), linetype = 6, linewidth = 1, color = "#0a4c8a") +
+  annotate("text", x = -0.066, y = 60, label = str_c("Observed Slope", round(obs_slopes[2,6], 4), sep = ": "), angle = 90) +
+  facet_wrap(~SEASON) +
+  labs(x = "Linear regression slope of abundance index", y = "") +
+  theme_bw() +
+  theme(title = element_text(size = 10), legend.position = "bottom")
 
-percentile_fwwslope <- fall_ww_slope %>% 
-  select(lower, upper)
-saveRDS(fall_ww_slope, file = here(sdmtmb.dir, "data", "fall_ww_slope.rds"))
+### WITH WIND INCLUDED: FALL ####
+fall_incl_plot <- ggplot(fall_ww_lms) +
+  geom_histogram(aes(x = estimate, fill = "#3f7f00")) + 
+  scale_fill_manual(values = c("#3f7f00"), labels = c("With Wind Included"), name = NULL) + 
+  shade_confidence_interval(endpoints = fall.ww.ci, color = "#5dc5e9", fill = "#5dc5e9") +
+  geom_vline(xintercept = as.numeric(obs_slopes[2,6]), linetype = 6, linewidth = 1, color = "#0a4c8a") +
+  annotate("text", x = -0.066, y = 100, label = str_c("Observed Slope", round(obs_slopes[2,6], 4), sep = ": "), angle = 90) +
+  facet_wrap(~SEASON) +
+  labs(x = "Linear regression slope of abundance index", y = "Number of linear regression slopes") +
+  theme_bw() +
+  theme(title = element_text(size = 10), legend.position = "bottom")
 
-spr_ww_slope <- spr_ww_lms %>% 
-  ungroup() %>% 
-  summarise(slope = median(estimate), 
-            lower = quantile(estimate, 0.025), 
-            upper = quantile(estimate, 0.975)) %>% 
-  mutate(SEASON = "SPRING", 
-         TYPE = "With Wind Included", 
-         METHOD = "Simulated") %>% 
-  relocate(c(SEASON, TYPE, METHOD), .before = everything())
-percentile_swwslope <- spr_ww_slope %>% 
-  select(lower, upper)
-saveRDS(spr_ww_slope, file = here(sdmtmb.dir, "data", "spr_ww_slope.rds"))
+### WITH WIND PRECLUDED: SPRING ####
+spr_precl_plot <- ggplot(spr_wow_lms) +
+  geom_histogram(aes(x = estimate, fill = "orange")) +
+  scale_fill_manual(values = c("orange"), labels = c("With Wind Precluded"), name = NULL) + 
+  shade_confidence_interval(endpoints = spr.wow.ci, color = "#5dc5e9", fill = "#5dc5e9") +
+  geom_vline(xintercept = as.numeric(obs_slopes[4,6]), linetype = 6, linewidth = 1, color = "#0a4c8a") +
+  annotate("text", x = -0.045, y = 45, label = str_c("Observed Slope", round(obs_slopes[4,6], 4), sep = ": "), angle = 90) +
+  facet_wrap(~SEASON) +
+  labs(x = "Linear regression slope of abundance index", y = "") +
+  theme_bw() +
+  theme(title = element_text(size = 10), legend.position = "bottom")
 
-slopes <- bind_rows(obs_slopes, fall_wow_slope, spr_wow_slope, fall_ww_slope, spr_ww_slope) %>%
-  mutate(ID = str_c(str_sub(SEASON,1,1), str_sub(TYPE, 11, 11), str_sub(METHOD, 1, 1))) %>%
-  arrange(SEASON)
+### WITH WIND INCLUDED: SPRING ####
+spr_incl_plot <- ggplot(spr_ww_lms) +
+  geom_histogram(aes(x = estimate, fill = "#3f7f00")) + 
+  scale_fill_manual(values = c("#3f7f00"), labels = c("With Wind Included"), name = NULL) +
+  shade_confidence_interval(endpoints = spr.ww.ci, color = "#5dc5e9", fill = "#5dc5e9") +
+  geom_vline(xintercept = as.numeric(obs_slopes[4,6]), linetype = 6, linewidth = 1, color = "#0a4c8a") +
+  annotate("text", x = -0.045, y = 45, label = str_c("Observed Slope", round(obs_slopes[4,6], 4), sep = ": "), angle = 90) +
+  facet_wrap(~SEASON) +
+  labs(x = "Linear regression slope of abundance index", y = "Number of linear regression slopes") +
+  theme_bw() +
+  theme(title = element_text(size = 10), legend.position = "bottom")
+
+
+## PATCHWORK ####
+dist_plots <- (fall_incl_plot + fall_precl_plot) / (spr_incl_plot + spr_precl_plot) + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+
+fall_dist_plots <- (fall_incl_plot + fall_precl_plot) + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+
+spr_dist_plots <- (spr_incl_plot + spr_precl_plot) + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+
+
+### save plots
+ggsave("sim-lin-reg-dists.png", plot = dist_plots, device = "png", path = here("sdmtmb", "sumflounder", "plots"), width = 15, height = 10)
+
+ggsave("fall-sim-slope-dists.png", plot = fall_dist_plots, device = "png", path = here("sdmtmb", "sumflounder", "plots"), width = 15, height = 10)
+
+ggsave("spr-sim-slope-dists.png", plot = spr_dist_plots, device = "png", path = here("sdmtmb", "sumflounder", "plots"), width = 15, height = 10)
+
+
+
+# slopes <- bind_rows(obs_slopes, fall_wow_slope, spr_wow_slope, fall_ww_slope, spr_ww_slope) %>%
+#   mutate(ID = str_c(str_sub(SEASON,1,1), str_sub(TYPE, 11, 11), str_sub(METHOD, 1, 1))) %>%
+#   arrange(SEASON)
 # 
 # myLevels <- c("FIO", "FPO", "FIS", "FPS", "SIO", "SPO", "SIS", "SPS")
 # slopes$ID <- factor(slopes$ID, levels = myLevels)
@@ -177,41 +147,4 @@ slopes <- bind_rows(obs_slopes, fall_wow_slope, spr_wow_slope, fall_ww_slope, sp
 #   #facet_wrap(~SEASON)
 # 
 # ggsave(slope_plot, device = "png", path = here())
-
-# PLOT DISTRIBUTION OF SLOPES ####
-fp1 <- ggplot(fall_wow_lms) +
-  geom_histogram(aes(x = estimate)) + 
-  shade_confidence_interval(endpoints = percentile_fwowslope, color = "#5dc5e9", fill = "#5dc5e9") +
-  geom_vline(xintercept = as.numeric(obs_slopes[2,4]), linetype = 6, linewidth = 1, color = "#0a4c8a") +
-  labs(title = "A) Fall Slope Estimates with Wind Precluded", x = "Slope estimates", y = "Count") +
-  theme_bw() +
-  theme(title = element_text(size = 10))
-
-fp2 <- ggplot(fall_ww_lms) +
-  geom_histogram(aes(x = estimate)) + 
-  shade_confidence_interval(endpoints = percentile_fwwslope, color = "#5dc5e9", fill = "#5dc5e9") +
-  geom_vline(xintercept = as.numeric(obs_slopes[2,4]), linetype = 6, linewidth = 1, color = "#0a4c8a") +
-  xlim((-0.10), (-0.02)) +
-  labs(title = "B) Fall Slope Estimates with Wind Included", x = "Slope estimates", y = "Count") +
-  theme_bw() +
-  theme(title = element_text(size = 10))
-
-sp1 <- ggplot(spr_wow_lms) +
-  geom_histogram(aes(x = estimate)) + 
-  shade_confidence_interval(endpoints = percentile_swowslope, color = "#0a4c8a", fill = "#5dc5e9") +
-  geom_vline(xintercept = as.numeric(obs_slopes[4,4]), linetype = "dashed", linewidth = 1, color = "orange") +
-  labs(title = "A) Spring Slope Estimates with Wind Precluded", x = "Slope estimates", y = "Count") +
-  theme_bw() +
-  theme(title = element_text(size = 10))
-
-sp2 <- ggplot(spr_ww_lms) +
-  geom_histogram(aes(x = estimate)) + 
-  shade_confidence_interval(endpoints = percentile_swwslope, color = "#0a4c8a", fill = "#5dc5e9") +
-  geom_vline(xintercept = as.numeric(obs_slopes[4,4]), linetype = "dashed", linewidth = 1, color = "orange") +
-  labs(title = "B) Spring Slope Estimates with Wind Included", x = "Slope estimates", y = "Count") +
-  theme_bw() +
-  theme(title = element_text(size = 10))
-
-fp1 + fp2 
-sp1 + sp2
 
