@@ -17,7 +17,7 @@ suppressPackageStartupMessages(library(tidyverse))
 
 sdmtmb.dir <- "../sseep-analysis/sdmtmb"
 sseep.dir <- "../sseep-analysis"
-#source(here(sseep.dir, "R", "StratMeanFXs_v2.R"))
+source(here(sseep.dir, "R", "StratMeanFXs_v2.R"))
 #set.seed(123)
 
 ### LOAD DATA ####
@@ -89,13 +89,24 @@ saveRDS(spr.base_sims, here("sdmtmb", "sumflounder", "data", "simulations", "spr
 
 
 ## CALCULATE STRATIFIED MEAN ####
-base_stratmu <- base_sims |> 
+# Wind Included
+spr.base_incl.stratmu <- spr.base_sims |> 
+  group_by(rep) |> 
+  nest() |> 
+  mutate(stratmu = map(data, ~stratified.mean(.)), 
+         TYPE = "With Wind Included")  
+
+saveRDS(spr.base_incl.stratmu, here("sdmtmb", "sumflounder", "data", "simulations", "SprSimBase_incl-stratmu.rds"))
+
+# Wind Precluded
+spr.base_precl.stratmu <- spr.base_sims |> 
   filter(AREA == "OUTSIDE") |>
   group_by(rep) |> 
   nest() |> 
-  mutate(stratmu = map(data, ~stratified.mean(.)))  
+  mutate(stratmu = map(data, ~stratified.mean(.)), 
+         TYPE = "With Wind Precluded")  
 
-saveRDS(base_stratmu, here("sdmtmb", "sumflounder", "data", "simulations", "spring_base_sim-stratmu.rds"))
+saveRDS(spr.base_precl.stratmu, here("sdmtmb", "sumflounder", "data", "simulations", "SprSimBase_precl-stratmu.rds"))
 
 
 ## BIND TO HISTORICAL STRATIFIED MEAN ####

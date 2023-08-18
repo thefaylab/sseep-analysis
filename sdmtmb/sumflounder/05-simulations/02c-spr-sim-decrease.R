@@ -88,13 +88,22 @@ saveRDS(spr.decrease_sims, here("sdmtmb", "sumflounder", "data", "simulations", 
 
 
 ## CALCULATE STRATIFIED MEAN ####
-decrease_stratmu <- decrease_sims |> 
+# With Wind Included
+spr.decrease_incl.stratmu <- spr.decrease_sims |> 
+  group_by(rep) |> 
+  nest() |> 
+  mutate(stratmu = map(data, ~stratified.mean(.)))  
+
+#saveRDS(spr.decrease_incl.stratmu, here("sdmtmb", "sumflounder", "data", "simulations", "SprSimDec_incl-stratmu.rds"))
+
+# With Wind Precluded
+spr.decrease_precl.stratmu <- spr.decrease_sims |> 
   filter(AREA == "OUTSIDE") |>
   group_by(rep) |> 
   nest() |> 
   mutate(stratmu = map(data, ~stratified.mean(.)))  
 
-saveRDS(decrease_stratmu, here("sdmtmb", "sumflounder", "data", "simulations", "spring_dec_sim-stratmu.rds"))
+#saveRDS(spr.decrease_precl.stratmu, here("sdmtmb", "sumflounder", "data", "simulations", "SprSimDec_precl-stratmu.rds"))
 
 
 ## BIND TO HISTORICAL STRATIFIED MEAN ####

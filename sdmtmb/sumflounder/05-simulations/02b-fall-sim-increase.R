@@ -88,13 +88,21 @@ saveRDS(increase_sims, here("sdmtmb", "sumflounder", "data", "simulations", "fal
 
 
 ## CALCULATE STRATIFIED MEAN ####
-increase_stratmu <- increase_sims |> 
+fall.increase_incl.stratmu <- increase_sims |> 
   filter(AREA == "OUTSIDE") |>
   group_by(rep) |> 
   nest() |> 
   mutate(stratmu = map(data, ~stratified.mean(.)))  
 
-saveRDS(increase_stratmu, here("sdmtmb", "sumflounder", "data", "simulations", "fall_inc_sim-stratmu.rds"))
+saveRDS(fall.increase_precl.stratmu, here("sdmtmb", "sumflounder", "data", "simulations", "FallSimIncrease_incl-stratmu.rds"))
+
+increase_precl.stratmu <- increase_sims |> 
+  filter(AREA == "OUTSIDE") |>
+  group_by(rep) |> 
+  nest() |> 
+  mutate(stratmu = map(data, ~stratified.mean(.)))  
+
+saveRDS(increase_precl.stratmu, here("sdmtmb", "sumflounder", "data", "simulations", "FallSimInc_precl-stratmu.rds"))
 
 
 ## BIND TO HISTORICAL STRATIFIED MEAN ####
