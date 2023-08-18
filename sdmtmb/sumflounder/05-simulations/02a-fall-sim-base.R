@@ -56,7 +56,7 @@ fixed_re <-  list(fall_omegas, epsilon_st = NULL, zeta_s = NULL)
 base_sims <- data.frame()
 
 # loop
-for(i in seq(1)){
+for(i in seq(1:1000)){
 
 x <- sdmTMB_simulate(
   formula = ~1 + poly(AVGDEPTH, 2) + as.factor(AREA),
