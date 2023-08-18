@@ -387,7 +387,8 @@ sanity(m14a_fall)
 saveRDS(m14_fall, file = here("sdmtmb", "sumflounder", "data", "mods", "m14_fall.rds"))
 saveRDS(m14a_fall, file = here("sdmtmb", "sumflounder", "data", "mods", "m14_fall2.rds"))
 
-#### M15 ####
+### POLY(DEPTH) Relationship ####
+#### M15 - IID ####
 m15_fall <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH,2) +
                    as.factor(EST_YEAR) +
                    as.factor(AREA),#-1,
@@ -446,6 +447,7 @@ sanity(m15b_fall)
 ### save the data
 saveRDS(m15b_fall, file = here("sdmtmb",  "sumflounder", "data", "mods", "m15_fall2.rds"))
 
+#### M16 - AR1 ####
 m16_fall <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH,2) + 
                    as.factor(EST_YEAR) +
                    as.factor(AREA),#-1,
@@ -498,6 +500,7 @@ sanity(m16b_fall)
 
 saveRDS(m16b_fall, file = here("sdmtmb",  "sumflounder", "data", "mods", "m16_fall2.rds"))
 
+#### M17 - RW ####
 m17_fall <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH,2) +
                    as.factor(EST_YEAR) +
                    as.factor(AREA),#-1,
