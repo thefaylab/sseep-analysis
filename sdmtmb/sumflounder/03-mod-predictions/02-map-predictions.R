@@ -35,8 +35,13 @@ spring_preds <- readRDS(file = here("sdmtmb", "sumflounder", "data", "spring_pre
 
 ## FALL MAPS ####
 # estimates 
-plot_map(coastline, dat = fall_preds |> filter(EST_YEAR %in% c(2018:2021)), column = exp(est)) + 
-  scale_fill_viridis_c(trans = "sqrt") 
+fall_pred_map <- plot_map(coastline, dat = fall_preds |> filter(EST_YEAR %in% c(2018:2021)), column = exp(est)) + 
+  scale_fill_viridis_c(trans = "sqrt") + 
+  labs(fill = "Biomass") +
+  facet_wrap(~SEASON) + 
+  theme(legend.position = "bottom")
+
+ggsave("fall-preds-map.png", device = "png", path = here("sdmtmb", "sumflounder", "plots"), width = 6, height = 8)
 
 # main effects only
 plot_map(coastline, dat = fall_preds |> filter(EST_YEAR %in% c(2018:2021)), column = exp(est_non_rf))
@@ -45,13 +50,18 @@ plot_map(coastline, dat = fall_preds |> filter(EST_YEAR %in% c(2018:2021)), colu
 plot_map(coastline, dat = fall_preds |> filter(EST_YEAR %in% c(2018:2021)), column = omega_s) + scale_fill_gradient2()
 
 # spatiotemporal random effects
-plot_map(coastline, dat = fall_preds |> filter(EST_YEAR %in% c(2018:2021)), column = epsilon_st) + scale_fill_gradient2()
+plot_map(coastline, dat = fall_preds |> filter(EST_YEAR %in% c(2018:2026)), column = epsilon_st) + scale_fill_gradient2() + facet_wrap(~EST_YEAR)
 
 
 ## SPRING MAPS ####
 # estimates 
-plot_map(coastline, dat = spring_preds |> filter(EST_YEAR %in% c(2018:2021)), column = exp(est)) + 
-  scale_fill_viridis_c(trans = "sqrt") 
+spring_pred_map <- plot_map(coastline, dat = spring_preds |> filter(EST_YEAR %in% c(2018:2021)), column = exp(est)) + 
+  scale_fill_viridis_c(trans = "sqrt") + 
+  labs(fill = "Biomass") + 
+  facet_wrap(~SEASON) + 
+  theme(legend.position = "bottom")
+
+ggsave("spring-preds-map.png", device = "png", path = here("sdmtmb", "sumflounder", "plots"), width = 6, height = 8)
 
 # main effects only
 plot_map(coastline, dat = spring_preds |> filter(EST_YEAR %in% c(2018:2021)), column = exp(est_non_rf))
@@ -62,7 +72,8 @@ plot_map(coastline, dat = spring_preds |> filter(EST_YEAR %in% c(2018:2021)), co
 # spatiotemporal random effects
 plot_map(coastline, dat = spring_preds |> filter(EST_YEAR %in% c(2018:2021)), column = epsilon_st) + scale_fill_gradient2()
 
-
+# patchwork
+fall_pred_map + spring_pred_map + plot_layout(guides = "collect") & theme(legend.position = "bottom")
 #### ####
 # ggplot(ne_states_proj) + geom_sf() +
 #   geom_tile(data = spring_preds, aes(x = X * 1000, y = Y * 1000, fill = exp(est)), width = 10000, height = 10000) +

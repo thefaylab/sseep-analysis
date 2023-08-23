@@ -1,63 +1,71 @@
-### created: 12/10/2022
-### last updated: 03/03/2023
+### created: 08/02/2023
+### last updated: 08/17/2023
 
-#### 03b - COMPARE SPRING MODELS ####
+# 02b - ####
 
-###################
-#### OBJECTIVE ####
-###################
-# compare and cross validate models fit to historical summer flounder data  
+## OBJECTIVE ####
+#   
 
-####################
-
-#### LOAD PACKAGES ####
+## LOAD PACKAGES ####
 # install.packages("remotes")
 # library(remotes)
 # remotes::install_github("pbs-assess/sdmTMB", dependencies = TRUE)
-# install.packages("marmap") 
 suppressPackageStartupMessages(library(tidyverse)) 
 library(here)
 library(sf) 
 library(sdmTMB)
 library(kableExtra)
-library(patchwork)
-# library(marmap)
-# library(raster)
 
 here()
 
 
-#### COMPARISON TABLE ####
+# read in models
+spring.cv <- str_c("m",seq(1:17), "-spring-cv.rds") |>
+  append(str_c("m",c(8, 11, 14:15, 17), "-spring-cv2.rds")) |>
+  append(str_c("m",c(15, 17), "-spring-cv3.rds")) |>
+  map(~list(.)) |>
+  map(~readRDS(here("sdmtmb",  "sumflounder", "data", "cross-valid", .)))
 
-spr.mods <- data.frame("models" = c("m1", "m2", "m3", "m4", "m5", "m6", "m7"),
-                       "AIC" = c(AIC(m1_spring), AIC(m2_spring), AIC(m3_spring), AIC(m4_spring), AIC(m5_spring), AIC(m6_spring), AIC(m7_spring)),# )
-                       
-                       
-                       #mods <- data.frame("models" = c("m1", "m2", "m3", "m4", "m5", "m6", "m7"),
-                       "TOTAL_ELPD" = c(m1spr.cv$elpd, m2spr.cv$elpd, m3spr.cv$elpd, m4spr.cv$elpd, m5spr.cv$elpd, m6spr.cv$elpd, m7spr.cv$elpd), 
-                       "TOTAL_LOGLIK" = c(m1spr.cv$sum_loglik, m2spr.cv$sum_loglik, m3spr.cv$sum_loglik, m4spr.cv$sum_loglik, m5spr.cv$sum_loglik, m6spr.cv$sum_loglik, m7spr.cv$sum_loglik)) #%>% 
-#right_join(mods, by = "models")
 
+mod.names <- str_c("m",seq(1:17)) |>
+  append(str_c("m",c(8, 11, 14:15, 17), "a")) |>
+  append(str_c("m",c(15, 17), "b"))
+
+
+  
+sum_logliks <- map(spring.cv, ~pluck(., "sum_loglik")) |> 
+  as.data.frame() |>
+  t()
+rownames(sum_logliks) <- mod.names
+colnames(sum_logliks) <- "sum_loglik"
+
+
+elpd <- map(spring.cv, ~pluck(., "elpd")) |> 
+  as.data.frame() |> 
+  t()
+rownames(elpd) <- mod.names
+colnames(elpd) <- "elpd"
+
+
+convergence <- map(spring.cv, ~pluck(., "converged")) |> 
+  as.data.frame() |> 
+  t()
+rownames(convergence) <- mod.names
+colnames(convergence) <- "converged"
+
+
+cvs <- sum_logliks |> 
+  as.data.frame() |>
+  rownames_to_column(var = "models") |>
+  bind_cols(elpd, convergence) |> 
+  arrange(desc(elpd))
+  
+  
 # save the data
-saveRDS(spr.mods, file = here("sdmtmb", "model-outputs", "spr-mod-diagnostics.rds"))
+saveRDS(cvs, file = here("sdmtmb", "sumflounder", "data", "spring-cvs.rds"))
 
 
-# format the table for presentation
-spr_mods_tbl <- spr.mods %>% 
-  mutate(TOTAL_ELPD = round(TOTAL_ELPD, 2),
-         TOTAL_LOGLIK = round(TOTAL_LOGLIK, 2)) %>% 
-  rename(" " = models, 
-         "Total Expected Log Predictive Density" = TOTAL_ELPD,
-         "Total Log Likelihood" = TOTAL_LOGLIK)%>% 
-  arrange(desc(AIC))
-
-kable(spr_mods_tbl[,c(1, 4, 2:3)], align = "lcccc", caption = "Spring Model Diagnostic Values", format.args = list(big.mark = ","), booktabs = TRUE) %>%
-  kable_styling(full_width = F, fixed_thead = T, font_size = 14) %>%
-  row_spec(7, color = "red") 
-
-# how to save the table 
-
-
-
-
+kable(mods, align = "lcccc", caption = "Spring Cross Validations", format.args = list(big.mark = ","), booktabs = TRUE) %>%
+  kable_styling(full_width = F, fixed_thead = T, font_size = 14)# %>%
+#row_spec(7, color = "red") 
 
