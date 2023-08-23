@@ -14,6 +14,7 @@
 # library(patchwork)
 library(here)
 suppressPackageStartupMessages(library(tidyverse))
+library(sdmTMB) #GF: sdmTMB dependency in this script `make_mesh()`
 
 sdmtmb.dir <- "../sseep-analysis/sdmtmb"
 sseep.dir <- "../sseep-analysis"
@@ -47,6 +48,8 @@ sf_fall <- readRDS(here("sdmtmb", "sumflounder", "data", "sumflounder_fall.rds")
 #   filter(EST_YEAR == 2021)
 
 sf_fall|> group_by(EST_YEAR) |> mutate(tow = str_c("STRATUM", "CRUISE6", "STATION")) |> summarise(tow = length(tow)) |> filter(EST_YEAR != 2017) |> summary()
+# GF: note that this finds the number of rows in each data frame, not the number of unique tows, BUT there appears to be only 1 row per tow so OK.
+# GF: if the variable 'tow' is supposed to be a unique id for each tow then `tow=paste(STRATUM,CRUISE6,STATION,sep="_")` would do this. Current code is creating an identical string for each element of tow.
 
 ## DATA WRANGLE ####
 # extract model fitting data
@@ -62,6 +65,7 @@ future_years <- c(2022:2026)
 
 # replicate the most recent year of data for the number of future years to be simulated and add a "replicate" column
 replicate_data <- map_dfr(seq_along(future_years), ~sf_fall |> mutate(rep = .x)) 
+# creates a dataset with nrows for each of the future years.
 
 # resample the data to create a new dataset for each replicate 
 future_data <- replicate_data |>
@@ -76,6 +80,12 @@ future_data <- replicate_data |>
   unnest(cols = c(resamp)) |> 
   select(-c(EST_YEAR, rep)) |>
   rename(EST_YEAR = rep_yr)
+# this code is not consistent with the explanation for the choice of tow locations in future years
+# which was that you fixed the locations at the most recent observed year
+# you are sampling (with replacement) stations from the full time series
+# this results in having multiple tows at the same station in a given future year
+# more importantly, it destroys the random stratified sampling assumptions
+# suggest sampling with replacement from historical years for the future years sampled stations (i.e. future years are one of the historical years)
 
 # save the data
 saveRDS(future_data, here("sdmtmb", "sumflounder", "data", "simulations", "fall_future_data.rds"))

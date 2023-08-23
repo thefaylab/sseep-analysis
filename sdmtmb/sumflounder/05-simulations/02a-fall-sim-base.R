@@ -14,6 +14,7 @@
 # library(patchwork)
 library(here)
 suppressPackageStartupMessages(library(tidyverse))
+library(sdmTMB) #GF: sdmTMB dependency in this script `sdmTMB_simulate()`
 
 sdmtmb.dir <- "../sseep-analysis/sdmtmb"
 sseep.dir <- "../sseep-analysis"
@@ -48,6 +49,9 @@ fall_info <- future_data |>
   dplyr::select(STATION, STRATUM, CRUISE6, AREA)
 
 fall_omegas <- mean(fall_preds$omega_s)
+# GF: this just computes the mean of the spatial term over the entire prediction data set.
+# for input into fixed_re argument I think you want the vector
+
 fixed_re <-  list(fall_omegas, epsilon_st = NULL, zeta_s = NULL)
 
 
@@ -56,7 +60,7 @@ fixed_re <-  list(fall_omegas, epsilon_st = NULL, zeta_s = NULL)
 base_sims <- data.frame()
 
 # loop
-for(i in seq(1:1000)){
+for(i in seq(1:1000)){. #GF: I think get this working how you want it for a small number of simulations (1) first.
 
 x <- sdmTMB_simulate(
   formula = ~1 + poly(AVGDEPTH, 2) + as.factor(AREA),
@@ -87,6 +91,8 @@ base_sims <- bind_rows(base_sims, base_dat)
 # save the data 
 saveRDS(base_sims, here("sdmtmb", "sumflounder", "data", "simulations", "fall_base_sim.rds"))
 
+#GF so, base_sims contains simulated data (with new values for random fields) for only the future years, for each replicate
+#GF want to also transfer the simulated spatiotemporal effects (and the responses given the fixed effects) to the predicted dataframe for each replicate, so you can calculate the true OM abundance index
 
 ## CALCULATE STRATIFIED MEAN ####
 base_incl.stratmu <- base_sims |>
