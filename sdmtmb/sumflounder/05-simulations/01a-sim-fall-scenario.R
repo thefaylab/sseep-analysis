@@ -57,7 +57,7 @@ start.time <- Sys.time()
 
 
 # LOOP #### 
-for (i in seq(1:5)){
+for (i in seq(1:1000)){
   
 ### DATA WRANGLE ####
 # randomly select 5 years from the historical time period, 2020 is missing for the original observations and should not be included as an option
@@ -75,38 +75,13 @@ for(t in seq_along(resampled_years)){
   future_preds <- bind_rows(future_preds, filtered_yr) 
 
 }
-# future_preds <- fit_preds |> 
-#   filter(EST_YEAR %in% resampled_years) |> 
-#   mutate(EST_YEAR = case_when( # replace the historical year with the future year, based on its resampled value
-#     EST_YEAR == resampled_years[1] ~ 2022, 
-#     EST_YEAR == resampled_years[2] ~ 2023,
-#     EST_YEAR == resampled_years[3] ~ 2024,
-#     EST_YEAR == resampled_years[4] ~ 2025,
-#     EST_YEAR == resampled_years[5] ~ 2026,
-#   ))
-# future_data <- sf_fall |> 
-#   filter(EST_YEAR %in% resampled_years) |>
-#   group_by(EST_YEAR) |> 
-#   mutate(EST_YEAR = case_when( # replace the historical year with the future year, based on its resampled value
-#     EST_YEAR == resampled_years[1] ~ 2022, 
-#     EST_YEAR == resampled_years[2] ~ 2023,
-#     EST_YEAR == resampled_years[3] ~ 2024,
-#     EST_YEAR == resampled_years[4] ~ 2025,
-#     EST_YEAR == resampled_years[5] ~ 2026,
-#   ))
-
-# future_preds <- future_preds |> 
-#   mutate(ID = paste(STRATUM,CRUISE6,STATION,sep="_")) |>
-#   group_by(ID) |>
-#   mutate(TOWID = cur_group_id()) |>
-#   ungroup() 
 
 # extract unique tow information for binding later 
 future_tows <- future_preds|>
-  select(X, Y, STRATUM, CRUISE6, STATION, EST_YEAR, AREA, AREA_CODE, SEASON, AVGDEPTH)#, TOWID)
+  select(X, Y, STRATUM, CRUISE6, STATION, EST_YEAR, AREA, AREA_CODE, SEASON, AVGDEPTH)
 
 # extract the spatial effect estimates for each tow location for the future years 
-future_omegas <- future_preds$omega_s #future_tows |> 
+#future_omegas <- future_preds$omega_s #future_tows |> 
   # select(TOWID, omega_s) |> 
   # mutate(TOWID = paste(TOWID, seq(nrow(future_tows)),sep=".")) |>
   # column_to_rownames(var = "TOWID")
@@ -114,28 +89,24 @@ future_omegas <- future_preds$omega_s #future_tows |>
 
 # filter the response and spatial predictions made across the grid cell here("sdmtmb", "sumflounder", "03-mod-predictions", "01a-fall-forecasts.R"), for the future years. 
 grid_preds <- fall_preds |> 
-  filter(EST_YEAR %in% future_years) #|> 
-  # mutate(ID = paste(STRATUM,cell,sep="_")) |>
-  # group_by(ID) |>
-  # mutate(CELLID = cur_group_id()) |>
-  # ungroup()
+  filter(EST_YEAR %in% future_years)
 
 # extract uniqueu grid information for binding later
 grid_info <- grid_preds |> 
-  # mutate(CELLID = paste(CELLID, seq(nrow(grid_preds)),sep=".")) |>
   select(!c(est, est_non_rf, est_rf, omega_s, epsilon_st))
 
 # extract the spatial effect estimates in each cell for the future years
-grid_omegas <- grid_preds$omega_s #|>
+#grid_omegas <- grid_preds$omega_s #|>
   # select(CELLID, omega_s) |>
   # column_to_rownames(var = "CELLID")
 
 ### SIMULATION DATA ####
 # bind the future tow locations and the future grid cells to create an overall location dataframe where new response values will simulated at
-data <- bind_rows(future_preds, grid_preds)
+data <- bind_rows(future_preds, grid_preds) |> 
+  rename(omegas = omega_s)
 
 # bind the spatial effect estimates from the future years and the grid to fix the spatial random effects
-omegas <- append(future_omegas, grid_omegas) |> as.matrix()
+#omegas <- append(future_omegas, grid_omegas) |> as.matrix()
 
 # create a mesh from the binded simulation data 
 mesh <- make_mesh(data, xy_cols = c("X", "Y"), cutoff = 10)
@@ -143,21 +114,21 @@ mesh <- make_mesh(data, xy_cols = c("X", "Y"), cutoff = 10)
 
 ## BASE SCENARIO ####
 base.sim <- sdmTMB_simulate(
-  formula = ~1 + poly(AVGDEPTH, 2) + as.factor(AREA),
+  formula = ~ 1 + poly(AVGDEPTH, 2) + as.factor(AREA) + omegas,
   data = data,
   mesh = mesh,
   family = tweedie(link = "log"),
-  spatial = "on",
+  #spatial = "on",
   time = "EST_YEAR",
-  spatiotemporal = "iid",
-  B = c(-0.66, -41.8, -25.4, 0.09), # coefficient estimates 
+  #spatiotemporal = "iid",
+  B = c(-0.66, -41.8, -25.4, 0.09, 1), # coefficient estimates 
   range = 74.5, 
   #rho = 0.158, # AR1 correlation
-  sigma_O = 1.33,
+  sigma_O = 0,#1.33
   sigma_E = 0.959,
   phi = 1.73, # dispersion parameter
-  tweedie_p = 1.26, # tweedie power parameter 
-  fixed_re = list(omega_s = omegas, epsilon_st = NULL, zeta_s = NULL))
+  tweedie_p = 1.26)#, # tweedie power parameter 
+  #fixed_re = list(omega_s = omegas, epsilon_st = NULL, zeta_s = NULL))
 
 ### BASE SIMULATION DATA WRANGLING ####
 # extract the simulated data pertaining to the future tow locations
@@ -173,27 +144,31 @@ sim_base_tows <- bind_rows(sim_base_tows, base_towdat)
 base_griddat <- right_join(base.sim, grid_info, by = c("X", "Y", "EST_YEAR")) |>
   rename(EXPCATCHWT = observed) |> 
   mutate(rep = i)
+# sim.future.grid <-
+#   left_join(base_griddat, future_grid, by = c("X", "Y", "EST_YEAR", "cell")) |> rename(pred.est = est)
+# head(sim.future.grid |> select (X, Y, cell, EST_YEAR, mu, eta, pred.est, omegas))
 
 # add to simulated grid dataframe
 sim_base_grid <- bind_rows(sim_base_grid, base_griddat)
 
 ## INCREASE SCENARIO ####
 inc.sim <- sdmTMB_simulate(
-  formula = ~1 + poly(AVGDEPTH, 2) + as.factor(AREA),
+  formula = ~ 1 + poly(AVGDEPTH, 2) + as.factor(AREA) + omegas,
+  #EXPCATCHWT ~ poly(AVGDEPTH, 2) + as.factor(AREA) + omegas,
   data = data,
   mesh = mesh,
   family = tweedie(link = "log"),
-  spatial = "on",
+  #spatial = "on",
   time = "EST_YEAR",
-  spatiotemporal = "iid", 
-  B = c(-0.66, -41.8, -25.4, (0.09+log(2))), # coefficient estimates; increase scenario = double of estimated wind coefficient (0.09); additive -> log(pred.effect*2) = log(pred.effect) + log(2)
+  #spatiotemporal = "iid", 
+  B = c(-0.66, -41.8, -25.4, (0.09+log(2)), 1), # coefficient estimates; increase scenario = double of estimated wind coefficient (0.09); additive -> log(pred.effect*2) = log(pred.effect) + log(2)
   range = 74.5, 
   #rho = 0.158, # AR1 correlation
-  sigma_O = 1.33,
+  sigma_O = 0,#1.33,
   sigma_E = 0.959,
   phi = 1.73, # dispersion parameter
-  tweedie_p = 1.26, # tweedie power parameter 
-  fixed_re = list(omega_s = omegas, epsilon_st = NULL, zeta_s = NULL))
+  tweedie_p = 1.26)#, # tweedie power parameter 
+  #fixed_re = list(omega_s = omegas, epsilon_st = NULL, zeta_s = NULL))
 
 
 ### INCREASE SIMULATION DATA WRANGLING ####
@@ -216,21 +191,22 @@ sim_increase_grid <- bind_rows(sim_increase_grid, inc_griddat)
 
 ## DECREASE SCENARIO ####
 dec.sim <- sdmTMB_simulate(
-  formula = ~1 + poly(AVGDEPTH, 2) + as.factor(AREA),
+  formula = ~ 1 + poly(AVGDEPTH, 2) + as.factor(AREA) + omegas,
+  #EXPCATCHWT ~ poly(AVGDEPTH, 2) + as.factor(AREA) + omegas,
   data = data,
   mesh = mesh,
   family = tweedie(link = "log"),
-  spatial = "on", 
+  #spatial = "on", 
   time = "EST_YEAR",
-  spatiotemporal = "iid",
-  B = c(-0.66, -41.8, -25.4, (0.09-log(2))), # coefficient estimates; reduction = half of estimated wind coefficient (0.09); subtractive -> log(pred.effect/2) = log(pred.effect) - log(2)
+  #spatiotemporal = "iid",
+  B = c(-0.66, -41.8, -25.4, (0.09-log(2)), 1), # coefficient estimates; reduction = half of estimated wind coefficient (0.09); subtractive -> log(pred.effect/2) = log(pred.effect) - log(2)
   range = 74.5, 
   #rho = 0.158, # AR1 correlation
-  sigma_O = 1.33,
+  sigma_O = 0,#1.33,
   sigma_E = 0.959,
   phi = 1.73, # dispersion parameter
-  tweedie_p = 1.26, # tweedie power parameter 
-  fixed_re = list(omega_s = omegas, epsilon_st = NULL, zeta_s = NULL))
+  tweedie_p = 1.26)#, # tweedie power parameter 
+  #fixed_re = list(omega_s = omegas, epsilon_st = NULL, zeta_s = NULL))
 
 ### DECREASE SIMULATION DATA WRANGLING ####
 # extract the simulated data pertaining to the future tow locations
