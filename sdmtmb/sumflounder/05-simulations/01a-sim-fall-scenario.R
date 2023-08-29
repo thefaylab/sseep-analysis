@@ -15,6 +15,7 @@
 library(here)
 suppressPackageStartupMessages(library(tidyverse))
 library(sdmTMB) 
+library(svMisc)
 
 # sdmtmb.dir <- "../sseep-analysis/sdmtmb"
 # sseep.dir <- "../sseep-analysis"
@@ -32,12 +33,21 @@ fall_mod <- readRDS(here("sdmtmb", "sumflounder", "data", "fall_mod.rds"))
 # predictions from the best fit model created here("sdmtmb", "sumflounder", "03-mod-predictions", "01a-fall-forecasts.R")
 fall_preds <- readRDS(file = here("sdmtmb", "sumflounder", "data", "fall_predictions.rds"))
 
+# data frame from model fit 
+moddat <- fall_mod$data
+
+
 #### DATA SETUP #### 
 # set the future years that will be simulated 
 future_years <- c(2022:2026)
 
 # get a dataframe containing the values for the random effects fields for the fitted values of the data points
 fit_preds <- predict(fall_mod)
+
+# pull polynomial coefficients from model fit.
+x_mat <- poly(moddat$AVGDEPTH, 2)
+depth_coefs <- attr(x_mat,"coefs")  
+
 
 # create empty base scenario storage vectors 
 sim_base_tows <- data.frame() # for observations at future tow locations
@@ -58,7 +68,7 @@ start.time <- Sys.time()
 
 # LOOP #### 
 for (i in seq(1:1000)){
-  
+  progress(i)
 ### DATA WRANGLE ####
 # randomly select 5 years from the historical time period, 2020 is missing for the original observations and should not be included as an option
 resampled_years <- sample(c(2009:2019,2021), size = 5, replace = TRUE)
@@ -78,7 +88,7 @@ for(t in seq_along(resampled_years)){
 
 # extract unique tow information for binding later 
 future_tows <- future_preds|>
-  select(X, Y, STRATUM, CRUISE6, STATION, EST_YEAR, AREA, AREA_CODE, SEASON, AVGDEPTH)
+  dplyr::select(X, Y, STRATUM, CRUISE6, STATION, EST_YEAR, AREA, AREA_CODE, SEASON, AVGDEPTH)
 
 # extract the spatial effect estimates for each tow location for the future years 
 #future_omegas <- future_preds$omega_s #future_tows |> 
@@ -93,7 +103,7 @@ grid_preds <- fall_preds |>
 
 # extract uniqueu grid information for binding later
 grid_info <- grid_preds |> 
-  select(!c(est, est_non_rf, est_rf, omega_s, epsilon_st))
+  dplyr::select(!c(est, est_non_rf, est_rf, omega_s, epsilon_st))
 
 # extract the spatial effect estimates in each cell for the future years
 #grid_omegas <- grid_preds$omega_s #|>
@@ -114,7 +124,7 @@ mesh <- make_mesh(data, xy_cols = c("X", "Y"), cutoff = 10)
 
 ## BASE SCENARIO ####
 base.sim <- sdmTMB_simulate(
-  formula = ~ 1 + poly(AVGDEPTH, 2) + as.factor(AREA) + omegas,
+  formula = ~ 1 + poly(AVGDEPTH, 2, coefs = depth_coefs) + as.factor(AREA) + omegas,
   data = data,
   mesh = mesh,
   family = tweedie(link = "log"),
@@ -153,7 +163,7 @@ sim_base_grid <- bind_rows(sim_base_grid, base_griddat)
 
 ## INCREASE SCENARIO ####
 inc.sim <- sdmTMB_simulate(
-  formula = ~ 1 + poly(AVGDEPTH, 2) + as.factor(AREA) + omegas,
+  formula = ~ 1 + poly(AVGDEPTH, 2, coefs = depth_coefs) + as.factor(AREA) + omegas,
   #EXPCATCHWT ~ poly(AVGDEPTH, 2) + as.factor(AREA) + omegas,
   data = data,
   mesh = mesh,
@@ -191,7 +201,7 @@ sim_increase_grid <- bind_rows(sim_increase_grid, inc_griddat)
 
 ## DECREASE SCENARIO ####
 dec.sim <- sdmTMB_simulate(
-  formula = ~ 1 + poly(AVGDEPTH, 2) + as.factor(AREA) + omegas,
+  formula = ~ 1 + poly(AVGDEPTH, 2, coefs = depth_coefs) + as.factor(AREA) + omegas,
   #EXPCATCHWT ~ poly(AVGDEPTH, 2) + as.factor(AREA) + omegas,
   data = data,
   mesh = mesh,
@@ -226,10 +236,12 @@ dec_griddat <- right_join(dec.sim, grid_info, by = c("X", "Y", "EST_YEAR")) |>
 # add to simulated grid dataframe
 sim_decrease_grid <- bind_rows(sim_decrease_grid, dec_griddat)
 
+if(i == 1000) cat("Done!")
+
 }
  
 end.time <- Sys.time()
-end.time - start.time # 1.6 hours
+end.time - start.time # 5.059795 hours
 
 # SAVE THE DATA #### 
 # base simulation data 
