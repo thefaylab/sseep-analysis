@@ -5,7 +5,7 @@
   # filter(SVSPP == 141, EST_YEAR %in% c(2018, 2021))
 sseep.analysis <- "../sseep-analysis"
 
-strata_wts <- readRDS(here(sseep.analysis, "data", "rds", "strata_wts.rds"))
+strata_wts <- readRDS(here(sseep.analysis, "data", "rds", "active_strata_wts.rds"))
 
 strata.mean <- function(x){
   
