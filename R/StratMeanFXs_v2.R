@@ -5,11 +5,12 @@
   # filter(SVSPP == 141, EST_YEAR %in% c(2018, 2021))
 sseep.analysis <- "../sseep-analysis"
 
+# load the active bottom trawl survey strata and their relative area weights created here(tidy-data, "02b-filter-current-strata.R")
 strata_wts <- readRDS(here(sseep.analysis, "data", "rds", "active_strata_wts.rds"))
 
-strata.mean <- function(x){
+stratified.mean <- function(dat){
   
-  individual <- x %>% 
+  individual <- dat %>% 
     group_by(STRATUM, EST_YEAR, SVSPP) %>%
     summarise(towct = length(unique(STATION)), # calculate unique tows
               mu = sum(EXPCATCHWT)/towct, # find the average biomass based on unique tows rather than observations to avoid potential duplication 
