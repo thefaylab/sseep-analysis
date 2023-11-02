@@ -16,6 +16,7 @@ library(here)
 suppressPackageStartupMessages(library(tidyverse))
 library(sdmTMB) 
 library(svMisc)
+library(profvis)
 
 # sdmtmb.dir <- "../sseep-analysis/sdmtmb"
 # sseep.dir <- "../sseep-analysis"
@@ -31,7 +32,7 @@ set.seed(123)
 fall_mod <- readRDS(here("sdmtmb", "sumflounder", "data", "fall_mod.rds"))
 
 # predictions from the best fit model created here("sdmtmb", "sumflounder", "03-mod-predictions", "01a-fall-forecasts.R")
-fall_preds <- readRDS(file = here("sdmtmb", "sumflounder", "data", "fall_predictions.rds"))
+#fall_preds <- readRDS(file = here("sdmtmb", "sumflounder", "data", "fall_predictions.rds"))
 
 # data frame from model fit 
 moddat <- fall_mod$data
