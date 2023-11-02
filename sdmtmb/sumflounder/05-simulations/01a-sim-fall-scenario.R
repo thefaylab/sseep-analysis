@@ -62,13 +62,14 @@ sim_decrease_tows <- data.frame() # for observations at future tow locations
 sim_decrease_grid <- data.frame() # for observations over entire grid in future years
 
 
-start.time <- Sys.time()
+#start.time <- Sys.time()
 
 
-
+#p5.2 <- 
+  profvis::profvis(
 # LOOP #### 
-for (i in seq(1:1000)){
-  progress(i)
+for (i in 1:5){
+  #progress(i)
 ### DATA WRANGLE ####
 # randomly select 5 years from the historical time period, 2020 is missing for the original observations and should not be included as an option
 resampled_years <- sample(c(2009:2019,2021), size = 5, replace = TRUE)
@@ -209,7 +210,7 @@ dec.sim <- sdmTMB_simulate(
   #spatial = "on", 
   time = "EST_YEAR",
   #spatiotemporal = "iid",
-  B = c(-0.66, -41.8, -25.4, (0.09-log(2)), 1), # coefficient estimates; reduction = half of estimated wind coefficient (0.09); subtractive -> log(pred.effect/2) = log(pred.effect) - log(2)
+  B = c(-0.66, -41.8, -25.4, (0.09+log(1/2)), 1), # coefficient estimates; reduction = half of estimated wind coefficient (0.09); subtractive -> log(pred.effect/2) = log(pred.effect) - log(2)
   range = 74.5, 
   #rho = 0.158, # AR1 correlation
   sigma_O = 0,#1.33,
@@ -236,12 +237,12 @@ dec_griddat <- right_join(dec.sim, grid_info, by = c("X", "Y", "EST_YEAR")) |>
 # add to simulated grid dataframe
 sim_decrease_grid <- bind_rows(sim_decrease_grid, dec_griddat)
 
-if(i == 1000) cat("Done!")
+#if(i == 1000) cat("Done!")
 
 }
- 
-end.time <- Sys.time()
-end.time - start.time # 5.059795 hours
+)
+#end.time <- Sys.time()
+#end.time - start.time # 5.059795 hours
 
 # SAVE THE DATA #### 
 # base simulation data 
