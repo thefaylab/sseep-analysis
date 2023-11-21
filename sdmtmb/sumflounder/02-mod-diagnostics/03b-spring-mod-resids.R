@@ -1,13 +1,14 @@
 ### created: 04/24/2023
-### last updated: 
+### last updated: 11/21/2023
 
-# Residuals ####
+# 03b - SPRING MODEL RESIDUALS ####
 
 ## OBJECTIVE ####
-# 
+# calculate randomized quantile and mcmc-based residuals for the best fitting spring model 
+# plot the mcmc-based residuals against the fitted data and spatially to note any potential spatial autocorrelation
 
 
-## LOAD PACKAGES ####
+### LOAD PACKAGES ####
 library(stringr)
 library(sf)
 library(patchwork)
@@ -20,93 +21,39 @@ library(sdmTMBextra)
 suppressPackageStartupMessages(library(tidyverse))
 theme_set(theme_bw())
 
-sdmtmb.dir <- "../sseep-analysis/sdmtmb"
-sseep.dir <- "../sseep-analysis"
-
-## LOAD DATA ####
-strata <- sf::st_read(dsn = here("gis", "NEFSC_BTS_AllStrata_Jun2022.shp")) %>% 
+### LOAD DATA ####
+strata <- readRDS(here("data", "rds", "active_strata.rds")) |> 
   rename(STRATUM = "Strata_Num")
 
-### FALL DATA ####
-# read in fall data for model fitting
-#sf_fall <- readRDS(here(sdmtmb.dir, "data", "sumflounder_fall.rds"))
+# best fit model created in  here("sdmtmb", "sumflounder", "01-mod-fits", "01a-fit-spr-mods.R")
+spring_mod <- readRDS(here("sdmtmb", "sumflounder", "data", "mods", "m12_spring.rds"))
 
-# # read in the fall mesh for model fitting 
-# fall_mesh <- readRDS(here(sdmtmb.dir, "data", "fall_mesh.rds"))
-# 
-# ### SPRING DATA ####
-# read in spring data for model fitting
-#sf_spring <- readRDS(here(sdmtmb.dir, "data", "sumflounder_spring.rds"))
+### Model predictions ####
+spr_mod_preds <- predict(spring_mod)
 
-# read in the spring mesh for model fitting  
-#spring_mesh <- readRDS(here(sdmtmb.dir, "data", "spring_mesh.rds"))
-
-# best fit model created in `02a-fit-models.R` here("sdmtmb")
-fall_mod <- readRDS(here(sdmtmb.dir, "mar-536-project", "data", "fall_mod.rds"))
-
-spring_mod <- readRDS(here("sdmtmb", "mar-536-project", "data", "spring_mod.rds"))
-
-# define extra years to forecast 
-# fall_extra_years <- c(2020, 2022:2026)
-# spring_extra_years <- c(2022:2026)
+### save the predictions
+saveRDS(spr_mod_preds, file = here("sdmtmb", "sumflounder", "data", "spring_mod_preds.rds"))
+saveRDS(spring_mod, file = here("sdmtmb", "sumflounder", "data", "spring_mod.rds"))
 
 ## DATA WRANGLE ####
-fall_moddat <- fall_mod$data
-
+# extract data used to fit the model 
 spr_moddat <- spring_mod$data
 
-
-
-
-### FALL MODEL 
-##### Best Fit Model ####
+## CALCULATE AND PLOT RANDOMIZED QUANTILE RESIDUALS ####
 # pull residuals from best fit model
-fall_moddat$resids <- residuals(fall_mod) 
-
-# plot frequency of residuals to find distribution
-hist(fall_moddat$resids)
-
-# qplot 
-qqnorm(fall_moddat$resids)
-qqline(fall_moddat$resids) # add trend line
-
-
-#fit10_ml <- update(m10_fall, reml = FALSE) #refit your model with `reml = FALSE` to use MCMC-MLE residuals.
-#saveRDS(fit10_ml, here("sdmtmb", "data", "m10fall_reml-off.rds"))
-
-fall_samps <- sdmTMBextra::predict_mle_mcmc(fall_mod, mcmc_iter = 201, mcmc_warmup = 200)
-
-fall_mod_mcres <- residuals(fall_mod, type = "mle-mcmc", mcmc_samples = fall_samps)
-
-# qqplot
-qqnorm(fall_mod_mcres)
-qqline(fall_mod_mcres) # add trendline
-
-saveRDS(fall_mod_mcres, here("sdmtmb", "data", "fall_mod_mcres.rds"))
-
-fall_moddat$mc_resids <-fall_mod_mcres
-
-# save the data 
-saveRDS(fall_moddat, file = here("sdmtmb", "data", "fall_moddat.rds"))
-
-
-### SPRING MODEL ###
-##### Best Fit Model ####
-# pull residuals from best fit model
-spr_moddat$resids <- residuals(spring_mod) 
+spr_moddat$resids <- residuals(spring_mod, type = "mle-laplace") 
 
 # plot frequency of residuals to find distribution 
 hist(spr_moddat$resids) 
 
-# qqplot 
+# qqplot of residuals
 qqnorm(spr_moddat$resids) 
 qqline(spr_moddat$resids) # add trend line
 
 
-#fit10_ml <- update(m10_fall, reml = FALSE) #refit your model with `reml = FALSE` to use MCMC-MLE residuals.
-#saveRDS(fit10_ml, here("sdmtmb", "data", "m10fall_reml-off.rds"))
-
+### CALCULATE MCMC-BASED RESIDUALS ####
 spr_samps <- sdmTMBextra::predict_mle_mcmc(spring_mod, mcmc_iter = 201, mcmc_warmup = 200)
+
 
 spr_mod_mcres <- residuals(spring_mod, type = "mle-mcmc", mcmc_samples = spr_samps)
 
@@ -114,38 +61,25 @@ spr_mod_mcres <- residuals(spring_mod, type = "mle-mcmc", mcmc_samples = spr_sam
 qqnorm(spr_mod_mcres) 
 qqline(spr_mod_mcres) # add trendline
 
-saveRDS(spr_mod_mcres, here("sdmtmb", "data", "spr_mod_mcres.rds"))
+### save the data
+saveRDS(spr_mod_mcres, here("sdmtmb", "sumflounder", "data", "spr_mcres.rds"))
 
+# add the MCMC residuals to the spring data 
 spr_moddat$mc_resids <- spr_mod_mcres
 
-# save the data 
-saveRDS(spr_moddat, file = here("sdmtmb", "data", "spr_moddat.rds"))
+### save the data 
+saveRDS(spr_moddat, file = here("sdmtmb", "sumflounder", "data", "spr_dat-resids.rds"))
 
 
 ### FITTED VS RESIDUALS 
-fall <- ggplot(fall_moddat) +
+ggplot(spr_moddat) +
   geom_point(aes(x = EXPCATCHWT, y = mc_resids)) + 
-  facet_wrap(~SEASON)
+  facet_wrap(~SEASON) + 
+  labs(x = "Biomass (kg)", y = "MCMC Residual")
 
-spring <- ggplot(spr_moddat) +
-  geom_point(aes(x = EXPCATCHWT, y = mc_resids)) + 
-  facet_wrap(~SEASON)
-
-fall + spring
-
+ggsave("spring_fit-v-resid.png", plot = last_plot(), device = "png", here("sdmtmb", "sumflounder", "plots"), width = 6, height = 4)
 
 ### RESIDUAL PLOTTED BY SPACE 
-ggplot(fall_moddat, aes(DECDEG_BEGLON, DECDEG_BEGLAT, col = mc_resids)) + scale_colour_gradient2()+#low ="#5dc5e9", high = "#0a4c8a") +
-  geom_point() + facet_wrap(~EST_YEAR) + coord_fixed() +
-  labs(x = "Longitude", 
-       y = "Latitude", 
-       color = "Residuals") +
-  #theme_bw() +
-  theme(legend.position="bottom",
-        #legend.title = element_blank(), 
-        #panel.border = element_rect(fill = NA, color = "black"),
-        axis.title.y = element_text(margin = unit(c(0, 3, 0, 0), "mm")))
-
 ggplot(spr_moddat, aes(DECDEG_BEGLON, DECDEG_BEGLAT, col = resids)) + scale_colour_gradient2()+#low ="#5dc5e9", high = "#0a4c8a") +
   geom_point() + facet_wrap(~EST_YEAR) + coord_fixed() +
   labs(x = "Longitude", 
@@ -156,3 +90,6 @@ ggplot(spr_moddat, aes(DECDEG_BEGLON, DECDEG_BEGLAT, col = resids)) + scale_colo
         #legend.title = element_blank(), 
         #panel.border = element_rect(fill = NA, color = "black"),
         axis.title.y = element_text(margin = unit(c(0, 3, 0, 0), "mm")))
+
+
+ggsave("spring_resid_map.png", plot = last_plot(), device = "png", here("sdmtmb", "sumflounder", "plots"), width = 6, height = 5)
