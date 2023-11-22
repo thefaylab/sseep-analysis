@@ -1,5 +1,5 @@
 ### created: 04/01/2023
-### last updated: 07/19/2023
+### last updated: 11/22/2023
 
 # 02a - PREPARE WIND AREAS ####
 
@@ -27,12 +27,17 @@ theme_set(theme_bw())
 ### LOAD DATA ####
 strata <- readRDS(here("data", "rds", "active_strata.rds")) 
 
-leases <- sf::st_read(here("gis", "BOEM Wind Areas_2023Feb09.gdb"), layer = "WindLeases_2022Dec06") 
-planning <- sf::st_read(here("gis", "BOEM Wind Areas_2023Feb09.gdb"), layer = "WindPlanningAreas_2023Jan10")
+leases <- sf::st_read(here("gis", "BOEM_WindAreas_2023Feb09.gdb"), layer = "WindLeases_2022Dec06") 
+planning <- sf::st_read(here("gis", "BOEM_WindAreas_2023Feb09.gdb"), layer = "WindPlanningAreas_2023Jan10")
+# ma_array <- sf::st_read(here("gis", "WindAreas_062022", "MaineResearchArray", "Maine Research Array Requested Lease Area.shp"))
+
 
 ## DATA WRANGLING ####
 # transform the strata crs to match the crs of the wind shapefiles
 strata_tran <- st_transform(strata, "WGS84")
+
+# transform the Maine Research Array crs to match the crs of the other shapefiles
+# ma_array_tran <- st_transform(ma_array, "WGS84")
 
 #### PLANNING AREAS
 # extract the planning areas that only intersect the survey strata; i.e remove areas on the west coast
@@ -53,7 +58,9 @@ st_write(ne_plan, here("gis", "ne_wind_planning2023.shp"))
 # filter out lease areas occurring on the west coast 
 ne_leases <- leases |>
   filter(STATE != "CA") |>
-  st_make_valid()
+#  bind_rows(ma_array_tran) |> 
+#  mutate(Area_Type = "Lease") |> 
+  st_make_valid() 
 
 # create a single polygon that encompasses all individual lease areas
 ne_leases_union <- st_union(ne_leases)
