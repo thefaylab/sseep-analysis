@@ -24,16 +24,27 @@ library(sdmTMB)
 
 ### LOAD DATA ####
 # base simulation data 
-sim_base_grid <- readRDS(here("sdmtmb", "sumflounder", "data", "simulations", "FallSimFuture_BaseGrid.rds"))
+sim_base_grid <- readRDS(here("sdmtmb", "sumflounder", "data", "simulations", "0828-fall", "FallSimFuture_BaseGrid.rds"))
 
 # increased simulation data 
-sim_increase_grid <- readRDS(here("sdmtmb", "sumflounder", "data", "simulations", "FallSimFuture_IncreaseGrid.rds"))
+sim_increase_grid <- readRDS(here("sdmtmb", "sumflounder", "data", "simulations", "0828-fall", "FallSimFuture_IncreaseGrid.rds"))
 
 # reduced simulation data 
-sim_decrease_grid <- readRDS(here("sdmtmb", "sumflounder", "data", "simulations", "FallSimFuture_DecreaseGrid.rds"))
+sim_decrease_grid <- readRDS(here("sdmtmb", "sumflounder", "data", "simulations", "0828-fall", "FallSimFuture_DecreaseGrid.rds"))
 
+fall_preds <- readRDS(here("sdmtmb", "sumflounder", "data", "fall_predictions.rds"))
 
 ## CALCULATE TRUE ABUNDANCE ####
+### Observed Data ####
+obs_trueN <- fall_preds |> 
+  filter(EST_YEAR %in% c(2009:2021)) |> 
+  group_by(EST_YEAR) |> 
+  summarise(total.bio = sum(exp(est))) |> 
+  mutate(SCENARIO = "PREDICTED") |>#, 
+         #lower = total.bio, 
+         #upper = total.bio) |> 
+  relocate(SCENARIO, .before = everything())
+
 ### Base Scenario ####
 base_trueN <- sim_base_grid |>
   group_by(rep, EST_YEAR) |> 
@@ -47,12 +58,12 @@ med_base_trueN <- base_trueN |>
   summarise(med = median(trueN)) |> 
   mutate(SCENARIO = "BASELINE")
 
-base_trueN |>
-  median_qi(trueN, .width = c(0.25, 0.5, 0.95)) |> 
-  ggplot() +
-  aes(EST_YEAR, y = trueN, ymin = .lower, ymax = .upper) + 
-  geom_lineribbon()+ 
-  scale_fill_brewer()
+# base_trueN |>
+#   median_qi(trueN, .width = c(0.25, 0.5, 0.95)) |> 
+#   ggplot() +
+#   aes(EST_YEAR, y = trueN, ymin = .lower, ymax = .upper) + 
+#   geom_lineribbon()+ 
+#   scale_fill_brewer()
 
 # ggplot(sim_base_grid) + 
 #   aes(EST_YEAR, EXPCATCHWT, group = rep) + 
@@ -84,12 +95,12 @@ med_inc_trueN <- inc_trueN |>
   summarise(med = median(trueN)) |> 
   mutate(SCENARIO = "ENHANCED")
 
-inc_trueN |>
-  median_qi(trueN, .width = c(0.25, 0.5, 0.95)) |> 
-  ggplot() +
-  aes(EST_YEAR, y = trueN, ymin = .lower, ymax = .upper) + 
-  geom_lineribbon()+ 
-  scale_fill_brewer()
+# inc_trueN |>
+#   median_qi(trueN, .width = c(0.25, 0.5, 0.95)) |> 
+#   ggplot() +
+#   aes(EST_YEAR, y = trueN, ymin = .lower, ymax = .upper) + 
+#   geom_lineribbon()+ 
+#   scale_fill_brewer()
 
 ### Decreased Scenario ####
 dec_trueN <- sim_decrease_grid |>
@@ -104,42 +115,87 @@ med_dec_trueN <- dec_trueN |>
   summarise(med = median(trueN)) |> 
   mutate(SCENARIO = "REDUCED")
 
-dec_trueN |>
-  group_by(EST_YEAR) |>
-  median_qi(trueN, .width = c(0.25, 0.5, 0.95)) |> 
-  ggplot() +
-  aes(EST_YEAR, y = trueN, ymin = .lower, ymax = .upper) + 
-  geom_lineribbon()+ 
-  scale_fill_brewer()
+# dec_trueN |>
+#   group_by(EST_YEAR) |>
+#   median_qi(trueN, .width = c(0.25, 0.5, 0.95)) |> 
+#   ggplot() +
+#   aes(EST_YEAR, y = trueN, ymin = .lower, ymax = .upper) + 
+#   geom_lineribbon()+ 
+#   scale_fill_brewer()
+
+
+## BIND ####
+trueN <- bind_rows(base_trueN, inc_trueN, dec_trueN)|> 
+  mutate(SEASON = "FALL") 
+
+trueN_summary <- trueN |> 
+  group_by(SCENARIO, EST_YEAR) |> 
+  summarise(total.bio = median(trueN), 
+            lower = quantile(trueN, 0.025), 
+            upper = quantile(trueN, 0.975))
+
+saveRDS(trueN, here("sdmtmb", "sumflounder", "data", "simulations",  "FallSimFuture_AllTrueN.rds"))
+
+all_bio <- bind_rows(obs_trueN, trueN_summary) |> 
+  mutate(SEASON = "Fall")
+
+saveRDS(all_bio, here("sdmtmb", "sumflounder", "data", "simulations",  "FallTrueN_Obs-Sim.rds"))
 
 
 ## PLOT ####
-trueN <- bind_rows(base_trueN, inc_trueN, dec_trueN)
-
-trueN |>
-  group_by(EST_YEAR, SCENARIO) |>
-  median_qi(trueN, .width = c(0.25, 0.5, 0.95)) |> 
+#trueN |>
+  # group_by(EST_YEAR, SCENARIO) |>
+  # median_qi(trueN, .width = c(0.25, 0.5, 0.95)) |> 
+base_plot <- all_bio |> 
+  filter(SCENARIO %in% c("PREDICTED", "BASELINE")) |> 
   ggplot() +
-  aes(EST_YEAR, y = trueN, ymin = .lower, ymax = .upper) + 
-  geom_lineribbon()+ 
-  scale_fill_brewer() +
-  facet_wrap(~SCENARIO) + 
-  labs(x = "Year", y = "Simulated Total Biomass (kg)")
+  aes(x = EST_YEAR, y = total.bio, ymin = lower, ymax = upper) +
+  geom_line()+
+  geom_pointrange(aes(color = SCENARIO), na.rm = TRUE) +
+  scale_color_manual(values = c("#57B8FF", "black"),  labels = c(str_wrap("Simulated Baseline Abundance", width = 22, exdent = 8, whitespace_only = FALSE), str_wrap("Model Expected Abundance", width = 22, exdent = 5, whitespace_only = FALSE)))+
+  labs(x = "Year", y = "Total Biomass (kg)", color = "", subtitle = "BASELINE") + 
+  facet_wrap(~SEASON) +
+  theme(legend.position = "bottom", axis.title.x = element_text(size = 14, margin = margin(10, 0, 5, 0)), axis.title.y = element_text(size = 14, margin = margin(0, 10, 0, 5)), axis.text = element_text(size = 14), plot.subtitle = element_text(size = 16, margin = margin(5, 0, 10, 0), hjust = 0.5), strip.text = element_text(size = 14), legend.title = element_text(size = 14),  legend.text = element_text(size = 14))
 
-ggsave("trueN_scenarios.png", plot = last_plot(), path = here("sdmtmb", "sumflounder", "plots"), width = 9, height = 5)
+inc_plot <- all_bio |> 
+  filter(SCENARIO %in% c("PREDICTED", "ENHANCED")) |> 
+  ggplot() +
+  aes(x = EST_YEAR, y = total.bio, ymin = lower, ymax = upper) +
+  geom_line()+
+  geom_pointrange(aes(color = SCENARIO), na.rm = TRUE) +
+  scale_color_manual(values = c("#57B8FF", "black"), labels = c(str_wrap("Simulated Enhanced Abundance", width = 22, exdent = 8, whitespace_only = FALSE), str_wrap("Model Expected Abundance", width = 22, exdent = 5, whitespace_only = FALSE)))+
+  labs(x = "Year", y = "Total Biomass (kg)", color = "", subtitle = "ENHANCED") +
+  facet_wrap(~SEASON) +
+  theme(legend.position = "bottom", axis.title.x = element_text(size = 14, margin = margin(10, 0, 5, 0)), axis.title.y = element_text(size = 14, margin = margin(0, 10, 0, 5)), axis.text = element_text(size = 14), plot.subtitle = element_text(size = 16, margin = margin(5, 0, 10, 0), hjust = 0.5), strip.text = element_text(size = 14), legend.title = element_text(size = 14),  legend.text = element_text(size = 14))
+
+dec_plot <- all_bio |> 
+  filter(SCENARIO %in% c("PREDICTED", "REDUCED")) |> 
+  ggplot() +
+  aes(x = EST_YEAR, y = total.bio, ymin = lower, ymax = upper) +
+  geom_line()+
+  geom_pointrange(aes(color = fct_rev(SCENARIO)), na.rm = TRUE) +
+  scale_color_manual(values = c("#57B8FF", "black"), labels = c(str_wrap("Simulated Reduced Abundance", width = 25, exdent = 7, whitespace_only = FALSE), str_wrap("Model Expected Abundance", width = 22, whitespace_only = FALSE, exdent = 5)))+
+  labs(x = "Year", y = "Total Biomass (kg)", color = "", subtitle = "REDUCED") +
+  facet_wrap(~SEASON) +
+  theme(legend.position = "bottom", axis.title.x = element_text(size = 14, margin = margin(10, 0, 5, 0)), axis.title.y = element_text(size = 14, margin = margin(0, 10, 0, 5)), axis.text = element_text(size = 14), plot.subtitle = element_text(size = 16, margin = margin(5, 0, 10, 0), hjust = 0.5), strip.text = element_text(size = 14), legend.title = element_text(size = 14),  legend.text = element_text(size = 14))
+
+
+((base_plot + theme(plot.margin = unit(c(5, 5, 5, 5), "pt"))) + (inc_plot + theme(plot.margin = unit(c(5, 5, 5, 5), "pt"))) + (dec_plot+ theme(plot.margin = unit(c(5, 5, 5, 5), "pt")))) + plot_annotation(title = "Simulated scenarios compared to GLMM abundance expectations", theme = theme(plot.title = element_text(size = 16, hjust = 0.5))) & theme(legend.position = "bottom")
+  
+ggsave("trueN_fall_scenarios.png", plot = last_plot(), path = here("sdmtmb", "sumflounder", "plots"), width = 16, height = 7)
 
 
 
-trueN |> 
-  group_by(SCENARIO) |>
-  ggplot() + 
-  aes(x = EST_YEAR, y = med, color = SCENARIO)+
-  scale_color_manual(values = c("#0a4c8a", "#0B6E4F", "#57B8FF"), aesthetics = c("color")) +
-  #scale_shape_manual(values = c(0, 22, 24))+
-  geom_point() +
-  geom_line() +
-  labs(x = "Year", y = "Simulated Total Biomass (kg)", color = "Scenario") + 
-  theme(legend.position = "bottom")
-    
-ggsave("scenario_trueN.png", plot = last_plot(), path = here("sdmtmb", "sumflounder", "plots"), width = 10, height = 5)
-a
+# trueN |> 
+#   group_by(SCENARIO) |>
+#   ggplot() + 
+#   aes(x = EST_YEAR, y = med, color = SCENARIO)+
+#   scale_color_manual(values = c("#0a4c8a", "#0B6E4F", "#57B8FF"), aesthetics = c("color")) +
+#   #scale_shape_manual(values = c(0, 22, 24))+
+#   geom_point() +
+#   geom_line() +
+#   labs(x = "Year", y = "Simulated Total Biomass (kg)", color = "Scenario") + 
+#   theme(legend.position = "bottom")
+#     
+# ggsave("scenario_trueN.png", plot = last_plot(), path = here("sdmtmb", "sumflounder", "plots"), width = 10, height = 5)
+# a

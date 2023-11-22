@@ -28,12 +28,18 @@ fall_mod <- readRDS(here("sdmtmb", "sumflounder", "data", "fall_mod.rds"))
 # predictions from the best fit model created here("sdmtmb", "sumflounder", "03-mod-predictions", "01a-fall-forecasts.R")
 fall_preds <- readRDS(file = here("sdmtmb", "sumflounder", "data", "fall_predictions.rds"))
 
+# data frame from model fit 
+moddat <- fall_mod$data
 
 # set the future years that will be simulated
 future_years <- c(2022:2026)
 
 
 fit_preds <- predict(fall_mod)
+# pull polynomial coefficients from model fit.
+x_mat <- poly(moddat$AVGDEPTH, 2)
+depth_coefs <- attr(x_mat,"coefs")  
+
 
 # get a dataframe containing the values for the random effects fields for the fitted values of the data points
 resampled_years <- sample(c(2009:2019,2021), size = 5, replace = TRUE)
@@ -87,7 +93,7 @@ base.sim <- sdmTMB_simulate(
   #EXPCATCHWT~
     formula = ~
     1 +
-    poly(AVGDEPTH, 2) +
+    poly(AVGDEPTH, 2, coefs = depth_coefs) +
     as.factor(AREA) +
     omegas,
   data = data,
@@ -109,7 +115,7 @@ base.sim <- sdmTMB_simulate(
   #rho = 0.158, # AR1 correlation
   sigma_O = 0,#1.33
   sigma_E = 0,#0.959,
-  phi = 0.1,#1.73, # dispersion parameter
+  phi = 1.73, # dispersion parameter
   tweedie_p = 1.26)#, # tweedie power parameter
 #fixed_re = list(omega_s = omegas, epsilon_st = NULL, zeta_s = NULL))
 
@@ -121,6 +127,53 @@ base_griddat <- right_join(base.sim, grid_preds, by = c("X", "Y", "EST_YEAR")) #
 head(base_griddat |>  select(X,Y,cell,EST_YEAR, mu, eta, observed, est, omegas))
 
 
+inc.sim <- sdmTMB_simulate(
+  formula = ~ 1 + poly(AVGDEPTH, 2, coefs = depth_coefs) + as.factor(AREA) + omegas,
+  #EXPCATCHWT ~ poly(AVGDEPTH, 2) + as.factor(AREA) + omegas,
+  data = data,
+  mesh = mesh,
+  family = tweedie(link = "log"),
+  #spatial = "on",
+  time = "EST_YEAR",
+  #spatiotemporal = "iid", 
+  B = c(-0.66, 
+        -41.8, 
+        -25.4, 
+        0.09+log(2), 
+        1), # coefficient estimates; increase scenario = double of estimated wind coefficient (0.09); additive -> log(pred.effect*2) = log(pred.effect) + log(2)
+  range = 74.5, 
+  #rho = 0.158, # AR1 correlation
+  sigma_O = 0,#1.33,
+  sigma_E = 0,#0.959,
+  phi = 1.73, # dispersion parameter
+  tweedie_p = 1.26)
+
+inc_griddat <- right_join(inc.sim, grid_preds, by = c("X", "Y", "EST_YEAR")) 
+wind_inc_grid <- inc_griddat |> 
+  filter(AREA == "WIND")
+head(wind_inc_grid |>  select(X,Y,cell,EST_YEAR, mu, eta, observed,  omegas, est))
 
 
 
+dec.sim <- sdmTMB_simulate(
+  formula = ~ 1 + poly(AVGDEPTH, 2, coefs = depth_coefs) + as.factor(AREA) + omegas,
+  #EXPCATCHWT ~ poly(AVGDEPTH, 2) + as.factor(AREA) + omegas,
+  data = data,
+  mesh = mesh,
+  family = tweedie(link = "log"),
+  #spatial = "on", 
+  time = "EST_YEAR",
+  #spatiotemporal = "iid",
+  B = c(-0.66, -41.8, -25.4, (0.09-log(2)), 1), # coefficient estimates; reduction = half of estimated wind coefficient (0.09); subtractive -> log(pred.effect/2) = log(pred.effect) - log(2)
+  range = 74.5, 
+  #rho = 0.158, # AR1 correlation
+  sigma_O = 0,#1.33,
+  sigma_E = 0,#0.959,
+  phi = 1.73, # dispersion parameter
+  tweedie_p = 1.26)
+
+dec_griddat <- right_join(dec.sim, grid_preds, by = c("X", "Y", "EST_YEAR"))
+wind_dec_grid <- dec_griddat |> 
+  filter(AREA == "WIND")
+
+head(wind_dec_grid |>  select(X,Y,cell,EST_YEAR, mu, eta, observed, omegas, est))

@@ -24,13 +24,13 @@ source(here("R", "StratMeanFXs_v2.R"))
 
 ### LOAD DATA ####
 # base 
-base_all.stratmu <- readRDS(here("sdmtmb", "sumflounder", "data", "simulations", "FallSimFuture_BaseStratmuBinded.rds"))
+base_all.stratmu <- readRDS(here("sdmtmb", "sumflounder", "data", "simulations", "0828-fall", "FallSimFuture_BaseStratmuBinded.rds"))
 
 #increase 
-inc_all.stratmu <- readRDS(here("sdmtmb", "sumflounder", "data", "simulations", "FallSimFuture_IncreaseStratmuBinded.rds"))
+inc_all.stratmu <- readRDS(here("sdmtmb", "sumflounder", "data", "simulations", "0828-fall", "FallSimFuture_IncreaseStratmuBinded.rds"))
 
 #decrease
-dec_all.stratmu <- readRDS(here("sdmtmb", "sumflounder", "data", "simulations", "FallSimFuture_DecreaseStratmuBinded.rds"))
+dec_all.stratmu <- readRDS(here("sdmtmb", "sumflounder", "data", "simulations", "0828-fall", "FallSimFuture_DecreaseStratmuBinded.rds"))
 
 
 # base 
@@ -48,13 +48,13 @@ saveRDS(base_mudiff, here("sdmtmb", "sumflounder", "data", "simulations", "FallS
   
 # increase 
 inc_mudiff <- inc_all.stratmu %>%
-    # filter(EST_YEAR %in% c(2016:2019, 2021)) %>% #filter for recent 5 years, skipping 2020
-    group_by(rep, EST_YEAR) %>% #, GEO_AREA) %>%
-    summarize(sq_diff = (exp(diff(log(stratmu)))-1)^2, .groups = "drop") %>% # calculate the relative differences and square them; drop the groups for further analysis
-    group_by(rep) %>%
-    summarize(mudiff = mean(sq_diff), .groups = "drop") %>% # calculate the average; drop the grouping factor 
-    mutate(mudiff = sqrt(mudiff)*100, 
-           SCENARIO = "ENHANCED")
+  # filter(EST_YEAR %in% c(2016:2019, 2021)) %>% #filter for recent 5 years, skipping 2020
+  group_by(rep, EST_YEAR) %>% #, GEO_AREA) %>%
+  summarize(sq_diff = (exp(diff(log(stratmu)))-1)^2, .groups = "drop") %>% # calculate the relative differences and square them; drop the groups for further analysis
+  group_by(rep) %>%
+  summarize(mudiff = mean(sq_diff), .groups = "drop") %>% # calculate the average; drop the grouping factor 
+  mutate(mudiff = sqrt(mudiff)*100, 
+         SCENARIO = "ENHANCED")
   #arrange(desc(mudiff))# %>% # arrange highest to lowest 
   # left_join(specieslookup, by = "SVSPP") 
 saveRDS(inc_mudiff, here("sdmtmb", "sumflounder", "data", "simulations", "FallSimFuture_IncreaseMudiff.rds"))
@@ -72,7 +72,8 @@ dec_mudiff <- dec_all.stratmu %>%
   # left_join(specieslookup, by = "SVSPP") 
 saveRDS(dec_mudiff, here("sdmtmb", "sumflounder", "data", "simulations", "FallSimFuture_DecreaseMudiff.rds"))
 
-all_mudiff <- bind_rows(base_mudiff, inc_mudiff, dec_mudiff)
+all_mudiff <- bind_rows(base_mudiff, inc_mudiff, dec_mudiff) |> 
+  mutate(SEASON = "FALL")
 
 all_mudiff_summary <- all_mudiff |> 
   group_by(SCENARIO) |> 
@@ -82,8 +83,8 @@ all_mudiff_summary <- all_mudiff |>
 
 saveRDS(all_mudiff, here("sdmtmb", "sumflounder", "data", "simulations", "FallSimFuture_AllMudiff.rds"))
 
-# ggplot(all_mudiff) + 
-#   aes(x = SCENARIO, y = mudiff) + 
+# ggplot(all_mudiff) +
+#   aes(x = SCENARIO, y = mudiff) +
 #   geom_boxplot()
 
 
