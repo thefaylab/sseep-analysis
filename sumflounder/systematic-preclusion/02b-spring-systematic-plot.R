@@ -33,7 +33,7 @@ slopes <- spr_sys_data |>
   filter(term == "EST_YEAR") 
 
 ### save data 
-saveRDS(slopes, here("data", "sumflounder", "sf_spr-system_rm-slopes.rds"))
+saveRDS(slopes, here("data", "sumflounder", "systematic-preclusion", "sf_spr-system_rm-slopes.rds"))
 
 # plot the slopes to compare how they change with the systematic removal of wind with each year beginning in 2021. 
 slope_plot <- ggplot(slopes) +
@@ -43,7 +43,7 @@ slope_plot <- ggplot(slopes) +
   coord_flip() +
   facet_wrap(~SEASON) +
   #theme_minimal() +
-  labs(y = "Slope",
+  labs(y = "Linear regression slope of abundance index",
        x = "Number of years precluded") +
   #facet_grid(cols = vars(METHOD), rows = vars(SEASON)) + 
   theme(legend.position="bottom",

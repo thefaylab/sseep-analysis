@@ -32,7 +32,7 @@ plot_preds <- function(dat, column, width = 10, height = 10) {
 plot_map <- function(coastline, strata_utm, dat, column, width = 10000, height = 10000, ...) {
   ggplot(...) +
     geom_sf(data = coastline, fill = "#efe5c7", color = "#816c62") +
-    geom_sf(data = strata, fill = NA) +
+    geom_sf(data = strata_utm, fill = NA) +
     geom_tile(data = dat, mapping = aes(X*1000, Y*1000, fill = {{ column }}, ...), width = width, height = height, ...) +
     #facet_wrap(~EST_YEAR) + 
     labs(x = "Longitude", y = "Latitude") + 

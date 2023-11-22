@@ -35,11 +35,11 @@ spring_preds <- readRDS(file = here("sdmtmb", "sumflounder", "data", "spring_pre
 
 ## FALL MAPS ####
 # estimates 
-fall_pred_map <- plot_map(coastline, dat = fall_preds |> filter(EST_YEAR %in% c(2018:2021)), column = exp(est)) + 
+fall_pred_map <- plot_map(coastline, strata_utm, dat = fall_preds |> filter(EST_YEAR %in% c(2018:2021)), column = exp(est)) + 
   scale_fill_viridis_c(trans = "sqrt") + 
   labs(fill = "Biomass") +
-  facet_wrap(~SEASON) + 
-  theme(legend.position = "bottom")
+  facet_wrap(~str_to_title(SEASON)) + 
+  theme(legend.position = "bottom", axis.title.x = element_text(size = 14, margin = margin(10, 0, 5, 0)), axis.title.y = element_text(size = 14, margin = margin(0, 10, 0, 5)), axis.text = element_text(size = 14), strip.text = element_text(size = 14), legend.title = element_text(size = 14),  legend.text = element_text(size = 12))
 
 ggsave("fall-preds-map.png", device = "png", path = here("sdmtmb", "sumflounder", "plots"), width = 6, height = 8)
 
@@ -55,11 +55,11 @@ plot_map(coastline, dat = fall_preds |> filter(EST_YEAR %in% c(2018:2026)), colu
 
 ## SPRING MAPS ####
 # estimates 
-spring_pred_map <- plot_map(coastline, dat = spring_preds |> filter(EST_YEAR %in% c(2018:2021)), column = exp(est)) + 
+spring_pred_map <- plot_map(coastline, strata_utm, dat = spring_preds |> filter(EST_YEAR %in% c(2018:2021)), column = exp(est)) + 
   scale_fill_viridis_c(trans = "sqrt") + 
   labs(fill = "Biomass") + 
-  facet_wrap(~SEASON) + 
-  theme(legend.position = "bottom")
+  facet_wrap(~str_to_title(SEASON)) + 
+  theme(legend.position = "bottom", axis.title.x = element_text(size = 14, margin = margin(10, 0, 5, 0)), axis.title.y = element_text(size = 14, margin = margin(0, 10, 0, 5)), axis.text = element_text(size = 14), strip.text = element_text(size = 14), legend.title = element_text(size = 14),  legend.text = element_text(size = 12))
 
 ggsave("spring-preds-map.png", device = "png", path = here("sdmtmb", "sumflounder", "plots"), width = 6, height = 8)
 
@@ -73,7 +73,7 @@ plot_map(coastline, dat = spring_preds |> filter(EST_YEAR %in% c(2018:2021)), co
 plot_map(coastline, dat = spring_preds |> filter(EST_YEAR %in% c(2018:2021)), column = epsilon_st) + scale_fill_gradient2()
 
 # patchwork
-fall_pred_map + spring_pred_map + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+fall_pred_map + spring_pred_map & theme(legend.position = "bottom")
 #### ####
 # ggplot(ne_states_proj) + geom_sf() +
 #   geom_tile(data = spring_preds, aes(x = X * 1000, y = Y * 1000, fill = exp(est)), width = 10000, height = 10000) +

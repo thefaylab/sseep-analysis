@@ -24,7 +24,9 @@ here()
 
 ## LOAD DATA ####
 # summer flounder data 
-sf_spring <- readRDS(here("sdmtmb", "sumflounder", "data", "sumflounder_spring.rds"))
+sf_spring <- readRDS(here("sdmtmb", "sumflounder", "data", "sumflounder_spring.rds")) |> 
+  mutate(AREA = as.factor(AREA), 
+         EST_YEAR = as.factor(EST_YEAR))
 
 # mesh 
 spring_mesh <- readRDS(here("sdmtmb", "sumflounder", "data", "spring_mesh.rds"))
