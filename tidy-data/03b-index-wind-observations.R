@@ -29,7 +29,7 @@ data <- readRDS(file = here("data", "rds", "tidy-data", "tidy-full-bts.rds"))
 strata <- readRDS(here("data", "rds", "active_strata.rds"))
 
 # read in the merged wind energy areas 
-wind_areas <- readRDS(here("data", "rds", "wind_areas_082021", "merged_wind_areas_Aug2021.rds"))
+wind_areas <- readRDS(here("data", "rds", "wind_areas_062022", "merged_wind_areas_Jun2022.rds"))
 
 
 ### DATA WRANGLE ####
@@ -38,6 +38,7 @@ wind_areas <- readRDS(here("data", "rds", "wind_areas_082021", "merged_wind_area
 data_sf <- st_as_sf(data, coords = c("DECDEG_BEGLON", "DECDEG_BEGLAT"))
 # assign same coordinate system to observation data as strata data 
 st_crs(data_sf) <- st_crs(strata)
+st_crs(wind_areas) <- st_transform(wind_areas, crs = st_crs(strata))
 
 # plot it 
 ggplot() + 
