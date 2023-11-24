@@ -49,7 +49,7 @@ raw_data_fall <- svsta_fall |>
 
   
 raw_data_spring <- svsta_spring |>
-  dplyr::select(ID, STRATUM, CRUISE6, STATION, EST_YEAR , EST_MONTH, TOW, TOWDUR, SETDEPTH, ENDDEPTH, MINDEPTH ,MAXDEPTH, AVGDEPTH, SURFTEMP,SURFSALIN,BOTTEMP,BOTSALIN,DECDEG_BEGLAT, DECDEG_BEGLON,DECDEG_ENDLAT,DECDEG_ENDLON,AREA_SWEPT_WINGS_MEAN_KM2) |>
+  dplyr::select(ID, STRATUM, CRUISE6, STATION, EST_YEAR , EST_MONTH, TOW, TOWDUR, SETDEPTH, ENDDEPTH, MINDEPTH ,MAXDEPTH, AVGDEPTH, SURFTEMP,SURFSALIN,BOTTEMP,BOTSALIN,DECDEG_BEGLAT, DECDEG_BEGLON,DECDEG_ENDLAT,DECDEG_ENDLON) |>
   left_join(svcat_spring, by="ID") |>
   select(-STRATUM.y,-CRUISE6.y,-STATION.y,-TOW.y) |>
   rename(CRUISE6 = CRUISE6.x,
@@ -90,7 +90,8 @@ data_fall <- data_fall |>
   sdmTMB::add_utm_columns(c("DECDEG_BEGLON", "DECDEG_BEGLAT")) |> # convert lat long; default units are km 
   group_by(STRATUM, CRUISE6, STATION, EST_YEAR) |> 
   #mutate(code = str_c(STRATUM, CRUISE6, STATION)) %>% # create code for unique tow
-  left_join(add_info_fall, by = c("STRATUM", "CRUISE6", "STATION", "EST_YEAR")) |> # add depth, bottom temp, and area swept
+  left_join(add_info_fall, by = c("STRATUM", "CRUISE6", "STATION", "EST_YEAR")) |> 
+  mutate(STRATUM = as.integer(STRATUM)) |>
   ungroup() 
 
 data_spring <- data_spring |>
