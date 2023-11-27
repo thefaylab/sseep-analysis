@@ -1,7 +1,7 @@
 ### created: 12/10/2022
-### last updated: 03/02/2023
+### last updated: 11/27/2023
 
-# 01a - PREPARE DATA ####
+# 01a - PREPARE SUMMER FLOUNDER DATA ####
 
 ## OBJECTIVE ####
 # prepare data for sdmTMB model fits and predicting
@@ -29,7 +29,7 @@ raw_data <- read_csv(here("data", "raw-data", "NEFSC_BTS_ALLCATCHES.csv")) |>
          STATION = as.integer(STATION), 
          STRATUM = as.integer(STRATUM))
 
-# dataset created from `03-spatial-filter.R` here("tidy-data"). Contains complete observations for summer flounder that makes up 95% of their cumulative biomass. 
+# dataset created from `05b-spatial-filter-data.R` here("tidy-data"). Contains complete observations for summer flounder that makes up 95% of their cumulative biomass. 
 data <- readRDS(here("data", "rds", "95filtered_complete_bts.rds")) |> filter(SVSPP == 103) |> mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT))
 
 
@@ -37,7 +37,7 @@ data <- readRDS(here("data", "rds", "95filtered_complete_bts.rds")) |> filter(SV
 ### SOME DATA TIDYING ####
 # extract depth, bottom temperature, and area swept values from the raw  data by using the unique tows that occur in the summer flounder data 
 add_info <- semi_join(raw_data, data, by =c("STRATUM", "CRUISE6", "STATION", "SEASON", "EST_YEAR"))  |>
-  select(CRUISE6, STATION, STRATUM, AVGDEPTH, BOTTEMP, AREA_SWEPT_WINGS_MEAN_KM2, SEASON, EST_YEAR) |>
+  select(CRUISE6, STATION, STRATUM, BOTTEMP, AREA_SWEPT_WINGS_MEAN_KM2, SEASON, EST_YEAR) |>
   unique()
 
 
@@ -55,8 +55,8 @@ data <- data |>
  filter(!is.na(AVGDEPTH)) # keep everything that is not NA
 
 # create fall and spring datasets 
-sf_fall <- data %>% filter(SEASON == "FALL")
-sf_spring <- data %>% filter(SEASON == "SPRING")
+sf_fall <- data |> filter(SEASON == "FALL")
+sf_spring <- data |> filter(SEASON == "SPRING")
 
 # save data 
 saveRDS(data, here("sdmtmb", "sumflounder", "data", "sumflounder.rds"))

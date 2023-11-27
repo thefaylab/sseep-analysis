@@ -1,5 +1,5 @@
 ### created: 11/02/2023
-### last updated: 
+### last updated: 11/27/2023
 
 # 01a - PREPARE ATLANTIC MACKEREL DATA ####
 
@@ -24,21 +24,21 @@ raw_data <- read_csv(here("data", "raw-data", "NEFSC_BTS_ALLCATCHES.csv")) |>
          STATION = as.integer(STATION), 
          STRATUM = as.integer(STRATUM))
 
-# dataset created from `03-spatial-filter.R` here("tidy-data"). Contains complete observations for summer flounder that makes up 95% of their cumulative biomass. 
+# dataset created from `05b-spatial-filter-data.R` here("tidy-data"). Contains complete observations for Atlantic mackerel that makes up 95% of their cumulative biomass. 
 data <- readRDS(here("data", "rds", "95filtered_complete_bts.rds")) |> filter(SVSPP == 121) |> mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT))
 
 # read in strata for plot check
-strata <- readRDS(here("data", "rds", "active_strata.rds"))
-strata_utm <- st_transform(strata, crs = 32618)
+#strata <- readRDS(here("data", "rds", "active_strata.rds"))
+strata_utm <- readRDS(here("data", "rds", "active_strata_utm.rds"))
 
 ### SOME DATA TIDYING ####
-# extract depth, bottom temperature, and area swept values from the raw  data by using the unique tows that occur in the summer flounder data 
+# extract depth, bottom temperature, and area swept values from the raw  data by using the unique tows that occur in the Atlantic mackerel data 
 add_info <- semi_join(raw_data, data, by =c("STRATUM", "CRUISE6", "STATION", "SEASON", "EST_YEAR"))  |>
-  select(CRUISE6, STATION, STRATUM, AVGDEPTH, BOTTEMP, AREA_SWEPT_WINGS_MEAN_KM2, SEASON, EST_YEAR) |>
+  select(CRUISE6, STATION, STRATUM, BOTTEMP, AREA_SWEPT_WINGS_MEAN_KM2, SEASON, EST_YEAR) |>
   unique()
 
 
-## PREPARE SUMMER FLOUNDER DATA ####
+## PREPARE ATLANTIC MACKEREL DATA ####
 data <- data |>
   sdmTMB::add_utm_columns(c("DECDEG_BEGLON", "DECDEG_BEGLAT"), utm_crs = 32618) |> # convert lat long; default units are km 
   group_by(STRATUM, CRUISE6, STATION, SEASON, EST_YEAR) |> 
@@ -68,16 +68,16 @@ saveRDS(am_spring, here("sdmtmb", "atlmackerel", "data", "atlmackerel_spring.rds
 
 ## CONSTRUCT MESH #### 
 mesh <- make_mesh(data, xy_cols = c("X", "Y"), cutoff = 10) 
-#fall_mesh <- make_mesh(sf_fall, xy_cols = c("X", "Y"), cutoff = 10)
+
 spring_mesh <- make_mesh(am_spring, xy_cols = c("X", "Y"), cutoff = 10)
 #cutoff defines the minimum allowed distance between points in the units of X and Y (km)
 
 #mesh$mesh$n 
 #plot(mesh)
-#plot(fall_mesh)
+
 plot(spring_mesh)
 
 # save mesh
 saveRDS(mesh, here("sdmtmb", "atlmackerel", "data", "mesh.rds"))
-# saveRDS(fall_mesh, here("sdmtmb", "sumflounder", "data", "fall_mesh.rds"))
+
 saveRDS(spring_mesh, here("sdmtmb", "atlmackerel", "data", "spring_mesh.rds"))
