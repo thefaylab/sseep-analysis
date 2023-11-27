@@ -1,5 +1,5 @@
 ### created: 11/09/2022
-### last updated: 07/24/2022
+### last updated: 11/22/2022
 
 # 03b - INDEX WIND OBSERVATIONS ####
 
@@ -38,7 +38,8 @@ wind_areas <- readRDS(here("data", "rds", "wind_areas_062022", "merged_wind_area
 data_sf <- st_as_sf(data, coords = c("DECDEG_BEGLON", "DECDEG_BEGLAT"))
 # assign same coordinate system to observation data as strata data 
 st_crs(data_sf) <- st_crs(strata)
-st_crs(wind_areas) <- st_transform(wind_areas, crs = st_crs(strata))
+wind_areas <- st_transform(wind_areas, crs = st_crs(strata))
+st_crs(wind_areas)
 
 # plot it 
 ggplot() + 
@@ -73,9 +74,13 @@ ggplot() +
 
 
 # coerce to a dataframe 
-data <- sf::st_set_geometry(data_sf, NULL) 
+coords <- data |> 
+  select(TOWID, SEASON, SVSPP, YEAR, DECDEG_BEGLON, DECDEG_BEGLAT) |> 
+  unique()
+data_new <- sf::st_set_geometry(data_sf, NULL) |>  
+  left_join(coords, by = c("TOWID", "SEASON", "SVSPP", "YEAR"))
 
 
 # save the new shapefiles and rds objects
-saveRDS(data, here("data", "rds", "tidy-data", "full-bts-indexed.rds"))
+saveRDS(data_new, here("data", "rds", "tidy-data", "full-bts-indexed.rds"))
 

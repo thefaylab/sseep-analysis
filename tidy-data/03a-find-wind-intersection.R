@@ -1,5 +1,5 @@
 ### created: 11/09/2022
-### last updated: 07/24/2022
+### last updated: 11/27/2022
 
 # 03a - FIND WIND AREA INTERSECTION ####
 
@@ -45,6 +45,8 @@ ggplot() +
 strata_utm <- strata_utm |>
   mutate(AREA_SqM = st_area(strata_utm)) # in meters
 
+# save the strata utm object 
+saveRDS(strata_utm, here("data", "rds", "active_strata_utm.rds"))
 
 ## FIND THE AREA INTERSECTION #### 
 # merge both the survey area and wind areas to create one polygon each
