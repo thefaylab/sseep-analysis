@@ -22,7 +22,7 @@ library(sdmTMB)
 here()
 
 ## LOAD DATA ####
-# raw bottom trawl data; contains present only observations and will be used to pull depth, bottom temperature, and area swept values for each station below.  
+# raw bottom trawl data
 
 svsta_fall = read.csv(here("data","raw-data","BTS_data_Oct2023","22560_UNION_FSCS_SVSTA.csv"))
 svsta_spring = read.csv(here("data","raw-data","BTS_data_Oct2023","22561_UNION_FSCS_SVSTA.csv")) 
@@ -61,25 +61,27 @@ raw_data_spring <- svsta_spring |>
          STATION = as.integer(STATION))
 
 
-# dataset created from `03-spatial-filter.R` here("tidy-data"). Contains complete observations for summer flounder that makes up 95% of their cumulative biomass. 
+# dataset created from `03-spatial-filter.R` here("tidy-data"). Contains complete observations for scup that makes up 95% of their cumulative biomass. 
 data_fall <- readRDS(here("data", "rds", "95filtered_complete_bts.rds")) |> 
-  filter(SVSPP == 143, SEASON=="FALL") |> 
+  filter(SVSPP == 143, SEASON=="FALL", EXPCATCHWT <= 700) |> 
   mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT),
          STRATUM = as.character(STRATUM))
 
 
 data_spring <- readRDS(here("data", "rds", "95filtered_complete_bts.rds")) |> 
-  filter(SVSPP == 143, SEASON=="SPRING") |> 
+  filter(SVSPP == 143, SEASON=="SPRING", EXPCATCHWT <= 700) |> 
   mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT))
 
 
 ### SOME DATA TIDYING ####
 # extract depth and bottom temperature  from the raw  data by using the unique tows that occur in the scup data 
-add_info_fall <- semi_join(raw_data_fall, data_fall, by =c("STRATUM", "CRUISE6", "STATION", "EST_YEAR"))  |>
+add_info_fall <- semi_join(raw_data_fall, data_fall, 
+                           by =c("STRATUM", "CRUISE6", "STATION", "EST_YEAR"))  |> 
   select(CRUISE6, STATION, STRATUM, AVGDEPTH, BOTTEMP, EST_YEAR) |>
-    unique()
+  unique()
 
-add_info_spring <- semi_join(raw_data_spring, data_spring, by =c("STRATUM", "CRUISE6", "STATION", "EST_YEAR"))  |>
+add_info_spring <- semi_join(raw_data_spring, data_spring, 
+                             by =c("STRATUM", "CRUISE6", "STATION", "EST_YEAR"))  |>
   select(CRUISE6, STATION, STRATUM, AVGDEPTH, BOTTEMP, EST_YEAR) |>
   unique()
 
