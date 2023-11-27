@@ -1,5 +1,5 @@
 ### created: 02/20/2023
-### last updated: 07/19/2023
+### last updated: 11/27/2023
 
 # 05c - PLOT FILTERED DATASETS ####
 
@@ -108,7 +108,7 @@ for(i in seq_along(species95)){ # move along the sequence of values in the speci
   
   # save the printed plot with the species name based on the list value generated
   
-  ggsave(filename = paste0(specieslookup95$spname[i], ".png"), device = "png" , plot = filtered_plots95[[i]], path = here("outputs", "plots", "95-dist-maps"), width = 8, height = 5)
+  ggsave(filename = paste0(specieslookup95$spname[i], ".png"), device = "png" , plot = filtered_plots95[[i]], path = here("outputs", "plots", "spatial-filter-plots", "95-dist-maps"), width = 8, height = 5)
   
 }
 
@@ -149,6 +149,6 @@ for(i in seq_along(species99)){ # move along the sequence of values in the speci
   
   # save the printed plot with the species name based on the list value generated
   
-  ggsave(filename = paste0(specieslookup99$spname[i], ".png"), device = "png" , plot = filtered_plots99[[i]], path = here("outputs", "plots", "99-dist-maps"), width = 8, height = 5)
+  ggsave(filename = paste0(specieslookup99$spname[i], ".png"), device = "png" , plot = filtered_plots99[[i]], path = here("outputs", "plots", "spatial-filter-plots", "99-dist-maps"), width = 8, height = 5)
   
 }

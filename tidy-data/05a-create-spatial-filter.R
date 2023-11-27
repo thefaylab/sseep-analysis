@@ -1,5 +1,5 @@
 ### created: 01/27/2023
-### last updated: 07/20/2023 
+### last updated: 11/27/2023 
 
 # 05a - CREATE SPATIAL FILTER ####
 
@@ -29,20 +29,21 @@ suppressPackageStartupMessages(library(tidyverse))
 
 ### LOAD DATA ####
 # dataset created from `04-complete-dataset.R` here("tidy-data"). Contains complete observations for each species and unique tow. 
-data <- readRDS(here("data", "rds", "merged_data_complete.rds")) |> mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT))
+# data <- readRDS(here("data", "rds", "merged_data_complete.rds")) |> mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT))
+data <- readRDS(here("data", "rds", "completed_bts_data.rds")) |> mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT))
 
 # dataset created from `03a-find-wind-intersection.R` here("tidy-data)
 impacted_strata <- readRDS(here("data", "rds", "impacted_strata.rds"))
 strata <- impacted_strata$STRATUM
 
-specieslookup <- data %>% 
-  select(SVSPP, COMNAME, SCINAME) %>%
-  unique()
+# specieslookup <- data %>% 
+#   select(SVSPP, COMNAME, SCINAME) %>%
+#   unique()
 
 
 ## CREATE FILTER ####
 ### FILTER BY NUMBER OF STRATA AND YEARS ####
-# find the number of strata where each species was present and observed by the survey
+# find the number of strata where each species were present and observed by the survey
 strat_filter <- data |>
   group_by(SVSPP, COMNAME, EST_YEAR, SEASON) |>
   filter(PRESENCE == 1) |> # filter for observations where species were caught
@@ -99,7 +100,7 @@ species <- unique(species_df$SVSPP)
 
 ### save data 
 saveRDS(species_df, here("data", "rds", "spatial-filter", "spatial-filter-species.rds"))
-saveRDS(removed, here("data", "rds", "spatial-filter", "removed-species.rds"))
+# saveRDS(removed, here("data", "rds", "spatial-filter", "removed-species.rds"))
 
 
 

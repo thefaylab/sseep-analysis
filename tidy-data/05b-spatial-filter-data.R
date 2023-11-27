@@ -25,7 +25,8 @@ suppressPackageStartupMessages(library(tidyverse))
 
 ### LOAD DATA ####
 # dataset created from `04-complete-dataset.R` here("tidy-data"). Contains complete observations for each species and unique tow. 
-data <- readRDS(here("data", "rds", "merged_data_complete.rds")) %>% mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT))
+# data <- readRDS(here("data", "rds", "merged_data_complete.rds")) %>% mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT))
+data <- readRDS(here("data", "rds", "completed_bts_data.rds")) |> mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT))
 
 # 95% cumulative distribution dataset created from `05a-spatial-filter.R` here("tidy-data"). 
 filter95 <- readRDS(here("data", "rds", "spatial-filter", "cumul-biomass95.rds")) 
