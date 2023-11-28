@@ -60,6 +60,12 @@ data <- data |>
 #sf_fall <- data %>% filter(SEASON == "FALL")
 am_spring <- data |> filter(SEASON == "SPRING")
 
+# identify years with incomplete surveys
+am_spring |> group_by(YEAR, SEASON) |> summarise(ntow = length(unique(TOWID)))
+am_spring <- am_spring |> 
+  filter(EST_YEAR != 2020) # remove 2020 incomplete survey
+
+
 # save data 
 saveRDS(data, here("sdmtmb", "atlmackerel", "data", "AtlMackerel.rds"))
 #saveRDS(sf_fall, here("sdmtmb", "sumflounder", "data", "sumflounder_fall.rds"))
