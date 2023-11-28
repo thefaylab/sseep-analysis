@@ -27,7 +27,7 @@ species <- readRDS(here("data", "rds", "95filtered-species.rds"))
 strata <- readRDS(here("data", "rds", "active_strata_wts.rds"))
 
 # calculate total survey area for use in future calculations  
-BTSArea <- sum(strata$Area_SqM_remain) #in meters
+BTSArea <- as.integer(sum(strata$Area_SqNm)) #in meters
 
 # statistical management areas 
 #geounits <- readRDS(here("data", "rds", "geounits.rds"))
@@ -47,7 +47,7 @@ wind_means <- data %>%
                          sum((EXPCATCHWT - mu)^2)/(towct - 1))) %>% # if tow count does not equal 1, then find the variance of biomass
   left_join(strata, by = "STRATUM") %>% # add each stratum area and relative weight to the dataset based on STRATUM number
   mutate(wt_mu = Area_SqNm * mu, # part one of the stratified mean formula
-         wt_var = (((((RelWt)^2) * var) / towct) * (1 - (towct / Area_SqM_remain)))) # part one of the stratified variance formula
+         wt_var = (((((RelWt)^2) * var) / towct) * (1 - (towct / Area_SqNm)))) # part one of the stratified variance formula
 
 
 ### save the data 

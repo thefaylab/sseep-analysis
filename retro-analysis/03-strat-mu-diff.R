@@ -71,14 +71,14 @@ fall_table <- kable(topten_fall[,c(4,3,2)], align = "lcccc", caption = "Ten High
 
 save_kable(fall_table, here("outputs", "fall_mudiff.png"))
 
-  
+
 topten_spring <- mudiff_dat |>
-    filter(SEASON == "SPRING") |> 
-    head(10) |> 
-    mutate(mudiff = round(mudiff, 2), 
-           COMNAME = str_to_sentence(COMNAME)) |> 
-    rename(Species = COMNAME, 
-           "Relative Percent Difference" = mudiff)
+  filter(SEASON == "SPRING") |> 
+  head(10) |> 
+  mutate(mudiff = round(mudiff, 2), 
+         COMNAME = str_to_sentence(COMNAME)) |> 
+  rename(Species = COMNAME, 
+         "Relative Percent Difference" = mudiff)
 
 
 spring_table <- kable(topten_spring[,c(4,3,2)], align = "lcccc", caption = "Top Ten Mean Squared Differences by Species", format.args = list(big.mark = ","), booktabs = TRUE) |>
@@ -88,7 +88,7 @@ save_kable(spring_table, here("outputs", "spring_mudiff.png"))
 
 
 ### save the data 
-saveRDS(mudiff_dat, file = here("data", "rds", "species_mean-sq-diff.rds"))
+saveRDS(mudiff_dat, file = here("data", "rds", "retro-analysis", "species_mean-sq-diff.rds"))
 
 
 ## PLOT THE DISTRIBUTION #####

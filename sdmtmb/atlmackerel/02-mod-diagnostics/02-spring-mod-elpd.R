@@ -78,5 +78,6 @@ diagnostics <- left_join(mods, cvs, by = "models") |>
          sum_loglik = round(sum_loglik, 2), 
          elpd = round(elpd, 2))
 
-kable(diagnostics, align = "lcccc", caption = "Spring Model Performance", format.args = list(big.mark = ","), booktabs = TRUE) |>
-  kable_styling(full_width = F, fixed_thead = T, font_size = 14)
+kable(diagnostics, align = "lcccc", caption = "Atlantic mackerel model performance", format.args = list(big.mark = ","), booktabs = TRUE) |>
+  kable_styling(full_width = F, fixed_thead = T, font_size = 14) #|>
+  #save_kable(file = here("sdmtmb", "atlmackerel", "plots", "mod-diagnostics-tbl.png"))

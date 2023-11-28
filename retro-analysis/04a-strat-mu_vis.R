@@ -123,11 +123,11 @@ for(i in seq_along(species)){ # move along the sequence of values in the species
   
   #if(is.null(mu_plots[[i]])) next # if the sequential value i in the plot list is NULL, skip the iteration and move on to the next step in the sequence
   
-# print(mu_plots[[i]]) # print the plot value corresponding with value i
+  # print(mu_plots[[i]]) # print the plot value corresponding with value i
   
   # save the printed plot with the species name based on the list value generated
   #ggsave(filename = paste(unique(mu_plots[[i]]$data$COMNAME), ".png"), device = "png", path = here("outputs", "plots", "strat_mu"), width = 5, height = 5)
   ggsave(filename = paste0(specieslookup$spname[i], ".png"), device = "png" , plot = mu_plots[[i]], path = here("outputs", "plots", "stratmu-plots"), width = 10, height = 5)
-
+  
 }
 

@@ -22,10 +22,9 @@ suppressPackageStartupMessages(library(tidyverse))
 theme_set(theme_bw())
 
 ### LOAD DATA ####
-strata <- sf::st_read(dsn = here("gis", "NEFSC_BTS_AllStrata_Jun2022.shp")) %>% 
-  rename(STRATUM = "Strata_Num")
+strata <- readRDS(here("data", "rds", "active_strata.rds"))
 
-# best fit model created in  here("sdmtmb", "atlmackerel", "01-mod-fits", "01a-fit-spr-mods.R")
+# best fit model created in  here("sdmtmb", "atlmackerel", "01-mod-fits", "01-fit-spr-mods.R")
 spring_mod <- readRDS(here("sdmtmb", "atlmackerel", "data", "mods", "m12_spring.rds"))
 
 # save so that spring mod will be called in all future scripts 
@@ -34,7 +33,8 @@ saveRDS(spring_mod, here("sdmtmb", "atlmackerel", "data", "spring_mod.rds"))
 ## DATA WRANGLE ####
 # extract data used to fit the model 
 spr_moddat <- spring_mod$data
-quantile(spr_moddat$EXPCATCHWT, 0.95) #17.68
+quantile(spr_moddat$EXPCATCHWT, 0.95) #36.478
+
 
 ## CALCULATE AND PLOT RANDOMIZED QUANTILE RESIDUALS ####
 ### LAPLACE RESIDUALS ####
@@ -49,40 +49,6 @@ qqnorm(spr_moddat$resids)
 qqline(spr_moddat$resids) # add trend line
 
 
-### MCMC-BASED RESIDUALS ####
-#### For full dataset ####
-spr_samps <- sdmTMBextra::predict_mle_mcmc(spring_mod, mcmc_iter = 201, mcmc_warmup = 200)
-# add thin argument, do burn in 200 and samps 10, thin = 10 = 300 samps 
-# only interested in big ones - compute residuals for those large fitted values 
-# read vignette Dharma residuals to work through 
-
-spr_mod_mcres <- residuals(spring_mod, type = "mle-mcmc", mcmc_samples = spr_samps)
-
-# qqplot
-qqnorm(spr_mod_mcres) 
-qqline(spr_mod_mcres) # add trendline
-
-### save the data
-saveRDS(spr_mod_mcres, here("sdmtmb", "atlmackerel", "data", "spr_mcres.rds"))
-
-#### For large observations only ####
-# spr_samps <- sdmTMBextra::predict_mle_mcmc(spring_mod, mcmc_iter = 201, mcmc_warmup = 200)
-# 
-# spr_mod_mcres <- residuals(spring_mod, type = "mle-mcmc", mcmc_samples = spr_samps)
-# 
-# # qqplot
-# qqnorm(spr_mod_mcres) 
-# qqline(spr_mod_mcres) # add trendline
-
-### save the data
-# saveRDS(spr_mod_mcres, here("sdmtmb", "atlmackerel", "data", "spr_mcres.rds"))
-# 
-# # add the MCMC residuals to the spring data 
-# spr_moddat$mc_resids <- spr_mod_mcres
-# 
-# ### save the data 
-# saveRDS(spr_moddat, file = here("sdmtmb", "atlmackerel", "data", "spr_dat-resids.rds"))
-
 ### DHARMa RESIDUALS ####
 #simulations with the parameters fixed at their Maximum Likelihood Estimate (MLE) and predictions conditional on the fitted random effects.
 simulate(spring_mod, nsim = 500) |> 
@@ -90,9 +56,9 @@ simulate(spring_mod, nsim = 500) |>
 
 sim_sprmod <- simulate(spring_mod, nsim = 500)
 sum(spr_moddat$EXPCATCHWT == 0) / length(spr_moddat$EXPCATCHWT)
-#> [1] 0.543
+#> [1] 0.535
 sum(sim_sprmod == 0)/length(sim_sprmod)
-#> [1] 0.569
+#> [1] 0.561
 
 # My reading of DHARMa documation is that the predicted response for the 
 # residuals vs. fitted plot should ideally not include the random effects:
@@ -114,6 +80,7 @@ DHARMa::testDispersion(r_spr_mod)
 #DHARMa::testResiduals(r_spr_mod, form = spr_moddat$AVGDEPTH)
 DHARMa::plotResiduals(r_spr_mod, form = spr_moddat$AVGDEPTH)
 
+
 # residuals against predictor year
 DHARMa::plotResiduals(r_spr_mod, form = spr_moddat$EST_YEAR)
 # 
@@ -129,6 +96,23 @@ DHARMa::testSpatialAutocorrelation(r_spr_mod, x = spr_moddat$X, y = spr_moddat$Y
 
 # tests if there are more zeros in the data than expected from the simulations
 DHARMa::testZeroInflation(r_spr_mod)
+
+
+### MCMC-BASED RESIDUALS ####
+#### For full dataset ####
+spr_samps <- sdmTMBextra::predict_mle_mcmc(spring_mod, mcmc_iter = 201, mcmc_warmup = 200)
+# add thin argument, do burn in 200 and samps 10, thin = 10 = 300 samps 
+# only interested in big ones - compute residuals for those large fitted values 
+# read vignette Dharma residuals to work through 
+
+spr_mod_mcres <- residuals(spring_mod, type = "mle-mcmc", mcmc_samples = spr_samps)
+
+# qqplot
+qqnorm(spr_mod_mcres) 
+qqline(spr_mod_mcres) # add trendline
+
+### save the data
+saveRDS(spr_mod_mcres, here("sdmtmb", "atlmackerel", "data", "spr_mcres.rds"))
 
 ### FITTED VS RESIDUALS 
 ggplot(spr_moddat) +
