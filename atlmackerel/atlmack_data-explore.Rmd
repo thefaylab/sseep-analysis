@@ -1,0 +1,443 @@
+---
+title: "Atlantic mackerel data exploration"
+author: "Angelia Miller"
+date: "2023-11-22"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE)
+library(tidyverse)
+library(here)
+library(sf)
+library(patchwork)
+library(boot)
+library(infer)
+library(broom)
+source(here("R", "StratMeanFXs_v2.R")) #removed SEASON group for the purposes of the resampling
+```
+
+```{r data, include= FALSE, message = FALSE}
+# full data set 
+# complete_data <- readRDS(here("data", "rds", "merged_data_complete.rds")) |> filter(SVSPP == 121) |> mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT))
+atlmack_complete <- readRDS(here("data", "rds", "completed_bts_data.rds")) |> filter(SVSPP == 121) |> mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT))
+
+# total biomass of atlantic mackerel in the spring for a given stratum 
+atlmack_bio <- readRDS(here("data", "rds", "spatial-filter", "total-biomass_impacted-species.rds")) |> filter(SEASON == "SPRING", SVSPP == 121)
+
+# filtered_data <- readRDS(here("data", "rds", "95filtered_complete_bts.rds")) |> filter(SVSPP == 121) |> mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT))
+
+# read the strata shapefile in to plot the polygons based on proportion and overlay the tow points
+strata <- readRDS(here("data", "rds", "active_strata.rds")) 
+
+# wind areas 
+wind_areas <- readRDS(here("data", "rds", "wind_areas_062022", "all_wind_areas_Jun2022.rds")) 
+
+coastline <- sf::st_read(dsn = here("gis", "eastern_coast_UTM.shp"))
+
+
+full_years <- c(2009:2016, 2018, 2019, 2021)
+
+```
+
+## Summary 
+```{r more data, message = FALSE, include = FALSE}
+# full data set 
+# raw_data <- read_csv(here("data", "raw-data", "NEFSC_BTS_ALLCATCHES.csv")) |> 
+#   filter(SVSPP == 121, EST_YEAR %in% c(2009:2021)) |> 
+#   mutate(SVSPP = as.integer(SVSPP), 
+#          STATION = as.integer(STATION), 
+#          STRATUM = as.integer(STRATUM))
+# 
+# add_info <- raw_data |> 
+#   select(SVSPP, CRUISE6, STATION, STRATUM, BOTTEMP, AREA_SWEPT_WINGS_MEAN_KM2, SEASON)
+# 
+# filtered_data <- filtered_data |> 
+#   left_join(add_info, by = c("SVSPP", "STRATUM", "CRUISE6", "STATION", "SEASON"))
+  
+```
+
+
+
+
+```{r}
+atlmack_summary <- atlmack_complete |> 
+  filter(!is.na(AVGDEPTH), SEASON == "SPRING", YEAR %in% full_years) |> 
+  group_by(EST_YEAR) |>
+  summarise(med_wt = median(EXPCATCHWT), 
+            max_wt = max(EXPCATCHWT), 
+            range_wt = max_wt - med_wt, 
+            avg_wt = mean(EXPCATCHWT), 
+            sd_wt = sd(EXPCATCHWT), 
+            lower = quantile(EXPCATCHWT, 0.05), 
+            upper = quantile(EXPCATCHWT, 0.95), 
+            tow_ct = length(unique(TOWID)))
+atlmack_summary
+
+atlmack_complete |> 
+  filter(SEASON == "SPRING", YEAR %in% full_years) |>
+  summarise(quantile(EXPCATCHWT, 0.95), 
+            quantile(EXPCATCHWT, 0.975), 
+            quantile(EXPCATCHWT, 0.99)) 
+
+```
+
+```{r}
+atlmack_csum <- atlmack_bio |> 
+  mutate(csum_bio = cumsum(EXPCATCHWT), 
+         csum_prop = csum_bio/max(csum_bio))
+  
+atlmack_csum
+  
+ggplot(atlmack_csum) + 
+  geom_point(aes(x = fct_reorder(as.character(STRATUM), csum_bio), y = csum_bio)) + 
+  ylim(0, NA) + 
+  geom_hline(yintercept = 0.95*max(atlmack_csum$csum_bio),color = "red") +
+  geom_hline(yintercept = 0.99*max(atlmack_csum$csum_bio),color = "blue") +
+  labs(x = "Stratum", y = "Cumulative Biomass (kg)", title = "AtlMack Cumulative Distribution of Biomass") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, size = 5))
+
+  
+```
+
+```{r}
+atlmack_strata <- right_join(atlmack_csum, strata, by = "STRATUM") |> # join the filtered data to the strata shapefile; coearces the shapefile into a dataframe 
+  na.omit() |> # remove NAs
+  st_sf()
+
+
+ggplot() + 
+    geom_sf(data = strata, fill = "white", color = "grey80") + 
+    geom_sf(data = coastline, fill = "grey60", color = "black") + 
+    geom_sf(data = atlmack_strata |> filter(csum_prop <= 0.95), fill = "#5dc5e9")+ #fill the strata polygons based on the values in the csum_prop column
+    scale_fill_distiller(palette = 8) +
+    coord_sf() +
+    #geom_point(data = x, mapping = aes(DECDEG_BEGLON, DECDEG_BEGLAT, alpha = 0.4), color = "white")
+    #facet_wrap(~SEASON) + 
+    labs(title = "AtlMack 95% Cumulative Distribution", x = "Longitude", y = "Latitude", fill = "95% Distribution") +
+    theme_bw() +
+    theme(legend.position = "bottom", 
+          panel.grid = element_blank()) 
+
+ggplot() + 
+    geom_sf(data = strata, fill = "white", color = "grey80") + 
+    geom_sf(data = coastline, fill = "grey60", color = "black") + 
+    geom_sf(data = atlmack_strata |> filter(csum_prop <= 0.99), fill = "#5dc5e9")+ #fill the strata polygons based on the values in the csum_prop column
+    scale_fill_distiller(palette = 8) +
+    coord_sf() +
+    #geom_point(data = x, mapping = aes(DECDEG_BEGLON, DECDEG_BEGLAT, alpha = 0.4), color = "white")
+    #facet_wrap(~SEASON) + 
+    labs(title = "AtlMack 99% Cumulative Distribution", x = "Longitude", y = "Latitude", fill = "99% Distribution") +
+    theme_bw() +
+    theme(legend.position = "bottom", 
+          panel.grid = element_blank()) 
+
+ggplot() + 
+    geom_sf(data = strata, fill = "white", color = "grey80") + 
+    geom_sf(data = coastline, fill = "grey60", color = "black") + 
+    geom_sf(data = atlmack_strata, fill = "#5dc5e9")+ #fill the strata polygons based on the values in the csum_prop column
+    scale_fill_distiller(palette = 8) +
+    coord_sf() +
+    #geom_point(data = x, mapping = aes(DECDEG_BEGLON, DECDEG_BEGLAT, alpha = 0.4), color = "white")
+    #facet_wrap(~SEASON) + 
+    labs(title = "AtlMack Cumulative Distribution", x = "Longitude", y = "Latitude", fill = "Distribution") +
+    theme_bw() +
+    theme(legend.position = "bottom", 
+          panel.grid = element_blank()) 
+```
+Cumulative Distribution remove outliers 
+```{r}
+atlmack_csum_no.out <- atlmack_complete |> 
+  filter(YEAR %in% full_years, EXPCATCHWT <= quantile(EXPCATCHWT, 0.99)) |> 
+  group_by(STRATUM) |> 
+  summarise(total_bio = sum(EXPCATCHWT), .groups = "drop") |> 
+  arrange(desc(total_bio)) |>
+  mutate(csum_bio = cumsum(total_bio), 
+         csum_prop = csum_bio/max(csum_bio))
+  
+atlmack_csum_no.out
+  
+ggplot(atlmack_csum_no.out) + 
+  geom_point(aes(x = fct_reorder(as.character(STRATUM), csum_bio), y = csum_bio)) + 
+  ylim(0, NA) + 
+  geom_hline(yintercept = 0.95*max(atlmack_csum_no.out$csum_bio),color = "red") +
+  geom_hline(yintercept = 0.99*max(atlmack_csum_no.out$csum_bio),color = "blue") +
+  labs(x = "Stratum", y = "Cumulative Biomass (kg)", title = "AtlMack Cumulative Distribution of Biomass", subtitle = "Biomass observations greater than the 99th quantile were removed from the distribution") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, size = 5))
+```
+
+```{r}
+atlmack_no.out <- right_join(atlmack_csum_no.out, strata, by = "STRATUM") |> # join the filtered data to the strata shapefile; coearces the shapefile into a dataframe 
+  na.omit() |> # remove NAs
+  st_sf()
+
+
+ggplot() + 
+    geom_sf(data = strata, fill = "white", color = "grey80") + 
+    geom_sf(data = coastline, fill = "grey60", color = "black") + 
+    geom_sf(data = atlmack_no.out |> filter(csum_prop <= 0.95), fill = "#5dc5e9")+ #fill the strata polygons based on the values in the csum_prop column
+    scale_fill_distiller(palette = 8) +
+    coord_sf() +
+    #geom_point(data = x, mapping = aes(DECDEG_BEGLON, DECDEG_BEGLAT, alpha = 0.4), color = "white")
+    #facet_wrap(~SEASON) + 
+    labs(title = "AtlMack 95% Cumulative Distribution", x = "Longitude", y = "Latitude", fill = "95% Distribution", subtitle = "Biomass observations greater than the 99th quantile were removed from the distribution") +
+    theme_bw() +
+    theme(legend.position = "bottom", 
+          panel.grid = element_blank()) 
+
+ggplot() + 
+    geom_sf(data = strata, fill = "white", color = "grey80") + 
+    geom_sf(data = coastline, fill = "grey60", color = "black") + 
+    geom_sf(data = atlmack_no.out |> filter(csum_prop <= 0.99), fill = "#5dc5e9")+ #fill the strata polygons based on the values in the csum_prop column
+    scale_fill_distiller(palette = 8) +
+    coord_sf() +
+    #geom_point(data = x, mapping = aes(DECDEG_BEGLON, DECDEG_BEGLAT, alpha = 0.4), color = "white")
+    #facet_wrap(~SEASON) + 
+    labs(title = "AtlMack 99% Cumulative Distribution", x = "Longitude", y = "Latitude", fill = "99% Distribution", subtitle = "Biomass observations greater than the 99th quantile were removed from the distribution") +
+    theme_bw() +
+    theme(legend.position = "bottom", 
+          panel.grid = element_blank()) 
+
+ggplot() + 
+    geom_sf(data = strata, fill = "white", color = "grey80") + 
+    geom_sf(data = coastline, fill = "grey60", color = "black") + 
+    geom_sf(data = atlmack_no.out, fill = "#5dc5e9")+ #fill the strata polygons based on the values in the csum_prop column
+    scale_fill_distiller(palette = 8) +
+    coord_sf() +
+    #geom_point(data = x, mapping = aes(DECDEG_BEGLON, DECDEG_BEGLAT, alpha = 0.4), color = "white")
+    #facet_wrap(~SEASON) + 
+    labs(title = "AtlMack Cumulative Distribution", x = "Longitude", y = "Latitude", fill = "Distribution", subtitle = "Biomass observations greater than the 99th quantile were removed from the distribution") +
+    theme_bw() +
+    theme(legend.position = "bottom", 
+          panel.grid = element_blank()) 
+```
+
+
+
+### Depth Plots 
+#### 1. Time of day
+Here we plot biomass as a function of average depth across season and at different times in which a tow occurred. The plot demonstrates some potential fall preference for shallower waters, while the spring time preference is a little more variable. Both relationships seem to be consistent regardless of the time of day. 
+```{r day/night plot, warning = FALSE}
+ggplot(filtered_data |> filter(!is.na(AVGDEPTH), SEASON == "SPRING")) +
+  geom_point(aes(x = AVGDEPTH, y = EXPCATCHWT)) +
+  facet_grid(cols = vars(SEASON), rows = vars(DAYTIME), scales = "free_y") +
+  labs(x = "Average Depth", y = "Biomass Catch (kg)")
+```
+ 
+#### 2. Area Type
+This plot illustrates catch as a function of average depth across season and whether the tow occurred inside or outside a wind area. The plot shows an additional demonstration of a potential fall preference for shallower waters, but also a preference for shallower waters in the sprind in the proporsed wind areas. 
+```{r depth plot 1, warning = FALSE}
+ggplot(filtered_data |> filter(!is.na(AVGDEPTH), SEASON == "SPRING")) +
+  geom_histogram(aes(x = AVGDEPTH)) +
+  facet_grid(cols = vars(SEASON), rows = vars(AREA), scales = "free_y") +
+  labs(x = "Average Depth", y = "Count")
+
+```
+
+#### 2a. Area Type with Biomass
+Expanding the above plot to include biomass values, we can loosely see that while there are less tows occurring in the proposed wind areas, the biomass in these areas can be equivalent to those caught outside the wind areas, specifically within the fall survey. 
+```{r depth plot 2, warning = FALSE}
+ggplot(filtered_data |> filter(!is.na(AVGDEPTH), SEASON == "SPRING")) +
+  geom_point(aes(x = AVGDEPTH, y = EXPCATCHWT)) +
+  facet_grid(cols = vars(SEASON), rows = vars(AREA), scales = "free_y") +
+  labs(x = "Average Depth", y = "Biomass (kg)") 
+```
+
+### Yearly Plots
+#### 1. Change in Average Biomass over time 
+The raw biomass catch and average biomass catch was plotted across years for each season and depending on when tows occuring indside or outside of wind areas. Based on the line plot, there is a general decrease of average biomass over time, which is difficult to parse out from the scatterplot. 
+```{r depth plot 3, warning = FALSE}
+avg <- filtered_data |>
+  filter(!is.na(AVGDEPTH), SEASON == "SPRING") |>
+  group_by(EST_YEAR, SEASON, AREA) |>
+  summarise(bio_avg = mean(EXPCATCHWT))
+
+ggplot() +
+  geom_point(data = filtered_data |> filter(!is.na(AVGDEPTH), SEASON == "SPRING"), aes(x = as.factor(EST_YEAR), y = EXPCATCHWT)) + 
+  #geom_line(data = avg, aes(x = EST_YEAR, y = bio_avg)) +
+  facet_grid(cols = vars(SEASON), rows = vars(AREA), scales = "free_y") + 
+  labs(x = "Year", y = "Biomass (kg)")
+
+ggplot() +
+  #geom_point(data = filtered_data, aes(x = EST_YEAR, y = EXPCATCHWT), color = "blue") + 
+  geom_line(data = avg , aes(x = EST_YEAR, y = bio_avg)) +
+  facet_grid(cols = vars(SEASON), rows = vars(AREA), scales = "free_y") + 
+  labs(x = "Year", y = "Biomass (kg)")
+```
+ 
+#### 2. Change in Bottom Temperature over time 
+This plot illustrates the variability of bottom temperature between season and throughout the time series. We can see that there are consistently higher bottom temperatures in the fall than in the spring, with some incremental increase in temperature across both seasons since 2009.
+```{r bottom temp 1, warning = FALSE}
+ggplot(filtered_data |> filter(!is.na(BOTTEMP), SEASON == "SPRING")) +
+  geom_point(aes(x = EST_YEAR, y = BOTTEMP)) +
+  geom_smooth(aes(x = EST_YEAR, y = BOTTEMP)) +
+  facet_grid(cols = vars(SEASON), rows = vars(AREA), scales = "free_y") +
+  labs(x = "Year", y = "Bottom Temperature") 
+```
+
+### Bottom Temperature Plots
+#### 1. Bottom Temperature Tows 
+This plot illustrates the frequency of tows as a function of bottom temperature between season and depending on when the tow occurred in or outside potential wind areas. We can see a generally similar distribution of tows between bottom temperature, area, and season, with tows occurring in the fall having higher bottom temperatures than the tows occurring in the spring. 
+```{r bottom temp 2, warning = FALSE}
+ggplot(filtered_data) +
+  geom_histogram(aes(BOTTEMP)) +
+  facet_grid(cols = vars(SEASON), rows = vars(AREA), scales = "free_y") +
+  labs(x = "Bottom Temperature", y = "Count") 
+```
+
+#### 2. Bottom Temperature Tows 
+This plot illustrates the biomass catch as a function of bottom temperature between season and depending on when the tow occurred in or outside potential wind areas. Again, we can see a generally similar distribution and potential preference for warmer bottom temperatures in the fall, and colder temperatures in the spring.
+```{r bottom temp 3, warning = FALSE}
+ggplot(filtered_data) +
+  geom_point(aes(x = BOTTEMP, y = EXPCATCHWT)) +
+  facet_grid(cols = vars(SEASON), rows = vars(AREA), scales = "free_y") +
+  labs(x = "Bottom Temperature", y = "Biomass (kg)") 
+
+```
+ 
+ 
+### Stratified Mean Abundance Indices:
+A stratified mean abundance index was derived for Atlantic mackerel for each year of the time series, both in the context of when wind tows were included in the calculation and when wind tows were excluded from the calculation. The difference in indices based on the differing calculation are displayed in the plot below. 
+```{r data again, include = FALSE}
+# read in stratified mean data 
+stratmeans <- readRDS(here("data", "rds", "retro-analysis", "strat-mu_all.rds")) |> filter(SVSPP == 121, SEASON == "SPRING", EST_YEAR != 2020)
+
+mudiff_dat <- readRDS(file = here("data", "rds", "retro-analysis", "species_mean-sq-diff.rds")) |> 
+  filter(SVSPP == 121, SEASON == "SPRING")
+
+source(here("R","StratMeanFxs_v2.R"))
+
+```
+
+Abundance indices when you use all the data including the outliers
+```{r stratmeans all data}
+am_stratmean <- stratmeans |> 
+  group_by(EST_YEAR, TYPE, SEASON) |> 
+  mutate(sdlog = sqrt(log(1+(sqrt(stratvar)/stratmu)^2)), #logistic standard deviation
+         lower = qlnorm(0.025, log(stratmu), sdlog), # lower quantile of the logistic normal distribution
+         upper = qlnorm(0.975, log(stratmu), sdlog)) |> # upper quantile of the logistic normal distribution
+  mutate(sdlog = ifelse(is.nan(sdlog), 0, sdlog), # if sdlog is NaN, replace with 0
+         lower = ifelse(is.nan(lower), 0, lower), # if the lower quantile is NaN, replace with 0
+         upper = ifelse(is.nan(upper), 0, upper)) # if the upper quantile is NaN, replace with 0
+
+ggplot(am_stratmean) +
+  aes(x = as.factor(EST_YEAR), y = stratmu, color = TYPE, shape = TYPE) +
+  #geom_point() +
+  geom_pointrange(aes(ymin=lower, ymax = upper), position =  position_dodge2(width=0.4)) +
+  facet_wrap(vars(SEASON), scales = "free_y") +
+  labs(x = "YEAR", y = "Stratified Mean (kg/tow)", SEASON = "", TYPE = "") +
+  ylim(0,NA) +
+  theme_bw() + 
+  theme(legend.position="bottom",
+        legend.title = element_blank(), 
+        axis.text.x = element_text(angle = 90, hjust = -1), 
+        axis.title.x = element_text(margin = unit(c(5, 0, 0, 0), "mm")), 
+        axis.title.y = element_text(margin = unit(c(0, 3, 0, 0), "mm")))
+```
+
+Abundance indices when you remove the outliers (> 35.6 which is the 95 quantile)
+```{r stratmeans remove outliers}
+stratmu_incl_no.out <- filtered_data |> 
+  filter(SEASON == "SPRING", EST_YEAR != 2020, EXPCATCHWT <=37.5) |>
+  stratified.mean() |> 
+  mutate(data_src = "No Outliers", 
+         TYPE = "With Wind Included") 
+
+stratmu_precl_no.out <- filtered_data |> 
+  filter(SEASON == "SPRING", EST_YEAR != 2020, EXPCATCHWT <=37.5, AREA == "OUTSIDE") |>
+  stratified.mean() |> 
+  mutate(data_src = "No Outliers", 
+         TYPE = "With Wind Precluded") 
+
+stratmu_no.out <- bind_rows(stratmu_incl_no.out, stratmu_precl_no.out) |> 
+  mutate(sdlog = sqrt(log(1+(sqrt(stratvar)/stratmu)^2)), #logistic standard deviation
+         lower = qlnorm(0.025, log(stratmu), sdlog), # lower quantile of the logistic normal distribution
+         upper = qlnorm(0.975, log(stratmu), sdlog), 
+         sdlog = ifelse(is.nan(sdlog), 0, sdlog), # if sdlog is NaN, replace with 0
+         lower = ifelse(is.nan(lower), 0, lower), # if the lower quantile is NaN, replace with 0
+         upper = ifelse(is.nan(upper), 0, upper)) 
+
+ggplot(stratmu_no.out) +
+  aes(x = as.factor(EST_YEAR), y = stratmu, color = TYPE, shape = TYPE) +
+  #geom_point() +
+  geom_pointrange(aes(ymin=lower, ymax = upper), position =  position_dodge2(width=0.4)) +
+  labs(x = "YEAR", y = "Stratified Mean (kg/tow)", SEASON = "", TYPE = "") +
+  ylim(0,NA) +
+  theme_bw() + 
+  theme(legend.position="bottom",
+        legend.title = element_blank(), 
+        axis.text.x = element_text(angle = 90, hjust = -1), 
+        axis.title.x = element_text(margin = unit(c(5, 0, 0, 0), "mm")), 
+        axis.title.y = element_text(margin = unit(c(0, 3, 0, 0), "mm")))
+
+
+
+```
+
+```{r mudiff compare}
+mudiff_no.out <- stratmu_no.out |> 
+  #mutate(stratmu = ifelse(stratmu==0, 1, stratmu)) |>
+  filter(EST_YEAR %in% c(2016:2019, 2021)) |> #filter for recent 5 years, skipping 2020
+  #mutate(log_mu = log(stratmu)) |>
+  arrange(desc(stratmu)) |>
+  group_by(SVSPP, EST_YEAR) |> #, 
+  #summarize(sq_diff = (exp(diff(log(stratmu)))-1)^2, .groups = "drop") |>
+  summarise(diff_mu = diff(stratmu)) |>
+  arrange(desc(diff_mu)) |>
+  mutate(exp_mu = (exp(diff_mu))-1) |>
+  arrange(desc(exp_mu)) |>
+  mutate(sq_diff = exp_mu^2) |>
+  arrange(desc(sq_diff))|>
+  ungroup()|>
+  #summarize(sq_diff = (diff(stratmu))^2, .groups = "drop") |> # calculate the relative differences and square them; drop the groups for further analysis
+  #group_by(SVSPP, SEASON) |>
+  summarize(mudiff = mean(sq_diff), .groups = "drop") |> # calculate the average; drop the grouping factor 
+  mutate(mudiff = sqrt(mudiff)*100) 
+
+mudiff_no.out
+mudiff_dat
+```
+
+How different are the indices with all data included when you remove the outliers? 
+```{r}
+incl.mu <- am_stratmean |> 
+  filter(TYPE == "With Wind Included") |> 
+  select(!c(COMNAME, SCINAME, sdlog, lower, upper)) |>
+  mutate(data_src = "All data")
+
+incl.mu_comp <- bind_rows(incl.mu, stratmu_incl_no.out)
+
+incl.mu_diff <- incl.mu_comp |> 
+  #mutate(stratmu = ifelse(stratmu==0, 1, stratmu)) |>
+  filter(EST_YEAR %in% c(2016:2019, 2021)) |> #filter for recent 5 years, skipping 2020
+  #mutate(log_mu = log(stratmu)) |>
+  arrange(desc(stratmu)) |>
+  group_by(SVSPP, EST_YEAR) |> #, 
+  #summarize(sq_diff = (exp(diff(log(stratmu)))-1)^2, .groups = "drop") |>
+  summarise(diff_mu = diff(stratmu)) |>
+  arrange(desc(diff_mu)) |>
+  mutate(exp_mu = (exp(diff_mu))-1) |>
+  arrange(desc(exp_mu)) |>
+  mutate(sq_diff = exp_mu^2) |>
+  arrange(desc(sq_diff))|>
+  ungroup()|>
+  #summarize(sq_diff = (diff(stratmu))^2, .groups = "drop") |> # calculate the relative differences and square them; drop the groups for further analysis
+  #group_by(SVSPP, SEASON) |>
+  summarize(mudiff = mean(sq_diff), .groups = "drop") |> # calculate the average; drop the grouping factor 
+  mutate(mudiff = sqrt(mudiff)*100) 
+
+incl.mu_diff
+
+
+```
+
+
+```{r}
+
+```
+
+
+
+
