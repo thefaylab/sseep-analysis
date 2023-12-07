@@ -14,8 +14,8 @@ library(patchwork)
 library(here)
 suppressPackageStartupMessages(library(tidyverse))
 
-sdmtmb.dir <- "../sseep-analysis/sdmtmb"
-sseep.dir <- "../sseep-analysis"
+#sdmtmb.dir <- "../sseep-analysis/sdmtmb"
+#sseep.dir <- "../sseep-analysis"
 
 ### LOAD DATA ####
 # active strata shapefile 

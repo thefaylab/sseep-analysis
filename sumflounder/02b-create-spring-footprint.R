@@ -1,14 +1,18 @@
 ### created: 12/1/2023
 ### updated: 
 
-# 02 - CREATE SUMMER FLOUNDER SPATIAL FOOTPRINT: SPRING ####
+# 02b - CREATE SUMMER FLOUNDER SPATIAL FOOTPRINT: SPRING ####
 
 ## OBJECTIVE ####
 # identify the sampling frame for spring observations of summer flounder 
 # begin with the spatial footprint created by the 95% cumulative distribution of biomass 
-# append with additional strata that are in the same depth range and capture the full extent of the offshore wind energy areas. 
+# append with additional strata that are inshore of the mid-Atlantic and capture the full extent of the offshore wind energy areas. 
 
 ### LOAD PACKAGES ####
+library(here)
+library(sf)
+library(tidyverse)
+library(nationalparkcolors)
 
 ### LOAD DATA ####
 # active survey strata 

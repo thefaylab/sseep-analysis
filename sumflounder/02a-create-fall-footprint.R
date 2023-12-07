@@ -9,7 +9,12 @@
 # append with additional strata that are in the same depth range and capture the full extent of the offshore wind energy areas. 
 
 ### LOAD PACKAGES ####
+library(here)
+library(sf)
+library(tidyverse)
+library(nationalparkcolors)
 
+### LOAD DATA ####
 # active survey strata 
 strata <- readRDS(here("data", "rds", "active_strata.rds")) 
 
