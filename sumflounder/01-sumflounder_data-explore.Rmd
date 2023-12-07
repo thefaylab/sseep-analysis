@@ -30,7 +30,7 @@ sumflounder_complete <- readRDS(here("data", "rds", "completed_bts_data.rds")) |
 sumflounder_bio <- readRDS(here("data", "rds", "spatial-filter", "total-biomass_impacted-species.rds")) |> filter(SVSPP == 103)
 
 # 95% cumulative distribution dataset created from `05a-spatial-filter.R` here("tidy-data").
-csum_dist95 <- readRDS(here("data", "rds", "spatial-filter", "cumul-biomass95.rds")) %>% filter(SVSPP == 103)
+csum_dist95 <- readRDS(here("data", "rds", "spatial-filter", "cumul-biomass95.rds")) |> filter(SVSPP == 103)
 
 sumflounder_filtered <- readRDS(here("data", "rds", "95filtered_complete_bts.rds")) |> filter(SVSPP == 103) |> mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT))
 
@@ -40,7 +40,7 @@ strata <- readRDS(here("data", "rds", "active_strata.rds"))
 # wind areas 
 wind_areas <- readRDS(here("data", "rds", "wind_areas_062022", "all_wind_areas_Jun2022.rds")) 
 
-full_years <- c(2009:2016, 2018, 2019, 2021)
+#full_years <- c(2009:2016, 2018, 2019, 2021)
 
 
 ```
@@ -64,7 +64,7 @@ sumflounder_complete |>
 
 
 sumflounder_summary <- sumflounder_complete |> 
-  filter(!is.na(AVGDEPTH), YEAR %in% full_years) |> 
+  filter(!is.na(AVGDEPTH)) |>#, YEAR %in% full_years) |> 
   group_by(EST_YEAR, SEASON) |>
   summarise(med_wt = median(EXPCATCHWT), 
             max_wt = max(EXPCATCHWT), 
@@ -77,7 +77,7 @@ sumflounder_summary <- sumflounder_complete |>
 sumflounder_summary
 
 sumflounder_complete |> 
-  filter(YEAR %in% full_years) |>
+  #filter(YEAR %in% full_years) |>
   group_by(SEASON) |>
   summarise(quantile(EXPCATCHWT, 0.95), 
             quantile(EXPCATCHWT, 0.975), 
@@ -85,9 +85,11 @@ sumflounder_complete |>
 
 ```
 
+### Filter out 2017 fall survey and 2020 spring survey
 ```{r}
-sumflounder_summary2 <- sumflounder_filtered |> 
-  filter(!is.na(AVGDEPTH), YEAR %in% full_years) |> 
+# fall 
+sumflounder_complete |> 
+  filter(!is.na(AVGDEPTH), SEASON == "FALL", YEAR != 2017) |> 
   group_by(EST_YEAR, SEASON) |>
   summarise(med_wt = median(EXPCATCHWT), 
             max_wt = max(EXPCATCHWT), 
@@ -97,41 +99,45 @@ sumflounder_summary2 <- sumflounder_filtered |>
             lower = quantile(EXPCATCHWT, 0.01), 
             upper = quantile(EXPCATCHWT, 0.99), 
             tow_ct = length(unique(TOWID)))
-sumflounder_summary2
 
-sumflounder_filtered |> 
-  filter(YEAR %in% full_years) |>
-  group_by(SEASON) |>
-  summarise(quantile(EXPCATCHWT, 0.95), 
-            quantile(EXPCATCHWT, 0.975), 
-            quantile(EXPCATCHWT, 0.99))  
+sumflounder_complete |> 
+  filter(!is.na(AVGDEPTH), SEASON == "FALL", YEAR != 2017) |> 
+  summarise(x = quantile(EXPCATCHWT, 0.95), y = quantile(EXPCATCHWT, 0.975), z = quantile(EXPCATCHWT, 0.99)) 
+
+# spring 
+sumflounder_complete |> 
+  filter(!is.na(AVGDEPTH), SEASON == "SPRING", YEAR != 2020) |> 
+  group_by(EST_YEAR, SEASON) |>
+  summarise(med_wt = median(EXPCATCHWT), 
+            max_wt = max(EXPCATCHWT), 
+            range_wt = max_wt - med_wt, 
+            avg_wt = mean(EXPCATCHWT), 
+            sd_wt = sd(EXPCATCHWT), 
+            lower = quantile(EXPCATCHWT, 0.01), 
+            upper = quantile(EXPCATCHWT, 0.99), 
+            tow_ct = length(unique(TOWID))) 
+
+sumflounder_complete |> 
+  filter(!is.na(AVGDEPTH), SEASON == "SPRING", YEAR != 2020) |> 
+  summarise(x = quantile(EXPCATCHWT, 0.95), y = quantile(EXPCATCHWT, 0.975), z = quantile(EXPCATCHWT, 0.99))
 ```
-
+By removing the years, this does not effect the quantile distribution of biomass 
 
 ## Cumulative Distribution 
 ### Spatial filter result
 95% distribution result from 05a-spatial-filter.R
 ```{r}
 strata_95 <- strata |>
-  #filter(SVSPP == 103) %>% # filter the cumulative distribution dataframe for one species, in this case black sea bass
-  right_join(csum_dist95, by = "STRATUM") |> # join the filtered data to the strata shapefile; coearces the shapefile into a dataframe 
-  mutate(TYPE = "Distribution Areas") |>
-  st_sf() # Coerce the dataframe back to an sf for plotting based on geometry; function help - "Create sf, which extends data.frame-like objects with a simple feature list column"
-
-# find strata not included in the 95 distribution 
-anti_strata <- strata |>
-  #filter(SVSPP == 103) %>% # filter the cumulative distribution dataframe for one species, in this case black sea bass
-  anti_join(csum_dist95, by = "STRATUM")
+  right_join(csum_dist95, by = "STRATUM") |> # join the filtered data to the strata shapefile; maintains shapefile structure 
+  mutate(TYPE = "Distribution Areas") 
 
 pal <- c("#5dc5e9", "#0a4c8a", "#3f7f00")
 
+# wind overlap plot 
 ggplot() +
-  geom_sf(data = ne_coast, fill = "#efe5c7", color = "#816c62") +
   geom_sf(data = strata, fill = NA) +
-  geom_sf(data = strata_95, aes(fill = TYPE), alpha = 0.6)+ #fill the strata polygons based on the values in the csum_prop column
-  #geom_sf(data = wind_leases, aes(color = TYPE,  fill = TYPE), alpha = 0.7)+ 
-  #geom_sf(data = wind_planning, aes(color = TYPE, fill = TYPE), alpha = 0.7)+ 
-  geom_sf(data = wind_areas, aes(fill = Area_Type, color = Area_Type), alpha = 0.7) +
+  geom_sf(data = strata_95, aes(fill = TYPE), alpha = 0.6)+ #fill the strata polygons based on the values in the csum_prop column, will be overwritten with scale_fill_manual()
+   geom_sf(data = wind_areas, aes(fill = Area_Type, color = Area_Type), alpha = 0.7) +
   scale_fill_manual(name = "Legend", values = pal, aesthetics = c("color", "fill"), labels = c("Distribution Areas", "Leased areas", "Planning Areas"))+
   coord_sf() + 
   xlim(c(80, 65)) +
@@ -147,7 +153,7 @@ ggplot() +
 Removing the incomplete survey years to see it's effect on the 95% cumulative distribution
 ```{r}
 sumflounder_fall <- sumflounder_complete |>
-  filter(SEASON == "FALL", YEAR %in% full_years)
+  filter(SEASON == "FALL", YEAR != 2017)
 sumflounder_spr <- sumflounder_complete |> 
   filter(SEASON == "SPRING", YEAR != 2020)
 
@@ -170,7 +176,7 @@ ggplot(sumflounder_csum_fall) +
   ylim(0, NA) + 
   geom_hline(yintercept = 0.95*max(sumflounder_csum_fall$csum_bio),color = "red") +
   geom_hline(yintercept = 0.99*max(sumflounder_csum_fall$csum_bio),color = "blue") +
-  labs(x = "Stratum", y = "Cumulative Biomass (kg)", title = "Summer Flounder Fall Cumulative Distribution of Biomass") +
+  labs(x = "Stratum", y = "Cumulative Biomass (kg)", title = "Summer Flounder Fall Cumulative Distribution of Biomass", subtitle = "The incomplete 2017 survey has been removed from the calculation, and a survey was not performed in 2020") +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 90, size = 5))
 # ggsave("sumflounder_cumul-dist_fall-plot.png", last_plot(), device = "png", here("outputs", "sumflounder"), width = 8, height = 5)
@@ -193,7 +199,7 @@ ggplot(sumflounder_csum_spr) +
   ylim(0, NA) + 
   geom_hline(yintercept = 0.95*max(sumflounder_csum_spr$csum_bio),color = "red") +
   geom_hline(yintercept = 0.99*max(sumflounder_csum_spr$csum_bio),color = "blue") +
-  labs(x = "Stratum", y = "Cumulative Biomass (kg)", title = "Summer Flounder Spring Cumulative Distribution of Biomass") +
+  labs(x = "Stratum", y = "Cumulative Biomass (kg)", title = "Summer Flounder Spring Cumulative Distribution of Biomass", subtitle = "The incomplete 2020 survey has been removed from the calculation") +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 90, size = 5))
 
@@ -317,49 +323,4 @@ anti_strata_df <- anti_strata |>
 
 ```
 
-```{r}
-# fill the strata that are not covered by overall spatial footprint
-ggplot() + 
-  geom_sf(data = strata, fill = "yellow") +
-  geom_sf(data = strata_95) + 
-  geom_sf(data = wind_areas, fill = "blue") + 
-  theme(panel.grid = element_blank())
-
-# plot only the strata that are not included in the overall spatial footprint and add strata number labels 
-ggplot() + 
-  geom_sf(data = anti_strata, color = "black") + 
-  geom_text(data = anti_strata_df, aes(x = X, y = Y, label = STRATUM), size = 2.5,  color = "blue", check_overlap = TRUE, angle = 45)
-
-
-  
-
-```
-
-### Add to Spring footprint 
-```{r}
-
-
-```
-
-```{r}
-
-
-```
-
-
-```{r}
-
-
-```
-
-```{r}
-
-
-```
-
-
-### Add to fall strata  
-```{r}
-
-```
 

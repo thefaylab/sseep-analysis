@@ -41,7 +41,7 @@ sf_fall <- sumflounder_complete |>
 
 #spring data
 sf_spring <- sumflounder_complete |> 
-  filter(SEASON == "SPRING", STRATUM %in% fall_strata)
+  filter(SEASON == "SPRING", STRATUM %in% spring_strata, YEAR != 2020)
 
 # full dataset 
 sumflounder <- bind_rows(sf_spring, sf_fall)
