@@ -1,7 +1,7 @@
 ### created: 12/10/2022
-### last updated: 11/27/2023
+### last updated: 12/07/2023
 
-# 01a - PREPARE SUMMER FLOUNDER DATA ####
+# 01 - PREPARE SUMMER FLOUNDER DATA ####
 
 ## OBJECTIVE ####
 # prepare data for sdmTMB model fits and predicting
@@ -14,7 +14,7 @@
 # install.packages("marmap") 
 suppressPackageStartupMessages(library(tidyverse)) 
 library(here)
-library(sf) 
+# library(sf) 
 library(sdmTMB)
 # library(marmap)
 # library(raster)
@@ -23,31 +23,33 @@ here()
 
 ## LOAD DATA ####
 # raw bottom trawl data; contains present only observations and will be used to pull depth, bottom temperature, and area swept values for each station below.  
-raw_data <- read_csv(here("data", "raw-data", "NEFSC_BTS_ALLCATCHES.csv")) |>
-  filter(EST_YEAR %in% c(2009:2021)) |>
-  mutate(SVSPP = as.integer(SVSPP), 
-         STATION = as.integer(STATION), 
-         STRATUM = as.integer(STRATUM))
+# raw_data <- read_csv(here("data", "raw-data", "NEFSC_BTS_ALLCATCHES.csv")) |>
+#   filter(EST_YEAR %in% c(2009:2021)) |>
+#   mutate(SVSPP = as.integer(SVSPP), 
+#          STATION = as.integer(STATION), 
+#          STRATUM = as.integer(STRATUM))
 
 # dataset created from `05b-spatial-filter-data.R` here("tidy-data"). Contains complete observations for summer flounder that makes up 95% of their cumulative biomass. 
-data <- readRDS(here("data", "rds", "95filtered_complete_bts.rds")) |> filter(SVSPP == 103) |> mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT))
+# data <- readRDS(here("data", "rds", "95filtered_complete_bts.rds")) |> filter(SVSPP == 103) |> mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT))
+
+# dataset created from `04-filter-summer-flounder.R` here("sumflounder"). Contains complete observations for summer flounder based on their generated spatial footprint. 
+data <- readRDS(here("data", "sumflounder", "sumflounder.rds"))
 
 
-
-### SOME DATA TIDYING ####
+### SOME DATA TIDYING ###
 # extract depth, bottom temperature, and area swept values from the raw  data by using the unique tows that occur in the summer flounder data 
-add_info <- semi_join(raw_data, data, by =c("STRATUM", "CRUISE6", "STATION", "SEASON", "EST_YEAR"))  |>
-  select(CRUISE6, STATION, STRATUM, BOTTEMP, AREA_SWEPT_WINGS_MEAN_KM2, SEASON, EST_YEAR) |>
-  unique()
+# add_info <- semi_join(raw_data, data, by =c("STRATUM", "CRUISE6", "STATION", "SEASON", "EST_YEAR"))  |>
+#   select(CRUISE6, STATION, STRATUM, BOTTEMP, AREA_SWEPT_WINGS_MEAN_KM2, SEASON, EST_YEAR) |>
+#   unique()
 
 
-## PREPARE SUMMER FLOUNDER DATA ####
+## ADD UTM COLUMNS ####
 data <- data |>
-  sdmTMB::add_utm_columns(c("DECDEG_BEGLON", "DECDEG_BEGLAT")) |> # convert lat long; default units are km 
-  group_by(STRATUM, CRUISE6, STATION, SEASON, EST_YEAR) |> 
+  sdmTMB::add_utm_columns(c("DECDEG_BEGLON", "DECDEG_BEGLAT")) #|> # convert lat long; default units are km 
+  #group_by(STRATUM, CRUISE6, STATION, SEASON, EST_YEAR) |> 
   #mutate(code = str_c(STRATUM, CRUISE6, STATION)) %>% # create code for unique tow
-  left_join(add_info, by = c("STRATUM", "CRUISE6", "STATION", "SEASON", "EST_YEAR")) |> # add depth, bottom temp, and area swept
-  ungroup() 
+  #left_join(add_info, by = c("STRATUM", "CRUISE6", "STATION", "SEASON", "EST_YEAR")) |> # add depth, bottom temp, and area swept
+  #ungroup() 
 
 # remove the NA values in depth
 na <- filter(data, is.na(AVGDEPTH)) # check for any na values

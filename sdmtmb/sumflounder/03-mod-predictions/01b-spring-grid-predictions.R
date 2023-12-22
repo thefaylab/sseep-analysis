@@ -1,23 +1,17 @@
 ### created: 04/01/2023
-### last updated: 11/21/2023
+### last updated: 12/22/2023
 
-# PREDICT AND FORECAST ####
+# 01b - GRID PREDICTIONS: SPRING ####
 
 ## OBJECTIVE ####
-# run best fit models for spring
-# include extra years in the model fit for future distribution forecasting
-# make predictions and forecasts over the impacted grid from model fits
+# make predictions from the best fitting spatiotemporal model over the spring spatial footprint for summer flounder
 
 
 ### LOAD PACKAGES ####
-library(stringr)
 library(sf)
 library(patchwork)
 library(here)
-library(raster)
 library(sdmTMB)
-library(marmap)
-library(oce)
 suppressPackageStartupMessages(library(tidyverse))
 theme_set(theme_bw())
 
@@ -105,7 +99,7 @@ ggplot(spr_grid, aes(X, Y, fill = AVGDEPTH)) +
 ## MAKE PREDICTIONS ####
 ### Grid predictions ####
 # replicate the grid across all necessary years
-spr_grid <- sdmTMB::replicate_df(spr_grid, "EST_YEAR", c(2009:2021)) |> 
+spr_grid <- sdmTMB::replicate_df(spr_grid, "EST_YEAR", c(2009:2019, 2021)) |> # spring survey was incomplete in 2020 so there cannot be a grid for 2017 or 2020 to predict across
   mutate(EST_YEAR = as.factor(EST_YEAR), 
          AREA = as.factor(AREA))
 
@@ -115,7 +109,7 @@ spring_preds <- predict(spring_mod, newdata = spr_grid)#, return_tmb_object = TR
 ### save the predictions
 saveRDS(spring_preds, file = here("sdmtmb", "sumflounder", "data", "spring_grid_preds.rds"))
 
-#### #### 
+#### ###
 #call the plotting functions
 source(file = here("sdmtmb", "R", "plot_fns.R"))
 
@@ -123,9 +117,9 @@ source(file = here("sdmtmb", "R", "plot_fns.R"))
 plot_preds(spring_preds |> filter(EST_YEAR %in% c(2018:2026)), exp(est)) + scale_fill_viridis_c(trans = "sqrt", option = "H") +
   labs(fill = "Biomass estimates") +
   theme(legend.position = "bottom")
-
-# biomass estimates (main + random effects) in wind areas only
-plot_preds(spring_preds |> filter(EST_YEAR %in% c(2018:2026), AREA == "WIND"), exp(est)) + scale_fill_viridis_c(trans = "sqrt", option = "H") +
-  labs(fill = "Biomass estimates") +
-  theme(legend.position = "bottom")
+# 
+# # biomass estimates (main + random effects) in wind areas only
+# plot_preds(spring_preds |> filter(EST_YEAR %in% c(2018:2026), AREA == "WIND"), exp(est)) + scale_fill_viridis_c(trans = "sqrt", option = "H") +
+#   labs(fill = "Biomass estimates") +
+#   theme(legend.position = "bottom")
 

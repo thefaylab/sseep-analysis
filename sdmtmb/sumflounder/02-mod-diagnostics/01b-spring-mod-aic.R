@@ -89,5 +89,5 @@ mods <- spr.form |>
 saveRDS(mods, file = here("sdmtmb", "sumflounder", "data", "spr-mod-configs.rds"))
 # 
 # 
-kable(mods, align = "lcccc", caption = "Spring Model Configurations", format.args = list(big.mark = ","), booktabs = TRUE) |>
+kable(mods, align = "lcccc", caption = "Summer flounder spring model configurations", format.args = list(big.mark = ","), booktabs = TRUE) |>
   kable_styling(full_width = F, fixed_thead = T, font_size = 14) #%>%

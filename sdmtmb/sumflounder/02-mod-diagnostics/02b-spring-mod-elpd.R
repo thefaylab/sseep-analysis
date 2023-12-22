@@ -1,10 +1,13 @@
 ### created: 08/02/2023
 ### last updated: 08/17/2023
 
-# 02b - ####
+# 02b - Spring Model Performance: Sum of Log Likelihoods ####
 
 ## OBJECTIVE ####
-#   
+# Script will 
+## read the 12 summer flounder models fit with cross-validation methods 
+## quantify the sum of log-likelihoods of each model 
+## compare the 12 values for log-likelihood to determine predictive accuracy and performance of each model
 
 ## LOAD PACKAGES ####
 # install.packages("remotes")
@@ -20,16 +23,16 @@ here()
 
 
 # read in models
-spring.cv <- str_c("m",seq(1:17), "-spring-cv.rds") |>
-  append(str_c("m",c(8, 11, 14:15, 17), "-spring-cv2.rds")) |>
-  append(str_c("m",c(15, 17), "-spring-cv3.rds")) |>
+spring.cv <- str_c("m",seq(1:12), "-spring-cv.rds") |>
+  #append(str_c("m",c(8, 11, 14:15, 17), "-spring-cv2.rds")) |>
+  #append(str_c("m",c(15, 17), "-spring-cv3.rds")) |>
   map(~list(.)) |>
   map(~readRDS(here("sdmtmb",  "sumflounder", "data", "cross-valid", .)))
 
 
-mod.names <- str_c("m",seq(1:17)) |>
-  append(str_c("m",c(8, 11, 14:15, 17), "a")) |>
-  append(str_c("m",c(15, 17), "b"))
+mod.names <- str_c("m",seq(1:12)) #|>
+  #append(str_c("m",c(8, 11, 14:15, 17), "a")) |>
+  #append(str_c("m",c(15, 17), "b"))
 
 
   
@@ -37,27 +40,29 @@ sum_logliks <- map(spring.cv, ~pluck(., "sum_loglik")) |>
   as.data.frame() |>
   t()
 rownames(sum_logliks) <- mod.names
-colnames(sum_logliks) <- "sum_loglik"
+colnames(sum_logliks) <- "Sum log likelihood"
 
 
 elpd <- map(spring.cv, ~pluck(., "elpd")) |> 
   as.data.frame() |> 
   t()
 rownames(elpd) <- mod.names
-colnames(elpd) <- "elpd"
+colnames(elpd) <- "Expected log pointwise predictive density"
 
 
 convergence <- map(spring.cv, ~pluck(., "converged")) |> 
   as.data.frame() |> 
   t()
 rownames(convergence) <- mod.names
-colnames(convergence) <- "converged"
+colnames(convergence) <- "Convergence"
 
 
 cvs <- sum_logliks |> 
   as.data.frame() |>
   rownames_to_column(var = "models") |>
   bind_cols(elpd, convergence) |> 
+  mutate(`Sum log likelihood` = round(`Sum log likelihood`,2),
+         `Expected log pointwise predictive density` = round(`Expected log pointwise predictive density`,2)) |>
   arrange(desc(elpd))
   
   
@@ -65,7 +70,18 @@ cvs <- sum_logliks |>
 saveRDS(cvs, file = here("sdmtmb", "sumflounder", "data", "spring-cvs.rds"))
 
 
-kable(mods, align = "lcccc", caption = "Spring Cross Validations", format.args = list(big.mark = ","), booktabs = TRUE) %>%
+kable(cvs, align = "lcccc", caption = "Summer flounder spring cross validation diagnostics", format.args = list(big.mark = ","), booktabs = TRUE) %>%
   kable_styling(full_width = F, fixed_thead = T, font_size = 14)# %>%
 #row_spec(7, color = "red") 
+
+## COMBINE AIC AND ELPD TABLES ####
+mods <- readRDS(file = here("sdmtmb", "sumflounder", "data", "spr-mod-configs.rds"))
+
+diagnostics <- left_join(mods, cvs, by = "models") |> 
+  select(!converged) |> 
+  mutate(AIC = round(AIC, 2))
+
+kable(diagnostics, align = "lcccc", caption = "Summer flounder spring model performance", format.args = list(big.mark = ","), booktabs = TRUE) |>
+  kable_styling(full_width = F, fixed_thead = T, font_size = 14) #|>
+#save_kable(file = here("sdmtmb", "atlmackerel", "plots", "mod-diagnostics-tbl.png"))
 

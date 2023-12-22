@@ -1,23 +1,17 @@
 ### created: 04/01/2023
-### last updated: 11/21/2023
+### last updated: 12/22/2023
 
-# 01a - FALL MODEL: PREDICT AND FORECAST ####
+# 01a - GRID PREDICTIONS: FALL ####
 
 ## OBJECTIVE ####
-# run best fit models for fall 
-# include extra years in the model fit for future distribution forecasting
-# make predictions and forecasts over the impacted grid from model fits
+# make predictions from the best fitting spatiotemporal model over the fall spatial footprint for summer flounder
 
 
 ### LOAD PACKAGES ####
-library(stringr)
 library(sf)
 library(patchwork)
 library(here)
-library(raster)
 library(sdmTMB)
-library(marmap)
-library(oce)
 suppressPackageStartupMessages(library(tidyverse))
 theme_set(theme_bw())
 
@@ -108,7 +102,7 @@ saveRDS(fall_grid, here("sdmtmb", "sumflounder", "data", "sf_fall_grid_Jun2022.r
 ## MAKE PREDICTIONS ####
 ### Grid Predictions ####
 # replicate grid across all necessary years
-fall_grid <- sdmTMB::replicate_df(fall_grid, "EST_YEAR", c(2009:2019, 2021)) |> # fall survey does not have data for 2020 so there cannot be a grid for 2020 to predict across
+fall_grid <- sdmTMB::replicate_df(fall_grid, "EST_YEAR", c(2009:2016, 2018, 2019, 2021)) |> # fall survey does not have data for 2020 and an incomplete survey year in 2017 so there cannot be a grid for 2017 or 2020 to predict across
   mutate(EST_YEAR = as.factor(EST_YEAR), 
          AREA = as.factor(AREA))
 
@@ -119,19 +113,19 @@ fall_preds <- predict(fall_mod, newdata = fall_grid)#, return_tmb_object = TRUE)
 saveRDS(fall_preds, file = here("sdmtmb", "sumflounder", "data", "fall_grid_preds.rds"))
 
 
-# #### #### 
+# #### ###
 # call the plotting functions
-source(file = here("sdmtmb", "R", "plot_fns.R"))
-
-# biomass estimates (main + random effects)
+# source(file = here("sdmtmb", "R", "plot_fns.R"))
+# 
+# # biomass estimates (main + random effects)
 plot_preds(fall_preds |> filter(EST_YEAR %in% c(2018:2021)), exp(est)) + scale_fill_viridis_c(trans = "sqrt", option = "H") +
   labs(fill = "Biomass estimates") +
   theme(legend.position = "bottom")
-
-
-# biomass estimates (main + random effects) in wind areas only
-plot_preds(fall_preds |> filter(EST_YEAR %in% c(2018:2026), AREA == "WIND"), exp(est)) + scale_fill_viridis_c(trans = "sqrt", option = "H") +
-  labs(fill = "Biomass estimates") +
-  theme(legend.position = "bottom")
+# 
+# 
+# # biomass estimates (main + random effects) in wind areas only
+# plot_preds(fall_preds |> filter(EST_YEAR %in% c(2018:2026), AREA == "WIND"), exp(est)) + scale_fill_viridis_c(trans = "sqrt", option = "H") +
+#   labs(fill = "Biomass estimates") +
+#   theme(legend.position = "bottom")
 
 

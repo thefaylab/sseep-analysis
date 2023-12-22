@@ -92,7 +92,7 @@ mods <- fall.form |>
 saveRDS(mods, file = here("sdmtmb", "sumflounder", "data", "fall-mod-configs.rds"))
 
 
-kable(mods, align = "lcccc", caption = "Fall Model Configurations", format.args = list(big.mark = ","), booktabs = TRUE) %>%
+kable(mods, align = "lcccc", caption = "Summer flounder fall model configurations", format.args = list(big.mark = ","), booktabs = TRUE) %>%
   kable_styling(full_width = F, fixed_thead = T, font_size = 14)# %>%
 #row_spec(7, color = "red") 
 

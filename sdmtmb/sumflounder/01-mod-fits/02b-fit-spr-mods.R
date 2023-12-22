@@ -160,6 +160,7 @@ m9_spring <- sdmTMB(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1,
                   spatial = "on", 
                   time = "EST_YEAR",
                   spatiotemporal = "IID", 
+                  control = sdmTMBcontrol(newton_loops = 1),
                   silent = FALSE)
 
 sanity(m9_spring)
@@ -177,6 +178,7 @@ m10_spring <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR-1,
                    spatial = "on", 
                    time = "EST_YEAR",
                    spatiotemporal = "IID", 
+                   control = sdmTMBcontrol(newton_loops = 1),
                    silent = FALSE)
 
 sanity(m10_spring)
