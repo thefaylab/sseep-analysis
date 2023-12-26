@@ -1,0 +1,600 @@
+---
+title: "Atlantic mackerel polynomial model exploration"
+author: "Angelia Miller"
+date: "2023-11-22"
+output: word_document
+---
+
+
+
+```{r}
+## LOAD PACKAGES ####
+# install.packages("remotes")
+# library(remotes)
+# remotes::install_github("pbs-assess/sdmTMB", dependencies = TRUE)
+suppressPackageStartupMessages(library(tidyverse)) 
+library(here)
+library(sf) 
+library(sdmTMB)
+library(kableExtra)
+
+here()
+
+## LOAD DATA ####
+# Atlantic mackerel data created in `01-prepare-data.R` 
+am_spring <- readRDS(here("sdmtmb", "atlmackerel", "data", "atlmackerel_spring.rds")) |> 
+  mutate(EST_YEAR = as.factor(EST_YEAR), 
+         AREA = as.factor(AREA))
+
+# spring mesh created in `01-prepare-data.R` 
+spring_mesh <- readRDS(here("sdmtmb", "atlmackerel", "data", "spring_mesh.rds"))
+
+```
+
+# TWEEDIE MODELS
+## COMPARE NO RANDOM EFFECTS 
+Initial model fitting shows a smoother on depth has a better fit that a quadratic polynomial fit on depth, and that including area as a covariate resulted in a worse model fit 
+To quickly diagnose if a third or forth order polynomial results in a better fit that a smoother, we fit models without any random effects, and with a Tweedie probability distribution to start 
+We compare AIC and marginal effects of all four models. 
+
+### Model fits 
+```{r}
+# Biomass ~ s(Depth) + year - 1
+m1_spring <- readRDS(here("sdmtmb", "atlmackerel", "data", "mods", "m1_spring.rds"))
+
+# Biomass ~ poly(Depth, 2) + year - 1
+m2_spring <- readRDS(here("sdmtmb", "atlmackerel", "data", "mods", "m2_spring.rds"))
+
+# third order polynomial model fit without random effects
+m3_spring <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 3) + EST_YEAR - 1,
+                    data = am_spring, 
+                    mesh = spring_mesh,
+                    family = tweedie(link = "log"), 
+                    spatial = "off", 
+                    control = sdmTMBcontrol(newton_loops = 1), #extra optimization to help with convergence
+                    silent = FALSE)
+saveRDS(m3_spring, here("sdmtmb", "atlmackerel", "data", "mods", "m2.2_spring.rds"))
+
+# forth order polynomial model fit without random effects
+m4_spring <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 4) + EST_YEAR - 1,
+                    data = am_spring, 
+                    mesh = spring_mesh,
+                    family = tweedie(link = "log"), 
+                    spatial = "off", 
+                    control = sdmTMBcontrol(newton_loops = 1), #extra optimization to help with convergence
+                    silent = FALSE)
+saveRDS(m4_spring, here("sdmtmb", "atlmackerel", "data", "mods", "m2.3_spring.rds"))
+```
+
+### AIC
+```{r}
+AIC(m1_spring)
+AIC(m2_spring)
+AIC(m3_spring)
+AIC(m4_spring)
+```
+
+#### Result
+Forth order polynomial is the best fit by AIC
+
+### Marginal effects
+```{r}
+g_smooth <- ggpredict(m1_spring, "AVGDEPTH [all]")
+g_quad <- ggpredict(m2_spring, "AVGDEPTH [all]")
+g_third <- ggpredict(m3_spring, "AVGDEPTH [all]")
+g_fourth <- ggpredict(m4_spring, "AVGDEPTH [all]")
+
+plot(g_smooth)
+plot(g_quad)
+plot(g_third)
+plot(g_fourth)
+
+```
+#### Result
+Third and forth order polynomials capture better shape.
+
+## COMPARE WITH SPATIAL AND SPATIOTEMPORAL RANDOM EFFECTS
+Next we fit and compare third and forth order polynomial model fits to the models fit with a quadratic relationship and a smoother on depth using a Tweedie distribution, and incorporating spatial and spatiotemporal random effects 
+If models fit as a third or forth order without random effects resulted in a lower AIC, then including random effects should ellicit the same response. 
+
+### Model fits
+```{r}
+# Biomass ~ s(Depth) + year - 1 with REs
+m9_spring <- readRDS(here("sdmtmb", "atlmackerel", "data", "mods", "m9_spring.rds"))
+
+# Biomass ~ poly(Depth, 2) + year - 1 with REs
+m10_spring <- readRDS(here("sdmtmb", "atlmackerel", "data", "mods", "m10_spring.rds"))
+
+# third order polynomial model fit with random effects
+m13_spring <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 3) + EST_YEAR - 1,
+                     data = am_spring,
+                     mesh = spring_mesh,
+                     family = tweedie(link = "log"), 
+                     spatial = "on", 
+                     time = "EST_YEAR",
+                     spatiotemporal = "IID",
+                     control = sdmTMBcontrol(newton_loops = 1), 
+                     silent = FALSE)
+saveRDS(m13_spring, file = here("sdmtmb", "atlmackerel", "data", "mods", "m13_spring.rds"))
+
+# forth order polynomial model fit with random effects
+m14_spring <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 4) + EST_YEAR - 1,
+                     data = am_spring,
+                     mesh = spring_mesh,
+                     family = tweedie(link = "log"), 
+                     spatial = "on", 
+                     time = "EST_YEAR",
+                     spatiotemporal = "IID",
+                     control = sdmTMBcontrol(newton_loops = 1), 
+                     silent = FALSE)
+saveRDS(m14_spring, file = here("sdmtmb", "atlmackerel", "data", "mods", "m14_spring.rds"))
+```
+
+
+### AIC 
+```{r}
+AIC(m9_spring)
+AIC(m10_spring)
+AIC(m13_spring)
+AIC(m14_spring)
+
+tweedie.mods <- list(m9_spring, m10_spring, m13_spring, m14_spring)
+
+# table of AIC values 
+tweedie.diag <- data.frame(models = c("m9", "m10", "m13", "m14"),
+                           spatial = "on",
+                           spatiotemporal = "iid", 
+                           time = "EST_YEAR",
+                           season = "SPRING",
+                           outliers = "Present",
+                           family = "Tweedie")
+
+tm.form <- map(tweedie.mods, ~pluck(., "formula") |> as.character()) |> as.data.frame() |> t()
+tm.conv <- map(tweedie.mods, ~pluck(., "sd_report", "pdHess")) |> as.data.frame() |> t()
+tm.aic <- map(tweedie.mods, ~AIC(.)) |> as.data.frame() |>  t()
+
+tweedie.diag <- tweedie.diag |> 
+  mutate(formula = tm.form, 
+         converged = tm.conv, 
+         AIC = tm.aic)
+                          
+```
+
+#### Result 
+Third and forth order polynomial are better and equal fit wise compared to smoother on depth and quadratic relationship
+
+### Marginal Effects
+```{r}
+g9 <- ggpredict(m9_spring, "AVGDEPTH [all]")
+saveRDS(g9, file = here("sdmtmb", "atlmackerel", "data", "marg-effects", "m9-tweedie-preds.rds"))
+
+g10 <- ggpredict(m10_spring, "AVGDEPTH [all]")
+saveRDS(g10, file = here("sdmtmb", "atlmackerel", "data", "marg-effects", "m10-tweedie-preds.rds"))
+
+g13 <- ggpredict(m13_spring, "AVGDEPTH [all]")
+saveRDS(g13, file = here("sdmtmb", "atlmackerel", "data", "marg-effects", "m13-tweedie-preds.rds"))
+
+g14 <- ggpredict(m14_spring, "AVGDEPTH [all]")
+saveRDS(g14, file = here("sdmtmb", "atlmackerel", "data", "marg-effects", "m14-tweedie-preds.rds"))
+
+
+```
+
+```{r}
+plot(g9)
+
+plot(g10)
+
+plot(g13)
+
+plot(g14)
+```
+
+
+#### Result
+Smoother, third-order, and forth-order polynomials capture similar shape between 0-200m. The tail end of each still maintains a high uncertainty in a potential increase 
+
+
+
+## REMOVE 200m +
+Next we remove observations occurring at depths larger than 200+ meters. Data exploration  (`01-explore-atlmack-data.Rmd`) showed that depths above this range contributed only 1% of the cumulative biomass of atlantic mackerel at depth. Results above also show higher uncertainty in marginal effects at these same larger depths. By removing these observations, we hope to reduce uncertainty in predictions while maintaining model fit. 
+```{r}
+am_spring1 <- am_spring |> 
+  filter(AVGDEPTH <= 200)
+
+spring_mesh1 <- make_mesh(am_spring1, xy_cols = c("X", "Y"), cutoff = 20)
+```
+
+### Model fits 
+```{r}
+# smoother on depth with random effects
+m9.1_spring <- sdmTMB(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1,
+                     data = am_spring1,
+                     mesh = spring_mesh1,
+                     family = tweedie(link = "log"), 
+                     spatial = "on", 
+                     time = "EST_YEAR",
+                     spatiotemporal = "IID",
+                     control = sdmTMBcontrol(newton_loops = 1), 
+                     silent = FALSE)
+saveRDS(m9.1_spring, file = here("sdmtmb", "atlmackerel", "data", "mods", "m9_spring_rm200.rds"))
+
+
+# second order polynomial model fit with random effects
+m10.1_spring <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR - 1,
+                     data = am_spring1,
+                     mesh = spring_mesh1,
+                     family = tweedie(link = "log"), 
+                     spatial = "on", 
+                     time = "EST_YEAR",
+                     spatiotemporal = "IID",
+                     control = sdmTMBcontrol(newton_loops = 1), 
+                     silent = FALSE)
+saveRDS(m10.1_spring, file = here("sdmtmb", "atlmackerel", "data", "mods", "m10_spring_rm200.rds"))
+
+
+# third order polynomial model fit with random effects
+m13.1_spring <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 3) + EST_YEAR - 1,
+                     data = am_spring1,
+                     mesh = spring_mesh1,
+                     family = tweedie(link = "log"), 
+                     spatial = "on", 
+                     time = "EST_YEAR",
+                     spatiotemporal = "IID",
+                     control = sdmTMBcontrol(newton_loops = 1), 
+                     silent = FALSE)
+saveRDS(m13.1_spring, file = here("sdmtmb", "atlmackerel", "data", "mods", "m13_spring_rm200.rds"))
+
+
+# forth order polynomial model fit with random effects
+m14.1_spring <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 4) + EST_YEAR - 1,
+                     data = am_spring1,
+                     mesh = spring_mesh1,
+                     family = tweedie(link = "log"), 
+                     spatial = "on", 
+                     time = "EST_YEAR",
+                     spatiotemporal = "IID",
+                     control = sdmTMBcontrol(newton_loops = 1), 
+                     silent = FALSE)
+saveRDS(m14.1_spring, file = here("sdmtmb", "atlmackerel", "data", "mods", "m14_spring_rm200.rds"))
+
+
+```
+
+
+### AIC 
+```{r}
+AIC(m9.1_spring)
+AIC(m10.1_spring)
+AIC(m13.1_spring)
+AIC(m14.1_spring)
+
+# table of AIC values 
+tm_rm200 <- list(m9.1_spring, m10.1_spring, m13.1_spring, m14.1_spring)
+
+# table of AIC values 
+tm_rm200.diag <- data.frame(models = c("m9", "m10", "m13", "m14"),
+                           spatial = "on",
+                           spatiotemporal = "iid", 
+                           time = "EST_YEAR",
+                           season = "SPRING",
+                           outliers = "Removed obs > 200m",
+                           family = "Tweedie")
+
+tm200.form <- map(tm_rm200, ~pluck(., "formula") |> as.character()) |> as.data.frame() |> t()
+tm200.conv <- map(tm_rm200, ~pluck(., "sd_report", "pdHess")) |> as.data.frame() |> t()
+tm200.aic <- map(tm_rm200, ~AIC(.)) |> as.data.frame() |>  t()
+
+tm_rm200.diag <- tm_rm200.diag |> 
+  mutate(formula = tm200.form, 
+         converged = tm200.conv, 
+         AIC = tm200.aic)
+
+```
+
+#### Result 
+forth order polynomial is better when depths greater than 200m are removed 
+
+### Marginal Effects
+```{r}
+g9.1 <- ggpredict(m9.1_spring, "AVGDEPTH [all]")
+saveRDS(g9.1, file = here("sdmtmb", "atlmackerel", "data", "marg-effects", "m9-tweedie-rm200-preds.rds"))
+
+
+g10.1 <- ggpredict(m10.1_spring, "AVGDEPTH [all]")
+saveRDS(g10.1, file = here("sdmtmb", "atlmackerel", "data", "marg-effects", "m10-tweedie-rm200-preds.rds"))
+
+g13.1 <- ggpredict(m13.1_spring, "AVGDEPTH [all]")
+saveRDS(g13.1, file = here("sdmtmb", "atlmackerel", "data", "marg-effects", "m13-tweedie-rm200-preds.rds"))
+
+g14.1 <- ggpredict(m14.1_spring, "AVGDEPTH [all]")
+saveRDS(g14.1, file = here("sdmtmb", "atlmackerel", "data", "marg-effects", "m14-tweedie-rm200-preds.rds"))
+
+```
+
+
+```{r}
+plot(g9.1)
+plot(g10.1)
+plot(g13.1)
+plot(g14.1)
+```
+
+#### Results 
+Scale of predicted catch seems smaller when observations greater than 200m are removed. Smoother and forth order still capture the shape. Third order still has a spike in the the upper uncertainty limit, which remains from the full data set.
+
+
+
+# DELTA POISSON GAMMA MODELS 
+## WITH ALL DATA 
+### Model fits 
+```{r, results = "hide", message=FALSE, warning=FALSE}
+# Biomass ~ s(Depth) + year - 1 with REs
+m9_spring_dpg <- readRDS(here("sdmtmb", "atlmackerel", "data", "mods", "m9_spring_dpg.rds"))
+
+# Biomass ~ poly(Depth, 2) + year - 1 with REs
+m10_spring_dpg <- readRDS(here("sdmtmb", "atlmackerel", "data", "mods", "m10_spring_dpg.rds"))
+
+# third order polynomial model fit with random effects
+m13_spring_dpg <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 3) + EST_YEAR - 1,
+                     data = am_spring,
+                     mesh = spring_mesh,
+                     family = delta_poisson_link_gamma(link1 = "log", link2 = "log"), 
+                     spatial = "on", 
+                     time = "EST_YEAR",
+                     spatiotemporal = "IID",
+                     control = sdmTMBcontrol(newton_loops = 1), 
+                     silent = FALSE)
+saveRDS(m13_spring_dpg, file = here("sdmtmb", "atlmackerel", "data", "mods", "m13_spring_dpg.rds"))
+
+
+# forth order polynomial model fit with random effects
+m14_spring_dpg <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 4) + EST_YEAR - 1,
+                     data = am_spring,
+                     mesh = spring_mesh,
+                     family = delta_poisson_link_gamma(link1 = "log", link2 = "log"), 
+                     spatial = "on", 
+                     time = "EST_YEAR",
+                     spatiotemporal = "IID",
+                     control = sdmTMBcontrol(newton_loops = 1), 
+                     silent = FALSE)
+saveRDS(m14_spring_dpg, file = here("sdmtmb", "atlmackerel", "data", "mods", "m14_spring_dpg.rds"))
+
+
+```
+
+### AIC 
+```{r}
+AIC(m9_spring_dpg)
+AIC(m10_spring_dpg)
+AIC(m13_spring_dpg)
+AIC(m14_spring_dpg)
+
+# table of AIC values 
+dpg_mods <- list(m9_spring_dpg, m10_spring_dpg, m13_spring_dpg, m14_spring_dpg)
+
+# table of AIC values 
+dpg_mods.diag <- data.frame(models = c("m9", "m10", "m13", "m14"),
+                           spatial = "on",
+                           spatiotemporal = "iid", 
+                           time = "EST_YEAR",
+                           season = "SPRING",
+                           outliers = "Present",
+                           family = "Delta poisson gamma")
+
+dpg.form <- map(dpg_mods, ~pluck(., "formula") |> as.character()) |> as.data.frame() |> t()
+dpg.conv <- map(dpg_mods, ~pluck(., "sd_report", "pdHess")) |> as.data.frame() |> t()
+dpg.aic <- map(dpg_mods, ~AIC(.)) |> as.data.frame() |>  t()
+
+dpg_mods.diag <- dpg_mods.diag |> 
+  mutate(formula = dpg.form[1],
+         converged = dpg.conv, 
+         AIC = dpg.aic)
+                          
+```
+
+#### Results
+### Marginal effects 
+```{r}
+nd <- data.frame(AVGDEPTH = seq(
+  min(am_spring$AVGDEPTH), 
+  max(am_spring$AVGDEPTH), length.out = 100)) 
+
+nd <- replicate_df(nd, "EST_YEAR", c(2009:2019, 2021)) |> 
+  replicate_df("AREA", c("OUTSIDE", "WIND")) |> 
+  mutate(EST_YEAR = as.factor(EST_YEAR), AREA = as.factor(AREA))
+
+g9_dpg <- predict(m9_spring_dpg, newdata = nd, se_fit = TRUE, re_form = NA, model = NA)
+saveRDS(g9_dpg, file = here("sdmtmb", "atlmackerel", "data", "marg-effects", "m9-dpg-preds.rds"))
+
+g10_dpg <- predict(m10_spring_dpg, newdata = nd, se_fit = TRUE, re_form = NA, model = NA)
+saveRDS(g10_dpg, file = here("sdmtmb", "atlmackerel", "data", "marg-effects", "m10-dpg-preds.rds"))
+
+g13_dpg <- predict(m13_spring_dpg, newdata = nd, se_fit = TRUE, re_form = NA, model = NA)
+saveRDS(g13_dpg, file = here("sdmtmb", "atlmackerel", "data", "marg-effects", "m13-dpg-preds.rds"))
+
+g14_dpg <- predict(m14_spring_dpg, newdata = nd, se_fit = TRUE, re_form = NA, model = NA)
+saveRDS(g14_dpg, file = here("sdmtmb", "atlmackerel", "data", "marg-effects", "m14-dpg-preds.rds"))
+
+```
+
+
+```{r}
+ggplot(g9_dpg, aes(AVGDEPTH, exp(est), colour = EST_YEAR)) +
+  geom_line() + labs(x = "Average Depth", y = "Estimate of biomass", color = "Year", title = "M9", subtitle = str_c(m9_spring_dpg$formula[1],  round(AIC(m9_spring_dpg),2), sep = "\n")) + theme_bw() 
+
+ggsave("atlmack_dpg-m9_depth-meffects.png", last_plot(), device="png", here("sdmtmb", "atlmackerel", "plots", "marg-effects"), width = 8, height = 6)
+
+ggplot(g10_dpg, aes(AVGDEPTH, exp(est), colour = EST_YEAR)) +
+  geom_line() + labs(x = "Average Depth", y = "Estimate of biomass", color = "Year", title = "M10", subtitle = str_c(m10_spring_dpg$formula[1],  round(AIC(m10_spring_dpg),2), sep = "\n")) + theme_bw()
+
+ggsave("atlmack_dpg-m10_depth-meffects.png", last_plot(), device="png", here("sdmtmb", "atlmackerel", "plots", "marg-effects"), width = 8, height = 6)
+
+ggplot(g13_dpg, aes(AVGDEPTH, exp(est), colour = EST_YEAR)) +
+  geom_line() + labs(x = "Average Depth", y = "Estimate of biomass", color = "Year", title = "M13", subtitle = str_c(m13_spring_dpg$formula[1],  round(AIC(m13_spring_dpg),2), sep = "\n")) + theme_bw()
+
+ggsave("atlmack_dpg-m13_depth-meffects.png", last_plot(), device="png", here("sdmtmb", "atlmackerel", "plots", "marg-effects"), width = 8, height = 6)
+
+ggplot(g14_dpg, aes(AVGDEPTH, exp(est), colour = EST_YEAR)) +
+  geom_line() + labs(x = "Average Depth", y = "Estimate of biomass", color = "Year", title = "M14", subtitle = str_c(m14_spring_dpg$formula[1],  round(AIC(m14_spring_dpg),2), sep = "\n")) + theme_bw()
+
+ggsave("atlmack_dpg-m14_depth-meffects.png", last_plot(), device="png", here("sdmtmb", "atlmackerel", "plots", "marg-effects"), width = 8, height = 6) 
+```
+
+#### Results 
+The third and forth order polynomials still seem to capture the uptick at larger depths. 
+
+
+## REMOVE 200m +
+### Model fits 
+```{r}
+# smoother on depth with random effects
+m9.1_spring_dpg <- sdmTMB(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1,
+                     data = am_spring1,
+                     mesh = spring_mesh1,
+                     family = delta_poisson_link_gamma(link1 = "log", link2 = "log"), 
+                     spatial = "on", 
+                     time = "EST_YEAR",
+                     spatiotemporal = "IID",
+                     control = sdmTMBcontrol(newton_loops = 1), 
+                     silent = FALSE)
+saveRDS(m9.1_spring_dpg, file = here("sdmtmb", "atlmackerel", "data", "mods", "m9_spring_dpg_rm200.rds"))
+
+# second order polynomial model fit with random effects
+m10.1_spring_dpg <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR - 1,
+                     data = am_spring1,
+                     mesh = spring_mesh1,
+                     family = delta_poisson_link_gamma(link1 = "log", link2 = "log"), 
+                     spatial = "on", 
+                     time = "EST_YEAR",
+                     spatiotemporal = "IID",
+                     control = sdmTMBcontrol(newton_loops = 1), 
+                     silent = FALSE)
+saveRDS(m10.1_spring_dpg, file = here("sdmtmb", "atlmackerel", "data", "mods", "m10_spring_dpg_rm200.rds"))
+
+# third order polynomial model fit with random effects
+m13.1_spring_dpg <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 3) + EST_YEAR - 1,
+                     data = am_spring1,
+                     mesh = spring_mesh1,
+                     family = delta_poisson_link_gamma(link1 = "log", link2 = "log"), 
+                     spatial = "on", 
+                     time = "EST_YEAR",
+                     spatiotemporal = "IID",
+                     control = sdmTMBcontrol(newton_loops = 1), 
+                     silent = FALSE)
+saveRDS(m13.1_spring_dpg, file = here("sdmtmb", "atlmackerel", "data", "mods", "m13_spring_dpg_rm200.rds"))
+
+# forth order polynomial model fit with random effects
+m14.1_spring_dpg <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 4) + EST_YEAR - 1,
+                     data = am_spring1,
+                     mesh = spring_mesh1,
+                     family = delta_poisson_link_gamma(link1 = "log", link2 = "log"), 
+                     spatial = "on", 
+                     time = "EST_YEAR",
+                     spatiotemporal = "IID",
+                     control = sdmTMBcontrol(newton_loops = 1), 
+                     silent = FALSE)
+saveRDS(m14.1_spring_dpg, file = here("sdmtmb", "atlmackerel", "data", "mods", "m14_spring_dpg_rm200.rds"))
+
+```
+
+### AIC
+```{r}
+# table of AIC values 
+dpg_rm200 <- list(m9.1_spring_dpg, m10.1_spring_dpg, m13.1_spring_dpg, m14.1_spring_dpg)
+
+# table of AIC values 
+dpg_rm200.diag <- data.frame(models = c("m9", "m10", "m13", "m14"),
+                           spatial = "on",
+                           spatiotemporal = "iid", 
+                           time = "EST_YEAR",
+                           season = "SPRING",
+                           outliers = "Removed obs > 200m",
+                           family = "Delta poisson gamma")
+
+dpg200.form <- map(dpg_rm200, ~pluck(., "formula") |> as.character()) |> as.data.frame() |> t()
+dpg200.conv <- map(dpg_rm200, ~pluck(., "sd_report", "pdHess")) |> as.data.frame() |> t()
+dpg200.aic <- map(dpg_rm200, ~AIC(.)) |> as.data.frame() |>  t()
+
+dpg_rm200.diag <- dpg_rm200.diag |> 
+  mutate(formula = dpg200.form[1], 
+         converged = dpg200.conv, 
+         AIC = dpg200.aic)
+
+```
+
+#### Results
+Third order polynomial did not converge when observations at depth greater than 200 are removed. Fourth order polynomial did converge, and has a better AIC than a quadratic or a smoother on depth. 
+
+### Marginal effects 
+```{r}
+nd_rm200 <- data.frame(AVGDEPTH = seq(
+  min(am_spring1$AVGDEPTH), 
+  max(am_spring1$AVGDEPTH), length.out = 100)) 
+
+nd_rm200 <- replicate_df(nd_rm200, "EST_YEAR", c(2009:2019, 2021)) |> 
+  replicate_df("AREA", c("OUTSIDE", "WIND")) |> 
+  mutate(EST_YEAR = as.factor(EST_YEAR), AREA = as.factor(AREA))
+saveRDS(nd_rm200, file = here("sdmtmb", "atlmackerel", "data", "marg-effects", "newdata-rm200.rds"))
+
+
+g9.1_dpg <- predict(m9.1_spring_dpg, newdata = nd_rm200, se_fit = TRUE, re_form = NA, model = NA)
+saveRDS(g9.1_dpg, file = here("sdmtmb", "atlmackerel", "data", "marg-effects", "m9-dpg-rm200-preds.rds"))
+g10.1_dpg <- predict(m10.1_spring_dpg, newdata = nd_rm200, se_fit = TRUE, re_form = NA, model = NA)
+saveRDS(g10.1_dpg, file = here("sdmtmb", "atlmackerel", "data", "marg-effects", "m10-dpg-rm200-preds.rds"))
+g13.1_dpg <- predict(m13.1_spring_dpg, newdata = nd_rm200, se_fit = TRUE, re_form = NA, model = NA)
+saveRDS(g13.1_dpg, file = here("sdmtmb", "atlmackerel", "data", "marg-effects", "m13-dpg-rm200-preds.rds"))
+g14.1_dpg <- predict(m14.1_spring_dpg, newdata = nd_rm200, se_fit = TRUE, re_form = NA, model = NA)
+saveRDS(g14.1_dpg, file = here("sdmtmb", "atlmackerel", "data", "marg-effects", "m14-dpg-rm200-preds.rds"))
+
+```
+
+```{r}
+
+ggplot(g9.1_dpg, aes(AVGDEPTH, exp(est), colour = EST_YEAR)) +
+  geom_line() + labs(x = "Average Depth", y = "Estimate of biomass", color = "Year", title = "M9 with observations greater than 200m removed", subtitle = str_c(m9.1_spring_dpg$formula[1],  round(AIC(m9.1_spring_dpg),2), sep = "\n")) + theme_bw()
+
+ggsave("atlmack_dpg-m9-rm200_depth-meffects.png", last_plot(), device="png", here("sdmtmb", "atlmackerel", "plots", "marg-effects"), width = 8, height = 6)
+
+ggplot(g10.1_dpg, aes(AVGDEPTH, exp(est), colour = EST_YEAR)) +
+  geom_line() + labs(x = "Average Depth", y = "Estimate of biomass", color = "Year", title = "M10 with observations greater than 200m removed", subtitle = str_c(m10.1_spring_dpg$formula[1],  round(AIC(m10.1_spring_dpg),2), sep = "\n")) + theme_bw()
+
+ggsave("atlmack_dpg-m10-rm200_depth-meffects.png", last_plot(), device="png", here("sdmtmb", "atlmackerel", "plots", "marg-effects"), width = 8, height = 6)
+
+ggplot(g13.1_dpg, aes(AVGDEPTH, exp(est), colour = EST_YEAR)) +
+  geom_line() + labs(x = "Average Depth", y = "Estimate of biomass", color = "Year", title = "M13 with observations greater than 200m removed", subtitle = str_c(m13.1_spring_dpg$formula[1],  round(AIC(m13.1_spring_dpg),2), sep = "\n")) + theme_bw()
+
+ggsave("atlmack_dpg-m13-rm200_depth-meffects.png", last_plot(), device="png", here("sdmtmb", "atlmackerel", "plots", "marg-effects"), width = 8, height = 6)
+
+ggplot(g14.1_dpg, aes(AVGDEPTH, exp(est), colour = EST_YEAR)) +
+  geom_line() + labs(x = "Average Depth", y = "Estimate of biomass", color = "Year", title = "M14 with observations greater than 200m removed", subtitle = str_c(m14.1_spring_dpg$formula[1],  round(AIC(m14.1_spring_dpg),2), sep = "\n")) + theme_bw()
+
+ggsave("atlmack_dpg-m14-rm200_depth-meffects.png", last_plot(), device="png", here("sdmtmb", "atlmackerel", "plots", "marg-effects"), width = 8, height = 6) 
+```
+
+
+#### Results 
+Third order polynomial still has a sharp increase at greater depths. Fourth order polynomial no longer has the sharp increase at greater depths, but has more of a bi-modal shape, which does not match the general shape of historical observations at depth. 
+
+
+# COMPARE PARAMETER ESTIMATES
+Compare the estimates for spatial and spatiotemporal random effects, and dispersion from the tweedie and delta poisson gamma model when observations greater than 200m are removed. The tweedie model captures the parabolic relationship best between the two models when looking at the marginal effects, especially given the bimodal shape with the delta model. Looking at these estimates, coupled with the marginal effects and AIC will help to make decisions on which model to move forward with. 
+
+## Model summary
+```{r}
+# tweedie model 
+m14.1_spring
+
+# delta poisson gamma model
+m14.1_spring_dpg
+```
+
+## Random effect estimates
+```{r}
+# tweedie model 
+tidy(m14.1_spring, "ran_pars")
+
+# delta poisson gamma model
+tidy(m14.1_spring_dpg, "ran_pars")
+```
+
