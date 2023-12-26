@@ -1,13 +1,13 @@
 ### created: 11/15/2023
-### last updated: 
+### last updated: 12/13/2023
 
-# 02 - Model Performance: Sum of Log Likelihoods ####
+# 02a - Model Performance: Sum of Log Likelihoods ####
 
 ## OBJECTIVE ####
 # Script will 
 ## read the 12 models fit with cross-validation methods 
 ## quantify the sum of log-likelihoods of each model 
-## compare the 12 values for log-likelihood to determin predictive accuracy and performance of each model 
+## compare the 12 values for log-likelihood to determine predictive accuracy and performance of each model 
 
 ### LOAD PACKAGES ####
 # install.packages("remotes")
@@ -57,14 +57,16 @@ cvs <- sum_logliks |>
   as.data.frame() |>
   rownames_to_column(var = "models") |>
   bind_cols(elpd, convergence) |> 
-  arrange(desc(elpd))
+  mutate(family = "Tweedie", 
+         outliers = "Present") |>
+  arrange(desc(sum_loglik))
   
   
 # save the data
 saveRDS(cvs, file = here("sdmtmb", "atlmackerel", "data", "spring-cvs.rds"))
 
 
-kable(cvs, align = "lcccc", caption = "Spring Cross Validations", format.args = list(big.mark = ","), booktabs = TRUE) |>
+kable(cvs, align = "lcccc", caption = "Atlantic mackerel spring cross validations", format.args = list(big.mark = ","), booktabs = TRUE) |>
   kable_styling(full_width = F, fixed_thead = T, font_size = 14)# %>%
 #row_spec(7, color = "red") 
 
@@ -72,8 +74,9 @@ kable(cvs, align = "lcccc", caption = "Spring Cross Validations", format.args = 
 mods <- readRDS(file = here("sdmtmb", "atlmackerel", "data", "spr-mod-configs.rds"))
 
 diagnostics <- left_join(mods, cvs, by = "models") |> 
-  select(!converged.y) |> 
-  rename(converged = converged.x) |> 
+  select(!c(converged.y, family.x)) |> 
+  rename(converged = converged.x, 
+         family = family.y) |> 
   mutate(AIC = round(AIC, 2),
          sum_loglik = round(sum_loglik, 2), 
          elpd = round(elpd, 2))

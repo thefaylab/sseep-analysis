@@ -17,6 +17,7 @@ library(here)
 library(sf) 
 library(sdmTMB)
 library(kableExtra)
+library(ggeffects)
 
 here()
 
@@ -394,6 +395,8 @@ dpg_mods.diag <- dpg_mods.diag |>
 ```
 
 #### Results
+
+
 ### Marginal effects 
 ```{r}
 nd <- data.frame(AVGDEPTH = seq(
