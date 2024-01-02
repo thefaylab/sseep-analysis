@@ -5,13 +5,19 @@ date: "2023-11-22"
 output: word_document
 ---
 
+## Objective 
+Initial model fitting shows: 
+* a smoother on depth has a better fit that a quadratic polynomial fit on depth, 
+* including area as a covariate resulted in a worse model fit, and 
+* removing outliers of biomass has no effect on model parsimony. 
 
+Script will: 
+* explore a third and fourth order polynomial relationship with depth to assess whether it results in a better model fit than the spline, 
+* compare the model fits using a tweedie probability distribution and a delta poisson gamma distribution, and
+* assess whether removing observations at depths greater than 200m improves model fit and marginal effects. 
 
 ```{r}
 ## LOAD PACKAGES ####
-# install.packages("remotes")
-# library(remotes)
-# remotes::install_github("pbs-assess/sdmTMB", dependencies = TRUE)
 suppressPackageStartupMessages(library(tidyverse)) 
 library(here)
 library(sf) 
@@ -34,7 +40,6 @@ spring_mesh <- readRDS(here("sdmtmb", "atlmackerel", "data", "spring_mesh.rds"))
 
 # TWEEDIE MODELS
 ## COMPARE NO RANDOM EFFECTS 
-Initial model fitting shows a smoother on depth has a better fit that a quadratic polynomial fit on depth, and that including area as a covariate resulted in a worse model fit 
 To quickly diagnose if a third or forth order polynomial results in a better fit that a smoother, we fit models without any random effects, and with a Tweedie probability distribution to start 
 We compare AIC and marginal effects of all four models. 
 
@@ -202,8 +207,10 @@ Next we remove observations occurring at depths larger than 200+ meters. Data ex
 ```{r}
 am_spring1 <- am_spring |> 
   filter(AVGDEPTH <= 200)
+saveRDS(am_spring1, here("sdmtmb", "atlmackerel", "data", "atlmackerel_spring_rm200.rds"))
 
 spring_mesh1 <- make_mesh(am_spring1, xy_cols = c("X", "Y"), cutoff = 20)
+saveRDS(spring_mesh1, here("sdmtmb", "atlmackerel", "data", "spring_mesh_rm200.rds"))
 ```
 
 ### Model fits 

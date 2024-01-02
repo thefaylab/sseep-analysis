@@ -1,0 +1,330 @@
+---
+title: "Atlantic mackerel polynomial model exploration"
+author: "Angelia Miller"
+date: "2023-11-22"
+output: word_document
+---
+
+## Objective
+Script will calculate and compare randomized quantile, dharma, and mcmc-based residuals for the tweedie and delta poisson gamma model with a fourth order polynomial relationship on depth. 
+
+```{r packages}
+## LOAD PACKAGES ####
+library(patchwork)
+library(here)
+library(sdmTMB)
+library(sdmTMBextra)
+suppressPackageStartupMessages(library(tidyverse))
+theme_set(theme_bw())
+```
+
+```{r data}
+## LOAD DATA ####
+# strata for mapping
+strata_utm <- readRDS(here("data", "rds", "active_strata_utm.rds"))
+
+### model fits when observations at depths greater than 200m are removed; created here("sdmtmb", "atlmackerel", "01-mod-fits", "04-explore-polynomial-mods.Rmd")
+# tweedie model
+m14_tweedie <- readRDS(file = here("sdmtmb", "atlmackerel", "data", "mods", "m14_spring_rm200.rds"))
+
+# delta poisson gamma model
+m14_dpg <- readRDS(file = here("sdmtmb", "atlmackerel", "data", "mods", "m14_spring_dpg_rm200.rds"))
+```
+
+```{r data wrangle}
+## DATA WRANGLE ####
+# extract data used to fit the models 
+tm14_moddat <- m14_tweedie$data
+
+dpg14_moddat <- m14_dpg$data
+```
+
+```{r model predictions}
+# tweedie model 
+tweedie_mod_preds <- predict(tweedie_mod)
+tm14_moddat$preds <- tweedie_mod_preds$est
+
+# delta models
+dpg_mod_preds <- predict(dpg_mod)
+dpg14_moddat$preds1 <- dpg_mod_preds$est1
+dpg14_moddat$preds2 <- dpg_mod_preds$est2
+
+```
+
+
+## Laplace Residuals 
+```{r laplace residuals}
+# tweedie model 
+tm14_moddat$resids <- residuals(m14_tweedie)
+
+# delta models
+dpg14_moddat$resids1 <- residuals(m14_dpg, model = 1) 
+dpg14_moddat$resids2 <- residuals(m14_dpg, model = 2)
+```
+
+### Histogram
+```{r laplace histograms}
+# tweedie models
+hist(tm14_moddat$resids, main = "Histogram of residuals from the spring Atlantic mackerel tweedie model", xlab = "Residual") 
+
+# delta models 
+hist(dpg14_moddat$resids1, main = "Histogram of residuals from the spring Atlantic mackerel delta model 1", xlab = "Residual")
+hist(dpg14_moddat$resids2, main = "Histogram of residuals from the spring Atlantic mackerel delta model 2", xlab = "Residual")
+```
+
+### QQ Plots
+```{r laplace qqplots}
+# tweedie model
+qqnorm(tm14_moddat$resids, main = "Normal Q-Q Plot of residuals from the spring Atlantic mackerel tweedie model") 
+qqline(tm14_moddat$resids) # add trend line
+
+# delta models
+qqnorm(dpg14_moddat$resids1, main = "Normal Q-Q Plot of residuals from the spring Atlantic mackerel delta model 1")
+qqline(dpg14_moddat$resids1) # add trend line
+
+qqnorm(dpg14_moddat$resids2, main = "Normal Q-Q Plot of residuals from the spring Atlantic mackerel delta 2 model") 
+qqline(dpg14_moddat$resids2) # add trend line
+
+
+```
+
+### Maps 
+```{r}
+# tweedie model 
+ggplot() +
+  geom_sf(data = strata_utm, fill = NA, color = "gray")+
+  geom_point(data = tm14_moddat, aes(X*1000, Y*1000, color = resids)) + scale_colour_gradient2() +
+  labs(x = "Longitude", y = "Latitude", color = "Residuals", subtitle = "Laplace residuals for the spring Atlantic mackerel tweedie model")
+# ggsave("m14-tweedie_laplace-resids-map.png", last_plot(), device = "png", here("sdmtmb", "atlmackerel", "plots", "resids"), width = 8, height = 5)
+
+# delta models
+ggplot() +
+  geom_sf(data = strata_utm, fill = NA, color = "gray")+
+  geom_point(data = dpg14_moddat, aes(X*1000, Y*1000, color = resids1)) + scale_colour_gradient2() +
+  labs(x = "Longitude", y = "Latitude", color = "Residuals", subtitle = "Laplace residuals for the spring Atlantic mackerel delta 1 model")
+# ggsave("m14.1-dpg_laplace-resids-map.png", last_plot(), device = "png", here("sdmtmb", "atlmackerel", "plots", "resids"), width = 8, height = 5)
+
+ggplot() +
+  geom_sf(data = strata_utm, fill = NA, color = "gray")+
+  geom_point(data = dpg14_moddat, aes(X*1000, Y*1000, color = resids2)) + scale_colour_gradient2() +
+  labs(x = "Longitude", y = "Latitude", color = "Residuals", subtitle = "Laplace residuals for the spring Atlantic mackerel delta 2 model")
+# ggsave("m14.2-dpg_laplace-resids-map.png", last_plot(), device = "png", here("sdmtmb", "atlmackerel", "plots", "resids"), width = 8, height = 5)
+```
+
+
+## DHARMa Residuals 
+```{r sim dharma}
+# tweedie model 
+sim_tm14 <- simulate(m14_tweedie, nsim = 500)
+
+# delta model 
+sim_dpg <- simulate(m14_dpg, nsim = 500)
+```
+
+```{r tweedie zero prop}
+# tweedie model 
+sum(tm14_moddat$EXPCATCHWT == 0) / length(tm14_moddat$EXPCATCHWT)
+sum(sim_tm14 == 0)/length(sim_tm14)
+```
+
+```{r dpg zero prop}
+sum(dpg14_moddat$EXPCATCHWT == 0) / length(dpg14_moddat$EXPCATCHWT)
+sum(sim_dpg == 0)/length(sim_dpg)
+```
+
+```{r mod preds}
+# tweedie model
+tm_preds_fixed <- m14_tweedie$family$linkinv(predict(m14_tweedie)$est_non_rf)
+
+# delta model 
+preds1_fixed <- m14_dpg$family[[1]]$linkinv(predict(m14_dpg)$est_non_rf1) 
+preds2_fixed <- m14_dpg$family[[2]]$linkinv(predict(m14_dpg)$est_non_rf2)
+```
+
+### Create Dharma
+```{r create dharma}
+# tweedie model 
+r_tm_mod <- DHARMa::createDHARMa(
+  simulatedResponse = sim_tm14,
+  observedResponse = tm14_moddat$EXPCATCHWT,
+  fittedPredictedResponse = tm_preds_fixed
+)
+
+# delta model 
+r1_dpg <- DHARMa::createDHARMa(
+  simulatedResponse = sim_dpg,
+  observedResponse = dpg14_moddat$EXPCATCHWT,
+  fittedPredictedResponse = preds1_fixed
+)
+
+r2_dpg <- DHARMa::createDHARMa(
+  simulatedResponse = sim_dpg,
+  observedResponse = dpg14_moddat$EXPCATCHWT,
+  fittedPredictedResponse = preds2_fixed
+)
+```
+
+### Test Quantile Residuals
+```{r test quantiles}
+#tweedie model 
+DHARMa::testQuantiles(r_tm_mod)
+# delta models
+DHARMa::testQuantiles(r1_dpg)
+DHARMa::testQuantiles(r2_dpg)
+```
+
+### Test Dispersion
+```{r test dispersion}
+# tweedie model 
+DHARMa::testDispersion(r_tm_mod)
+# delta models 
+DHARMa::testDispersion(r1_dpg)
+DHARMa::testDispersion(r2_dpg)
+```
+
+### Test Residuals versus Depth
+```{r depth residuals}
+#tweedie model 
+DHARMa::plotResiduals(r_tm_mod, form = tm14_moddat$AVGDEPTH)
+# delta models
+DHARMa::plotResiduals(r1_dpg, form = dpg14_moddat$AVGDEPTH)
+DHARMa::plotResiduals(r2_dpg, form = dpg14_moddat$AVGDEPTH)
+```
+
+### Test Residuals verus Year
+```{r year residuals}
+# tweedie model 
+DHARMa::plotResiduals(r_tm_mod, form = tm14_moddat$EST_YEAR)
+# delta model 
+DHARMa::plotResiduals(r1_dpg, form = dpg14_moddat$EST_YEAR)
+DHARMa::plotResiduals(r2_dpg, form = dpg14_moddat$EST_YEAR)
+```
+
+### Test Residuals
+```{r test residuals}
+# tweedie model 
+DHARMa::testResiduals(r_tm_mod)
+# delta model
+DHARMa::testResiduals(r1_dpg)
+DHARMa::testResiduals(r2_dpg)
+```
+
+### Spatial Autorcorrelation
+```{r spatial autocorr}
+# tweedie model 
+DHARMa::testSpatialAutocorrelation(r_tm_mod, x = tm14_moddat$X, y = tm14_moddat$Y)
+# delta model
+DHARMa::testSpatialAutocorrelation(r1_dpg, x = dpg14_moddat$X, y = dpg14_moddat$Y)
+DHARMa::testSpatialAutocorrelation(r2_dpg, x = dpg14_moddat$X, y = dpg14_moddat$Y)
+```
+
+### Test Zero Inflation
+```{r zero inflation}
+# tweedie model
+DHARMa::testZeroInflation(r_tm_mod)
+# delta model
+DHARMa::testZeroInflation(r1_dpg)
+DHARMa::testZeroInflation(r2_dpg)
+```
+
+
+## MCMC Residuals 
+```{r sampling}
+# tweedie model 
+tweedie_samps <- sdmTMBextra::predict_mle_mcmc(tweedie_mod, mcmc_iter = 300, mcmc_warmup = 200, stan_args = list(thin = 10))
+# delta models
+dpg1_samps <- sdmTMBextra::predict_mle_mcmc(dpg_mod, model = 1, mcmc_iter = 300, mcmc_warmup = 200, stan_args = list(thin = 10))
+dpg2_samps <- sdmTMBextra::predict_mle_mcmc(dpg_mod, model = 2, mcmc_iter = 300, mcmc_warmup = 200, stan_args = list(thin = 10))
+
+```
+
+```{r mcmc resids}
+# tweedie model
+tweedie_mcres <- residuals(tweedie_mod, type = "mle-mcmc", mcmc_samples = tweedie_samps)
+saveRDS(tweedie_mcres, here("sdmtmb", "atlmackerel", "data", "resids", "tweedie_mcres.rds"))
+
+# delta model 
+dpg1_mcres <- residuals(dpg_mod, type = "mle-mcmc", mcmc_samples = dpg1_samps)
+saveRDS(dpg1_mcres, here("sdmtmb", "atlmackerel", "data", "resids", "dpg1_mcres.rds"))
+dpg2_mcres <- residuals(dpg_mod, type = "mle-mcmc", mcmc_samples = dpg2_samps)
+saveRDS(dpg2_mcres, here("sdmtmb", "atlmackerel", "data", "resids", "dpg2_mcres.rds"))
+```
+
+```{r add resids}
+tm14_moddat$mc_resids <- tweedie_mcres
+dpg14_moddat$mc_resids1 <- dpg1_mcres
+dpg14_moddat$mc_resids2 <- dpg2_mcres
+```
+
+### QQ Plots
+```{r mcmc qqplots}
+#tweedie model
+qnorm(tweedie_mcres,  main = "Normal Q-Q plot of MCMC sampled residuals for the Atlantic mackerel tweedie model")
+qqline(tweedie_mcres) # add trendline
+
+#delta models
+qqnorm(dpg1_mcres, main = "Normal Q-Q plot of MCMC sampled residuals for the Atlantic mackerel delta 1 model")
+qqline(dpg1_mcres) # add trendline
+
+qqnorm(dpg2_mcres, main = "Normal Q-Q plot of MCMC sampled residuals for the Atlantic mackerel delta 2 model")
+qqline(dpg2_mcres) # add trendline
+```
+
+### Scatterplots
+```{r resids scatter}
+# tweedie model 
+ggplot(tm14_moddat) +
+  geom_point(aes(x = preds, y = mc_resids)) + 
+  geom_hline(yintercept = 0) +
+  facet_wrap(~SEASON) +
+  labs(x = "Biomass estimate in link space", y = "MCMC Residual", subtitle = "Distribution of MCMC residuals for the spring Atlantic mackerel tweedie model")
+# ggsave("m14-tweedie_mcmc-resids-v-biomass.png", last_plot(), device = "png", here("sdmtmb", "atlmackerel", "plots", "resids"), width = 8, height = 5)
+# delta models
+ggplot(dpg14_moddat) +
+  geom_point(aes(x = preds1, y = mc_resids1)) + 
+  geom_hline(yintercept = 0) +
+  facet_wrap(~SEASON) +
+  labs(x = "Biomass estimate in link space", y = "MCMC Residual", subtitle = "Distribution of MCMC residuals for the spring Atlantic mackerel delta 1 model")
+# ggsave("m14.1-dpg_mcmc-resids-v-biomass.png", last_plot(), device = "png", here("sdmtmb", "atlmackerel", "plots", "resids"), width = 8, height = 5)
+
+ggplot(dpg14_moddat) +
+  geom_point(aes(x = preds2, y = mc_resids2)) + 
+  geom_hline(yintercept = 0) +
+  facet_wrap(~SEASON) +
+  labs(x = "Biomass estimate in link space", y = "MCMC Residual", subtitle = "Distribution of MCMC residuals for the spring Atlantic mackerel delta 2 model")
+# ggsave("m14.2-dpg_mcmc-resids-v-biomass.png", last_plot(), device = "png", here("sdmtmb", "atlmackerel", "plots", "resids"), width = 8, height = 5)
+```
+
+### Maps
+```{r mcmc maps}
+# tweedie model
+ggplot() +
+  geom_sf(data = strata_utm, fill = NA, color = "gray")+
+  geom_point(data = tm14_moddat, aes(X*1000, Y*1000, color = mc_resids)) + scale_colour_gradient2() +
+  labs(x = "Longitude", y = "Latitude", color = "MCMC Residuals", subtitle = "MCMC residuals for the spring Atlantic mackerel tweedie model")
+# ggsave("m14-tweedie_mcmc-resids-map.png", last_plot(), device = "png", here("sdmtmb", "atlmackerel", "plots", "resids"), width = 8, height = 5)
+
+# delta models
+ggplot() +
+  geom_sf(data = strata_utm, fill = NA, color = "gray")+
+  geom_point(data = dpg14_moddat, aes(X*1000, Y*1000, color = mc_resids1)) + scale_colour_gradient2() +
+  labs(x = "Longitude", y = "Latitude", color = "MCMC Residuals", subtitle = "MCMC residuals for the spring Atlantic mackerel delta 1 model")
+# ggsave("m14.1-dpg_mcmc-resids-map.png", last_plot(), device = "png", here("sdmtmb", "atlmackerel", "plots", "resids"), width = 8, height = 5)
+
+ggplot() +
+  geom_sf(data = strata_utm, fill = NA, color = "gray")+
+  geom_point(data = dpg14_moddat, aes(X*1000, Y*1000, color = mc_resids2)) + scale_colour_gradient2() +
+  labs(x = "Longitude", y = "Latitude", color = "MCMC Residuals", subtitle = "MCMC residuals for the spring Atlantic mackerel delta 2 model")
+# ggsave("m14.2-dpg_mcmc-resids-map.png", last_plot(), device = "png", here("sdmtmb", "atlmackerel", "plots", "resids"), width = 8, height = 5)
+```
+
+
+## Results/Decision
+Tweedie model 
+
+```{r}
+saveRDS(tweedie_mod, here("sdmtmb", "atlmackerel", "data", "spring_mod.rds"))
+saveRDS(tweedie_mod_preds, here("sdmtmb", "atlmackerel", "data", "atlmackerel_mod_preds.rds"))
+
+```
+
