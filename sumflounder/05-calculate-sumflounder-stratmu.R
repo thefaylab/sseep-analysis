@@ -67,6 +67,16 @@ mudiff_dat <- sf_stratmu|>
   mutate(mudiff = sqrt(mudiff)*100) |>
   arrange(desc(mudiff))
 
+## FIT LINEAR REGRESSIONS ####
+sf_stratmu_lms <- sf_stratmu |>
+  group_by(SEASON, TYPE) |> 
+  nest() |>
+  mutate(model = map(data, ~lm(stratmu ~ EST_YEAR, data = .)),  
+         coef = map(model, ~broom::tidy(., conf.int = TRUE))) |> 
+  unnest(coef) |>
+  select(SEASON, TYPE, term, estimate, conf.low, conf.high) |>
+  filter(term == "EST_YEAR")
+
 ## PLOT ####
 ggplot(sf_stratmu) +
   aes(x = as.factor(EST_YEAR), y = stratmu, color = TYPE, shape = TYPE) +
@@ -91,3 +101,4 @@ saveRDS(mudiff_dat, here("data", "sumflounder", "sf_mudiffdat.rds"))
 saveRDS(sf_stratmu_incl, here("data", "sumflounder", "sf_stratmu_included.rds"))
 saveRDS(sf_stratmu_precl, here("data", "sumflounder", "sf_stratmu_precluded.rds"))
 saveRDS(sf_stratmu, here("data", "sumflounder", "sf_stratmu.rds"))
+saveRDS(sf_stratmu_lms, here("data", "sumflounder", "sf_obs_slopes.rds"))

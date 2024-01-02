@@ -1,11 +1,10 @@
 ### created: 04/24/2023
-### last updated: 11/21/2023
+### last updated: 01/02/2024
 
 # 03b - SPRING MODEL RESIDUALS ####
 
 ## OBJECTIVE ####
-# calculate randomized quantile and mcmc-based residuals for the best fitting spring model 
-# plot the mcmc-based residuals against the fitted data and spatially to note any potential spatial autocorrelation
+# calculate randomized quantile, dharma, and mcmc-sampled residuals for the best fitting spring model for summer flounder data 
 
 
 ### LOAD PACKAGES ####
@@ -21,18 +20,23 @@ library(sdmTMBextra)
 suppressPackageStartupMessages(library(tidyverse))
 theme_set(theme_bw())
 
+
+sumflounder.dat <- "C:/Users/amiller7/Documents/cinar-osse/sseep-analysis/sdmtmb/sumflounder/data"
+spr.resids.dat <- "C:/Users/amiller7/Documents/cinar-osse/sseep-analysis/sdmtmb/sumflounder/data/resids"
+spr.resids.plots <- "C:/Users/amiller7/Documents/cinar-osse/sseep-analysis/sdmtmb/sumflounder/plots/spring-resids"
+
 ### LOAD DATA ####
 strata_utm <- readRDS(here("data", "rds", "active_strata_utm.rds")) 
 
 # best fit model created in  here("sdmtmb", "sumflounder", "01-mod-fits", "01a-fit-spr-mods.R")
-spring_mod <- readRDS(here("sdmtmb", "sumflounder", "data", "mods", "m12_spring.rds"))
+spring_mod <- readRDS(here(sumflounder.dat, "mods", "m12_spring.rds"))
 
 ### Model predictions ####
 spr_mod_preds <- predict(spring_mod)
 
 ### save the predictions
-saveRDS(spr_mod_preds, file = here("sdmtmb", "sumflounder", "data", "spring_mod_preds.rds"))
-saveRDS(spring_mod, file = here("sdmtmb", "sumflounder", "data", "spring_mod.rds"))
+saveRDS(spr_mod_preds, file = here(sumflounder.dat, "spring_mod_preds.rds"))
+saveRDS(spring_mod, file = here(sumflounder.dat, "spring_mod.rds"))
 
 ## DATA WRANGLE ####
 # extract data used to fit the model 
@@ -56,7 +60,7 @@ ggplot() +
   facet_wrap(~EST_YEAR) +
   labs(x = "Longitude", y = "Latitude", color = "Residuals")
 
-ggsave("sf_spring_residual_map.png", last_plot(), device = "png", here("sdmtmb", "sumflounder", "plots", "spring-resids"), width = 7, height = 8)
+ggsave("sf_spring_residual_map.png", last_plot(), device = "png", here(spr.resids.plots), width = 7, height = 8)
 
 
 ### DHARMa RESIDUALS ####
@@ -78,7 +82,9 @@ r_spr_mod <- DHARMa::createDHARMa(
   observedResponse = spr_moddat$EXPCATCHWT,
   fittedPredictedResponse = pred_fixed
 )
-plot(r_spr_mod)
+
+saveRDS(r_spr_mod, file = here(spr.resids.dat, "spring_dharma_obj.rds"))
+# plot(r_spr_mod)
 
 # fits a quantile regression or residuals against a predictor (default predicted value), and tests of this conforms to the expected quantile
 DHARMa::testQuantiles(r_spr_mod)
@@ -108,44 +114,41 @@ DHARMa::testSpatialAutocorrelation(r_spr_mod, x = spr_moddat$X, y = spr_moddat$Y
 DHARMa::testZeroInflation(r_spr_mod)
 
 ### CALCULATE MCMC-BASED RESIDUALS ####
-# spr_samps <- sdmTMBextra::predict_mle_mcmc(spring_mod, mcmc_iter = 201, mcmc_warmup = 200)
-# 
-# 
-# spr_mod_mcres <- residuals(spring_mod, type = "mle-mcmc", mcmc_samples = spr_samps)
-# 
-# # qqplot
-# qqnorm(spr_mod_mcres) 
-# qqline(spr_mod_mcres) # add trendline
-# 
-# ### save the data
-# saveRDS(spr_mod_mcres, here("sdmtmb", "sumflounder", "data", "spr_mcres.rds"))
-# 
-# # add the MCMC residuals to the spring data 
-# spr_moddat$mc_resids <- spr_mod_mcres
-# 
-# ### save the data 
-# saveRDS(spr_moddat, file = here("sdmtmb", "sumflounder", "data", "spr_dat-resids.rds"))
+sf_spr_samps <- sdmTMBextra::predict_mle_mcmc(spring_mod, mcmc_iter = 300, mcmc_warmup = 200, stan_args = list(thin = 10))
+
+sf_spr_mcres <- residuals(spring_mod, type = "mle-mcmc", mcmc_samples = sf_spr_samps)
+
+
+# qqplot
+qqnorm(sf_spr_mcres, main = "Normal Q-Q plot of MCMC sampled residuals for the spring summer flounder model")
+qqline(sf_spr_mcres) # add trendline
+
+### save the data
+saveRDS(sf_spr_mcres, here(spr.resids.dat, "sf_spr_mcres.rds"))
+
+# add the MCMC residuals to the spring data
+spr_moddat$mc_resids <- sf_spr_mcres
+
+### save the data
+saveRDS(spr_moddat, file = here(spr.resids.dat, "spring-moddat-resids.rds"))
 
 
 ### FITTED VS RESIDUALS 
-# ggplot(spr_moddat) +
-#   geom_point(aes(x = EXPCATCHWT, y = mc_resids)) + 
-#   facet_wrap(~SEASON) + 
-#   labs(x = "Biomass (kg)", y = "MCMC Residual")
-# 
-# ggsave("spring_fit-v-resid.png", plot = last_plot(), device = "png", here("sdmtmb", "sumflounder", "plots"), width = 6, height = 4)
+ggplot(spring_moddat) +
+  geom_point(aes(x = preds, y = mc_resids)) + 
+  geom_hline(yintercept = 0) +
+  facet_wrap(~SEASON) +
+  labs(x = "Biomass predictions in link space", y = "MCMC Residual", subtitle =  "Distribution of MCMC residuals for the spring summer flounder model")
+ggsave("sf_spring_mcmc-resids-v-biomass.png", last_plot(), device = "png", here(spr.resids.plots), width = 8, height = 5)
 
-### RESIDUAL PLOTTED BY SPACE 
-# ggplot(spr_moddat, aes(DECDEG_BEGLON, DECDEG_BEGLAT, col = resids)) + scale_colour_gradient2()+#low ="#5dc5e9", high = "#0a4c8a") +
-#   geom_point() + facet_wrap(~EST_YEAR) + coord_fixed() +
-#   labs(x = "Longitude", 
-#        y = "Latitude", 
-#        color = "Residuals") +
-#   #theme_bw() +
-#   theme(legend.position="bottom",
-#         #legend.title = element_blank(), 
-#         #panel.border = element_rect(fill = NA, color = "black"),
-#         axis.title.y = element_text(margin = unit(c(0, 3, 0, 0), "mm")))
-# 
-# 
-# ggsave("spring_resid_map.png", plot = last_plot(), device = "png", here("sdmtmb", "sumflounder", "plots"), width = 6, height = 5)
+ggplot() +
+  geom_sf(data = strata_utm, fill = NA, color = "gray")+
+  geom_point(data = spring_moddat, aes(X*1000, Y*1000, color = resids)) + scale_colour_gradient2() +
+  labs(x = "Longitude", y = "Latitude", color = "Residuals", subtitle = "Laplace residuals for the spring summer flounder model")
+ggsave("sf_spring_laplace-resids-map.png", last_plot(), device = "png", here(spr.resids.plots), width = 8, height = 5)
+
+ggplot() +
+  geom_sf(data = strata_utm, fill = NA, color = "gray")+
+  geom_point(data = spring_moddat, aes(X*1000, Y*1000, color = mc_resids)) + scale_colour_gradient2() +
+  labs(x = "Longitude", y = "Latitude", color = "MCMC Residuals", subtitle = "MCMC residuals for the spring summer flounder model")
+ggsave("sf_spring_mcmc-resids-map.png", last_plot(), device = "png", here(spr.resids.plots), width = 8, height = 5)

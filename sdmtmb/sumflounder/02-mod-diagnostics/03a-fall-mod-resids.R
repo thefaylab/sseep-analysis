@@ -1,10 +1,10 @@
 ### created: 04/24/2023
-### last updated: 12/13/2023
+### last updated: 01/02/2024
 
 # 03a - FALL MODEL RESIDUALS ####
 
 ## OBJECTIVE ####
-# calculate randomized quantile and dharma residuals for the best fitting fall model 
+# calculate randomized quantile, dharma, and mcmc-sampled residuals for the best fitting fall model for summer flounder data
 # 
 
 ## LOAD PACKAGES ####
@@ -15,18 +15,22 @@ library(sdmTMBextra)
 suppressPackageStartupMessages(library(tidyverse))
 theme_set(theme_bw())
 
+sumflounder.dat <- "C:/Users/amiller7/Documents/cinar-osse/sseep-analysis/sdmtmb/sumflounder/data"
+fall.resids.dat <- "C:/Users/amiller7/Documents/cinar-osse/sseep-analysis/sdmtmb/sumflounder/data/resids"
+fall.resids.plots <- "C:/Users/amiller7/Documents/cinar-osse/sseep-analysis/sdmtmb/sumflounder/plots/fall-resids"
+
 ## LOAD DATA ####
-#strata <- readRDS(here("data", "rds", "active_strata.rds")) 
+strata_utm <- readRDS(here("data", "rds", "active_strata_utm.rds")) 
 
 # best fit model created here("sdmtmb", "sumflounder", "01-mod-fits", "01a-fit-fall-mods.R")
-fall_mod <- readRDS(here("sdmtmb", "sumflounder", "data", "mods", "m12_fall.rds"))
+fall_mod <- readRDS(here(sumflounder.dat, "mods", "m12_fall.rds"))
 
 ### Model Predictions ####
 fall_mod_preds <- predict(fall_mod)
 
 ### save the data 
-saveRDS(fall_mod_preds, file = here("sdmtmb", "sumflounder", "data", "fall_mod_preds.rds"))
-saveRDS(fall_mod, file = here("sdmtmb", "sumflounder", "data", "fall_mod.rds"))
+saveRDS(fall_mod_preds, file = here(sumflounder.dat, "fall_mod_preds.rds"))
+saveRDS(fall_mod, file = here(sumflounder.dat, "fall_mod.rds"))
 
 ## DATA WRANGLE ####
 # extract data used to fit the model 
@@ -50,7 +54,7 @@ ggplot() +
   facet_wrap(~EST_YEAR) +
   labs(x = "Longitude", y = "Latitude", color = "Residuals")
 
-ggsave("sf_fall_residual_map.png", last_plot(), device = "png", here("sdmtmb", "sumflounder", "plots", "fall-resids"), width = 7, height = 8)
+ggsave("sf_fall_residual_map.png", last_plot(), device = "png", here(fall.resids.plots), width = 7, height = 8)
 
 ## CALCULATE DHARMa RESIDUALS ####
 #simulations with the parameters fixed at their Maximum Likelihood Estimate (MLE) and predictions conditional on the fitted random effects.
@@ -71,7 +75,9 @@ r_fall_mod <- DHARMa::createDHARMa(
   observedResponse = fall_moddat$EXPCATCHWT,
   fittedPredictedResponse = pred_fixed
 )
-plot(r_fall_mod)
+
+saveRDS(r_fall_mod, here(fall.resids.dat, "fall_dharma_obj.rds"))
+# plot(r_fall_mod)
 
 # fits a quantile regression or residuals against a predictor (default predicted value), and tests of this conforms to the expected quantile
 DHARMa::testQuantiles(r_fall_mod)
@@ -101,44 +107,40 @@ DHARMa::testSpatialAutocorrelation(r_fall_mod, x = fall_moddat$X, y = fall_modda
 DHARMa::testZeroInflation(r_fall_mod)
 
 ### CALCULATE MCMC-BASED RESIDUALS ####
-# fall_samps <- sdmTMBextra::predict_mle_mcmc(fall_mod, mcmc_iter = 201, mcmc_warmup = 200)
-# 
-# fall_mod_mcres <- residuals(fall_mod, type = "mle-mcmc", mcmc_samples = fall_samps)
-# 
-# # qqplot
-# qqnorm(fall_mod_mcres)
-# qqline(fall_mod_mcres) # add trendline
-# 
-# ### save the data 
-# saveRDS(fall_mod_mcres, here("sdmtmb", "sumflounder", "data", "fall_mcres.rds"))
-#  
-# # add the MCMC residuals to the fall data 
-# fall_moddat$mc_resids <-fall_mod_mcres
-# 
-# ### save the data 
-# saveRDS(fall_moddat, file = here("sdmtmb", "sumflounder", "data", "fall_dat-resids.rds"))
+sf_fall_samps <- sdmTMBextra::predict_mle_mcmc(fall_mod, mcmc_iter = 300, mcmc_warmup = 200, stan_args = list(thin = 10))
+
+sf_fall_mcres <- residuals(fall_mod, type = "mle-mcmc", mcmc_samples = sf_fall_samps)
+
+qqnorm(sf_fall_mcres,  main = "Normal Q-Q plot of MCMC sampled residuals for the fall summer flounder model")
+qqline(sf_fall_mcres) # add trendline
+
+### save the data
+saveRDS(fall_mod_mcres, here(fall.resids.dat, "fall_mcres.rds"))
+
+# add the MCMC residuals to the fall data
+fall_moddat$mc_resids <- fall_mod_mcres
+
+### save the data
+saveRDS(fall_moddat, file = here(fall.resids.dat, "fall-moddat-resids.rds"))
 
 
 ## DIAGNOSTIC PLOTS ####
-### FITTED VS RESIDUALS PLOT ####
-# ggplot(fall_moddat) +
-#   geom_point(aes(x = EXPCATCHWT, y = mc_resids)) + 
-#   facet_wrap(~SEASON) + 
-#   labs(x = "Biomass (kg)", y = "MCMC Residual")
-# 
-# ggsave("fall_fit-v-resid.png" , plot = last_plot(), device = "png", here("sdmtmb", "sumflounder", "plots"), width = 6, height = 4)
-# 
-# ### RESIDUALS PLOTTED BY SPACE ####
-# ggplot(fall_moddat, aes(DECDEG_BEGLON, DECDEG_BEGLAT, col = mc_resids)) + scale_colour_gradient2()+#low ="#5dc5e9", high = "#0a4c8a") +
-#   geom_point() + facet_wrap(~EST_YEAR) + coord_fixed() +
-#   labs(x = "Longitude", 
-#        y = "Latitude", 
-#        color = "Residuals") +
-#   #theme_bw() +
-#   theme(legend.position="bottom",
-#         #legend.title = element_blank(), 
-#         #panel.border = element_rect(fill = NA, color = "black"),
-#         axis.title.y = element_text(margin = unit(c(0, 3, 0, 0), "mm")))
-# 
-# ggsave("fall_resid_map.png" ,plot = last_plot(), device = "png", here("sdmtmb", "sumflounder", "plots"), width = 8, height = 5)
+ggplot(fall_moddat) +
+  geom_point(aes(x = exp(preds), y = mc_resids)) + 
+  geom_hline(yintercept = 0) +
+  facet_wrap(~SEASON) +
+  labs(x = "Biomass estimates in link space", y = "MCMC Residual", subtitle = "Distribution of MCMC residuals for the fall summer flounder model")
+ggsave("sf_fall_mcmc-resids-v-biomass.png", last_plot(), device = "png", here(fall.resids.plots), width = 7, height = 5)
+
+ggplot() +
+  geom_sf(data = strata_utm, fill = NA, color = "gray")+
+  geom_point(data = fall_moddat, aes(X*1000, Y*1000, color = resids)) + scale_colour_gradient2() +
+  labs(x = "Longitude", y = "Latitude", color = "Residuals", subtitle =  "Laplace residuals for the fall summer flounder model")
+ggsave("sf_fall_laplace-resids_map.png", last_plot(), device = "png", here(fall.resids.plots), width = 7, height = 5)
+
+ggplot() +
+  geom_sf(data = strata_utm, fill = NA, color = "gray")+
+  geom_point(data = fall_moddat, aes(X*1000, Y*1000, color = mc_resids)) + scale_colour_gradient2() +
+  labs(x = "Longitude", y = "Latitude", color = "MCMC Residuals", subtitle =  "MCMC residuals for the fall summer flounder model")
+ggsave("sf_fall_mcmc-resids_map.png", last_plot(), device = "png", here(fall.resids.plots), width = 7, height = 5)
 
