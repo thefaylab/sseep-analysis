@@ -32,161 +32,105 @@ clust <- sample(1:2, size = nrow(sf_fall), replace = T, prob = c(0.1, 0.9))
 
 ## MODEL CROSS VALIDATIONS ####
 library(future)
+library(future.apply)
 plan(multisession)
+
 
 ### No random effect models ####
 #### M1 ####
-m1_fall.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1,
-                  data = sf_fall, 
-                  mesh = fall_mesh,
-                  family = tweedie(link = "log"), 
-                  spatial = "off", 
-                  control = sdmTMBcontrol(newton_loops = 1), #extra optimization to help with convergence
-                  fold_ids = clust,
-                  k_folds = length(unique(clust)),
-                  reml = TRUE)
-
+m1_fall.cv <- sdmTMB_cv(EXPCATCHNUM ~ s(AVGDEPTH) + EST_YEAR - 1,
+                     data = sf_fall, 
+                     mesh = fall_mesh,
+                     family = nbinom2(link = "log"), 
+                     spatial = "off", 
+                     control = sdmTMBcontrol(newton_loops = 1), #extra optimization to help with convergence
+                     fold_ids = clust,
+                     k_folds = length(unique(clust)))
 
 #### M2 ####
-m2_fall.cv <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR - 1,
-                  data = sf_fall, 
-                  mesh = fall_mesh,
-                  family = tweedie(link = "log"), 
-                  spatial = "off", 
-                  control = sdmTMBcontrol(newton_loops = 1), 
-                  fold_ids = clust,
-                  k_folds = length(unique(clust)),
-                  reml = TRUE)
-
-
-#### M3 ####
-m3_fall.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR + AREA - 1,
-                  data = sf_fall, 
-                  mesh = fall_mesh,
-                  family = tweedie(link = "log"), 
-                  spatial = "off", 
-                  control = sdmTMBcontrol(newton_loops = 1), 
-                  fold_ids = clust,
-                  k_folds = length(unique(clust)),
-                  reml = TRUE)
-
-
-#### M4 ####
-m4_fall.cv <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH,2) + EST_YEAR + AREA - 1,
-                  data = sf_fall, 
-                  mesh = fall_mesh,
-                  family = tweedie(link = "log"), 
-                  spatial = "off", 
-                  control = sdmTMBcontrol(newton_loops = 1), 
-                  fold_ids = clust,
-                  k_folds = length(unique(clust)),
-                  reml = TRUE)
+m2_fall.cv <- sdmTMB_cv(EXPCATCHNUM ~ s(AVGDEPTH) + EST_YEAR + AREA - 1,
+                     data = sf_fall, 
+                     mesh = fall_mesh,
+                     family = nbinom2(link = "log"), 
+                     spatial = "off", 
+                     control = sdmTMBcontrol(newton_loops = 1), 
+                     fold_ids = clust,
+                     k_folds = length(unique(clust)))
 
 
 ### Spatial Only Models ####
+#### M3 ####
+m3_fall.cv <- sdmTMB_cv(EXPCATCHNUM ~ s(AVGDEPTH) + EST_YEAR - 1,
+                     data = sf_fall, 
+                     mesh = fall_mesh,
+                     family = nbinom2(link = "log"),  
+                     spatial = "on", # spatial covariance with depth
+                     control = sdmTMBcontrol(newton_loops = 1), 
+                     fold_ids = clust,
+                     k_folds = length(unique(clust)))
+
+
+#### M4 ####
+m4_fall.cv <- sdmTMB_cv(EXPCATCHNUM ~ s(AVGDEPTH) + EST_YEAR + AREA - 1,
+                     data = sf_fall, 
+                     mesh = fall_mesh,
+                     family = nbinom2(link = "log"),  
+                     spatial = "on", 
+                     control = sdmTMBcontrol(newton_loops = 1), 
+                     fold_ids = clust,
+                     k_folds = length(unique(clust)))
+
+
+### Spatiotemporal Only Models ####
 #### M5 ####
-# logistic regression of scup biomass in tows as a function of AVGDEPTH with spatial random effects and index standardization to estimate a separate intercept for each EST_YEAR
-m5_fall.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1,
-                  data = sf_fall, 
-                  mesh = fall_mesh,
-                  family = tweedie(link = "log"),  
-                  spatial = "on", # spatial covariance with depth
-                  control = sdmTMBcontrol(newton_loops = 1), 
-                  fold_ids = clust,
-                  k_folds = length(unique(clust)),
-                  reml = TRUE)
+m5_fall.cv <- sdmTMB_cv(EXPCATCHNUM ~ s(AVGDEPTH) + EST_YEAR - 1, 
+                     data = sf_fall,
+                     mesh = fall_mesh,
+                     family = nbinom2(link = "log"), 
+                     spatial = "off", 
+                     time = "EST_YEAR",
+                     spatiotemporal = "IID", 
+                     fold_ids = clust,
+                     k_folds = length(unique(clust)))
+
+
 
 #### M6 ####
-m6_fall.cv <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR - 1,
-                  data = sf_fall, 
-                  mesh = fall_mesh,
-                  family = tweedie(link = "log"),  
-                  spatial = "on", 
-                  control = sdmTMBcontrol(newton_loops = 1), 
-                  fold_ids = clust,
-                  k_folds = length(unique(clust)),
-                  reml = TRUE)
+m6_fall.cv <- sdmTMB_cv(EXPCATCHNUM ~ s(AVGDEPTH) + EST_YEAR + AREA - 1, 
+                     data = sf_fall,
+                     mesh = fall_mesh,
+                     family = nbinom2(link = "log"), 
+                     spatial = "off", 
+                     time = "EST_YEAR",
+                     spatiotemporal = "IID", 
+                     fold_ids = clust,
+                     k_folds = length(unique(clust)))
 
-
+### Spatiotemporal + Spatial Models ####
 #### M7 ####
-m7_fall.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR + AREA - 1,
-                  data = sf_fall, 
-                  mesh = fall_mesh,
-                  family = tweedie(link = "log"),  
-                  spatial = "on", 
-                  control = sdmTMBcontrol(newton_loops = 1), 
-                  fold_ids = clust,
-                  k_folds = length(unique(clust)),
-                  reml = TRUE)
-#### M8 ####
-m8_fall.cv <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR + AREA - 1,
-                  data = sf_fall, 
-                  mesh = fall_mesh,
-                  family = tweedie(link = "log"),  
-                  spatial = "on", 
-                  control = sdmTMBcontrol(newton_loops = 1), 
-                  fold_ids = clust,
-                  k_folds = length(unique(clust)),
-                  reml = TRUE)
+m7_fall.cv <- sdmTMB_cv(EXPCATCHNUM ~ s(AVGDEPTH) + EST_YEAR - 1, 
+                     data = sf_fall,
+                     mesh = fall_mesh,
+                     family = nbinom2(link = "log"), 
+                     spatial = "on", 
+                     time = "EST_YEAR",
+                     spatiotemporal = "IID", 
+                     fold_ids = clust,
+                     k_folds = length(unique(clust)))
 
 
-### Spatiotemporal Models - IID Structure ####
+#### M8 #### 
+m8_fall.cv <- sdmTMB_cv(EXPCATCHNUM ~ s(AVGDEPTH) + EST_YEAR + AREA - 1, 
+                     data = sf_fall,
+                     mesh = fall_mesh,
+                     family = nbinom2(link = "log"), 
+                     spatial = "on", 
+                     time = "EST_YEAR",
+                     spatiotemporal = "IID", 
+                     control = sdmTMBcontrol(newton_loops = 1), 
+                     fold_ids = clust,
+                     k_folds = length(unique(clust)))
 
-#### M9 ####
-#logistic regression of scup biomass in tows as a function of AVGDEPTH with spatial random effects and spatiotemporal random fields estimated by EST_YEAR and with a separate intercept for each. 
-m9_fall.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1, 
-                  data = sf_fall,
-                  mesh = fall_mesh,
-                  family = tweedie(link = "log"), 
-                  spatial = "on", 
-                  time = "EST_YEAR",
-                  spatiotemporal = "IID", 
-                  fold_ids = clust,
-                  k_folds = length(unique(clust)),
-                  reml = TRUE)
-
-#### M10 ####
-#logistic regression of scup biomass in tows as a function of AVGDEPTH with spatial random effects and spatiotemporal random fields estimated by EST_YEAR and with a separate intercept for each. 
-m10_fall.cv <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR-1, 
-                   data = sf_fall,
-                   mesh = fall_mesh,
-                   family = tweedie(link = "log"), 
-                   spatial = "on", 
-                   time = "EST_YEAR",
-                   spatiotemporal = "IID", 
-                   fold_ids = clust,
-                   k_folds = length(unique(clust)),
-                   reml = TRUE)
-
-
-#### M11 ####
-# logistic regression of scup biomass catch rate as a function of depth, year, and inside or outside wind area. 
-m11_fall.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) +  EST_YEAR +  AREA-1,
-                   data = sf_fall,
-                   mesh = fall_mesh,
-                   family = tweedie(link = "log"), 
-                   spatial = "on", 
-                   time = "EST_YEAR",
-                   spatiotemporal = "IID",
-                   control = sdmTMBcontrol(newton_loops = 1), 
-                   fold_ids = clust,
-                   k_folds = length(unique(clust)),
-                   reml = TRUE)
-
-
-#### M12 ####
-#  logistic regression of scup biomass catch rate as a function of depth, year, and inside or outside wind area. 
-m12_fall.cv <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR + AREA-1,
-                   data = sf_fall,
-                   mesh = fall_mesh,
-                   family = tweedie(link = "log"), 
-                   spatial = "on", 
-                   time = "EST_YEAR",
-                   spatiotemporal = "IID",
-                   control = sdmTMBcontrol(newton_loops = 1), 
-                   fold_ids = clust,
-                   k_folds = length(unique(clust)),
-                   reml = TRUE)
 
 
 
@@ -199,10 +143,6 @@ saveRDS(m5_fall.cv, file = here("sdmtmb", "scup", "data", "cross-valid", "m5-fal
 saveRDS(m6_fall.cv, file = here("sdmtmb", "scup", "data", "cross-valid", "m6-fall-cv.rds"))
 saveRDS(m7_fall.cv, file = here("sdmtmb", "scup", "data", "cross-valid", "m7-fall-cv.rds"))
 saveRDS(m8_fall.cv, file = here("sdmtmb", "scup", "data", "cross-valid", "m8-fall-cv.rds"))
-saveRDS(m9_fall.cv, file = here("sdmtmb", "scup", "data", "cross-valid", "m9-fall-cv.rds"))
-saveRDS(m10_fall.cv, file = here("sdmtmb", "scup", "data", "cross-valid", "m10-fall-cv.rds"))
-saveRDS(m11_fall.cv, file = here("sdmtmb", "scup", "data", "cross-valid", "m11-fall-cv.rds"))
-saveRDS(m12_fall.cv, file = here("sdmtmb", "scup", "data", "cross-valid", "m12-fall-cv.rds"))
 
 
 
