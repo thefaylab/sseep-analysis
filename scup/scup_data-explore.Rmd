@@ -15,6 +15,7 @@ library(boot)
 library(infer)
 library(broom)
 library(gridExtra)
+library(viridis)
 source(here("R", "StratMeanFXs_v2.R")) #removed SEASON group for the purposes of the resampling
 ```
 
@@ -36,6 +37,7 @@ strata <- readRDS(here("data", "rds", "active_strata.rds"))
 
 # wind areas 
 wind_areas <- readRDS(here("data", "rds", "all_wind_areas_Jun2022.rds")) 
+wind_areas2 <- readRDS(here("data", "rds", "all_wind_areas_Jan2023.rds")) 
 
 coastline <- sf::st_read(dsn = here("gis", "eastern_coast_UTM.shp"))
 
@@ -91,13 +93,13 @@ scup_summary_fall <- scup_complete |>
             tow_ct = length(unique(TOWID)))
 scup_summary_fall
 
-scup_complete_spring |> 
+scup_complete_spring <- scup_complete |>
   filter(SEASON == "SPRING", YEAR %in% full_years) |>
   summarise(quantile(EXPCATCHWT, 0.95), 
             quantile(EXPCATCHWT, 0.975), 
             quantile(EXPCATCHWT, 0.99)) 
 
-scup_complete_fall |> 
+scup_complete_fall <- scup_complete |> 
   filter(SEASON == "FALL", YEAR %in% full_years) |>
   summarise(quantile(EXPCATCHWT, 0.95), 
             quantile(EXPCATCHWT, 0.975), 
@@ -230,11 +232,14 @@ scup_all_fall <- ggplot() +
 grid.arrange(scup_95_spring,scup_99_spring,scup_all_spring, ncol=3)
 grid.arrange(scup_95_fall,scup_99_fall,scup_all_fall,ncol=3)
 
+grid.arrange(scup_99_spring, scup_99_fall, ncol=2)
+
+
 ```
 Cumulative Distribution remove outliers 
 ```{r}
-scup_csum_spring_no.out <- scup_complete_spring |> 
-  filter(YEAR %in% full_years, EXPCATCHWT <= quantile(EXPCATCHWT, 0.99)) |> 
+scup_csum_spring_no.out <- scup_complete |> 
+  filter(YEAR %in% full_years, SEASON == "SPRING", EXPCATCHWT <= quantile(EXPCATCHWT, 0.99)) |> 
   group_by(STRATUM, SEASON) |> 
   summarise(total_bio = sum(EXPCATCHWT), .groups = "drop") |> 
   arrange(desc(total_bio)) |>
@@ -253,8 +258,8 @@ p1.no.out <- ggplot(scup_csum_spring_no.out) +
   theme_bw() + theme(plot.title = element_text(size=10),plot.subtitle = element_text(size=7)) +
   theme(axis.text.x = element_text(angle = 90, size = 5))
 
-scup_csum_fall_no.out <- scup_complete_fall |> 
-  filter(YEAR %in% full_years, EXPCATCHWT <= quantile(EXPCATCHWT, 0.99)) |> 
+scup_csum_fall_no.out <- scup_complete |> 
+  filter(YEAR %in% full_years, SEASON == "FALL", EXPCATCHWT <= quantile(EXPCATCHWT, 0.99)) |> 
   group_by(STRATUM, SEASON) |> 
   summarise(total_bio = sum(EXPCATCHWT), .groups = "drop") |> 
   arrange(desc(total_bio)) |>
@@ -387,233 +392,475 @@ grid.arrange(scup_95_fall_no.out,scup_99_fall_no.out,scup_all_fall_no.out, ncol=
 
 
 
-
-
-
-
-
-### Depth Plots 
-#### 1. Time of day
-Here we plot biomass as a function of average depth across season and at different times in which a tow occurred. The plot demonstrates some potential fall preference for shallower waters, while the spring time preference is a little more variable. Both relationships seem to be consistent regardless of the time of day. 
-```{r day/night plot, warning = FALSE}
-ggplot(filtered_data |> filter(!is.na(AVGDEPTH), SEASON == "SPRING")) +
-  geom_point(aes(x = AVGDEPTH, y = EXPCATCHWT)) +
-  facet_grid(cols = vars(SEASON), rows = vars(DAYTIME), scales = "free_y") +
-  labs(x = "Average Depth", y = "Biomass Catch (kg)")
-```
- 
-#### 2. Area Type
-This plot illustrates catch as a function of average depth across season and whether the tow occurred inside or outside a wind area. The plot shows an additional demonstration of a potential fall preference for shallower waters, but also a preference for shallower waters in the sprind in the proporsed wind areas. 
-```{r depth plot 1, warning = FALSE}
-ggplot(filtered_data |> filter(!is.na(AVGDEPTH), SEASON == "SPRING")) +
-  geom_histogram(aes(x = AVGDEPTH)) +
-  facet_grid(cols = vars(SEASON), rows = vars(AREA), scales = "free_y") +
-  labs(x = "Average Depth", y = "Count")
-
-```
-
-#### 2a. Area Type with Biomass
-Expanding the above plot to include biomass values, we can loosely see that while there are less tows occurring in the proposed wind areas, the biomass in these areas can be equivalent to those caught outside the wind areas, specifically within the fall survey. 
-```{r depth plot 2, warning = FALSE}
-ggplot(filtered_data |> filter(!is.na(AVGDEPTH), SEASON == "SPRING")) +
-  geom_point(aes(x = AVGDEPTH, y = EXPCATCHWT)) +
-  facet_grid(cols = vars(SEASON), rows = vars(AREA), scales = "free_y") +
-  labs(x = "Average Depth", y = "Biomass (kg)") 
-```
-
-### Yearly Plots
-#### 1. Change in Average Biomass over time 
-The raw biomass catch and average biomass catch was plotted across years for each season and depending on when tows occuring indside or outside of wind areas. Based on the line plot, there is a general decrease of average biomass over time, which is difficult to parse out from the scatterplot. 
-```{r depth plot 3, warning = FALSE}
-avg <- filtered_data |>
-  filter(!is.na(AVGDEPTH), SEASON == "SPRING") |>
-  group_by(EST_YEAR, SEASON, AREA) |>
-  summarise(bio_avg = mean(EXPCATCHWT))
-
-ggplot() +
-  geom_point(data = filtered_data |> filter(!is.na(AVGDEPTH), SEASON == "SPRING"), aes(x = as.factor(EST_YEAR), y = EXPCATCHWT)) + 
-  #geom_line(data = avg, aes(x = EST_YEAR, y = bio_avg)) +
-  facet_grid(cols = vars(SEASON), rows = vars(AREA), scales = "free_y") + 
-  labs(x = "Year", y = "Biomass (kg)")
-
-ggplot() +
-  #geom_point(data = filtered_data, aes(x = EST_YEAR, y = EXPCATCHWT), color = "blue") + 
-  geom_line(data = avg , aes(x = EST_YEAR, y = bio_avg)) +
-  facet_grid(cols = vars(SEASON), rows = vars(AREA), scales = "free_y") + 
-  labs(x = "Year", y = "Biomass (kg)")
-```
- 
-#### 2. Change in Bottom Temperature over time 
-This plot illustrates the variability of bottom temperature between season and throughout the time series. We can see that there are consistently higher bottom temperatures in the fall than in the spring, with some incremental increase in temperature across both seasons since 2009.
-```{r bottom temp 1, warning = FALSE}
-ggplot(filtered_data |> filter(!is.na(BOTTEMP), SEASON == "SPRING")) +
-  geom_point(aes(x = EST_YEAR, y = BOTTEMP)) +
-  geom_smooth(aes(x = EST_YEAR, y = BOTTEMP)) +
-  facet_grid(cols = vars(SEASON), rows = vars(AREA), scales = "free_y") +
-  labs(x = "Year", y = "Bottom Temperature") 
-```
-
-### Bottom Temperature Plots
-#### 1. Bottom Temperature Tows 
-This plot illustrates the frequency of tows as a function of bottom temperature between season and depending on when the tow occurred in or outside potential wind areas. We can see a generally similar distribution of tows between bottom temperature, area, and season, with tows occurring in the fall having higher bottom temperatures than the tows occurring in the spring. 
-```{r bottom temp 2, warning = FALSE}
-ggplot(filtered_data) +
-  geom_histogram(aes(BOTTEMP)) +
-  facet_grid(cols = vars(SEASON), rows = vars(AREA), scales = "free_y") +
-  labs(x = "Bottom Temperature", y = "Count") 
-```
-
-#### 2. Bottom Temperature Tows 
-This plot illustrates the biomass catch as a function of bottom temperature between season and depending on when the tow occurred in or outside potential wind areas. Again, we can see a generally similar distribution and potential preference for warmer bottom temperatures in the fall, and colder temperatures in the spring.
-```{r bottom temp 3, warning = FALSE}
-ggplot(filtered_data) +
-  geom_point(aes(x = BOTTEMP, y = EXPCATCHWT)) +
-  facet_grid(cols = vars(SEASON), rows = vars(AREA), scales = "free_y") +
-  labs(x = "Bottom Temperature", y = "Biomass (kg)") 
-
-```
- 
- 
-### Stratified Mean Abundance Indices:
-A stratified mean abundance index was derived for scup for each year of the time series, both in the context of when wind tows were included in the calculation and when wind tows were excluded from the calculation. The difference in indices based on the differing calculation are displayed in the plot below. 
-```{r data again, include = FALSE}
-# read in stratified mean data 
-stratmeans <- readRDS(here("data", "rds", "retro-analysis", "strat-mu_all.rds")) |> filter(SVSPP == 121, SEASON == "SPRING", EST_YEAR != 2020)
-
-mudiff_dat <- readRDS(file = here("data", "rds", "retro-analysis", "species_mean-sq-diff.rds")) |> 
-  filter(SVSPP == 121, SEASON == "SPRING")
-
-source(here("R","StratMeanFxs_v2.R"))
-
-```
-
-Abundance indices when you use all the data including the outliers
-```{r stratmeans all data}
-am_stratmean <- stratmeans |> 
-  group_by(EST_YEAR, TYPE, SEASON) |> 
-  mutate(sdlog = sqrt(log(1+(sqrt(stratvar)/stratmu)^2)), #logistic standard deviation
-         lower = qlnorm(0.025, log(stratmu), sdlog), # lower quantile of the logistic normal distribution
-         upper = qlnorm(0.975, log(stratmu), sdlog)) |> # upper quantile of the logistic normal distribution
-  mutate(sdlog = ifelse(is.nan(sdlog), 0, sdlog), # if sdlog is NaN, replace with 0
-         lower = ifelse(is.nan(lower), 0, lower), # if the lower quantile is NaN, replace with 0
-         upper = ifelse(is.nan(upper), 0, upper)) # if the upper quantile is NaN, replace with 0
-
-ggplot(am_stratmean) +
-  aes(x = as.factor(EST_YEAR), y = stratmu, color = TYPE, shape = TYPE) +
-  #geom_point() +
-  geom_pointrange(aes(ymin=lower, ymax = upper), position =  position_dodge2(width=0.4)) +
-  facet_wrap(vars(SEASON), scales = "free_y") +
-  labs(x = "YEAR", y = "Stratified Mean (kg/tow)", SEASON = "", TYPE = "") +
-  ylim(0,NA) +
-  theme_bw() + 
-  theme(legend.position="bottom",
-        legend.title = element_blank(), 
-        axis.text.x = element_text(angle = 90, hjust = -1), 
-        axis.title.x = element_text(margin = unit(c(5, 0, 0, 0), "mm")), 
-        axis.title.y = element_text(margin = unit(c(0, 3, 0, 0), "mm")))
-```
-
-Abundance indices when you remove the outliers (> 35.6 which is the 95 quantile)
-```{r stratmeans remove outliers}
-stratmu_incl_no.out <- filtered_data |> 
-  filter(SEASON == "SPRING", EST_YEAR != 2020, EXPCATCHWT <=37.5) |>
-  stratified.mean() |> 
-  mutate(data_src = "No Outliers", 
-         TYPE = "With Wind Included") 
-
-stratmu_precl_no.out <- filtered_data |> 
-  filter(SEASON == "SPRING", EST_YEAR != 2020, EXPCATCHWT <=37.5, AREA == "OUTSIDE") |>
-  stratified.mean() |> 
-  mutate(data_src = "No Outliers", 
-         TYPE = "With Wind Precluded") 
-
-stratmu_no.out <- bind_rows(stratmu_incl_no.out, stratmu_precl_no.out) |> 
-  mutate(sdlog = sqrt(log(1+(sqrt(stratvar)/stratmu)^2)), #logistic standard deviation
-         lower = qlnorm(0.025, log(stratmu), sdlog), # lower quantile of the logistic normal distribution
-         upper = qlnorm(0.975, log(stratmu), sdlog), 
-         sdlog = ifelse(is.nan(sdlog), 0, sdlog), # if sdlog is NaN, replace with 0
-         lower = ifelse(is.nan(lower), 0, lower), # if the lower quantile is NaN, replace with 0
-         upper = ifelse(is.nan(upper), 0, upper)) 
-
-ggplot(stratmu_no.out) +
-  aes(x = as.factor(EST_YEAR), y = stratmu, color = TYPE, shape = TYPE) +
-  #geom_point() +
-  geom_pointrange(aes(ymin=lower, ymax = upper), position =  position_dodge2(width=0.4)) +
-  labs(x = "YEAR", y = "Stratified Mean (kg/tow)", SEASON = "", TYPE = "") +
-  ylim(0,NA) +
-  theme_bw() + 
-  theme(legend.position="bottom",
-        legend.title = element_blank(), 
-        axis.text.x = element_text(angle = 90, hjust = -1), 
-        axis.title.x = element_text(margin = unit(c(5, 0, 0, 0), "mm")), 
-        axis.title.y = element_text(margin = unit(c(0, 3, 0, 0), "mm")))
-
-
-
-```
-
-```{r mudiff compare}
-mudiff_no.out <- stratmu_no.out |> 
-  #mutate(stratmu = ifelse(stratmu==0, 1, stratmu)) |>
-  filter(EST_YEAR %in% c(2016:2019, 2021)) |> #filter for recent 5 years, skipping 2020
-  #mutate(log_mu = log(stratmu)) |>
-  arrange(desc(stratmu)) |>
-  group_by(SVSPP, EST_YEAR) |> #, 
-  #summarize(sq_diff = (exp(diff(log(stratmu)))-1)^2, .groups = "drop") |>
-  summarise(diff_mu = diff(stratmu)) |>
-  arrange(desc(diff_mu)) |>
-  mutate(exp_mu = (exp(diff_mu))-1) |>
-  arrange(desc(exp_mu)) |>
-  mutate(sq_diff = exp_mu^2) |>
-  arrange(desc(sq_diff))|>
-  ungroup()|>
-  #summarize(sq_diff = (diff(stratmu))^2, .groups = "drop") |> # calculate the relative differences and square them; drop the groups for further analysis
-  #group_by(SVSPP, SEASON) |>
-  summarize(mudiff = mean(sq_diff), .groups = "drop") |> # calculate the average; drop the grouping factor 
-  mutate(mudiff = sqrt(mudiff)*100) 
-
-mudiff_no.out
-mudiff_dat
-```
-
-How different are the indices with all data included when you remove the outliers? 
 ```{r}
-incl.mu <- am_stratmean |> 
-  filter(TYPE == "With Wind Included") |> 
-  select(!c(COMNAME, SCINAME, sdlog, lower, upper)) |>
-  mutate(data_src = "All data")
+library(gghighlight)
+library(ggsflabel)
 
-incl.mu_comp <- bind_rows(incl.mu, stratmu_incl_no.out)
+ggplot(strata) + 
+  geom_sf(aes(fill = as.factor(Depth_m), geometry=Shape)) +  
+  scale_fill_manual(values = c("#d48a3a", "#afdb88", "#21c99b", "#e2b29b", "#ff6fcf","#e8f5cc","#6274db","#80e6e6","#b0b1fa")) 
+ # geom_sf_label(aes(label=STRATUM), fun.geometry = sf::st_centroid) +
+ 
 
-incl.mu_diff <- incl.mu_comp |> 
-  #mutate(stratmu = ifelse(stratmu==0, 1, stratmu)) |>
-  filter(EST_YEAR %in% c(2016:2019, 2021)) |> #filter for recent 5 years, skipping 2020
-  #mutate(log_mu = log(stratmu)) |>
-  arrange(desc(stratmu)) |>
-  group_by(SVSPP, EST_YEAR) |> #, 
-  #summarize(sq_diff = (exp(diff(log(stratmu)))-1)^2, .groups = "drop") |>
-  summarise(diff_mu = diff(stratmu)) |>
-  arrange(desc(diff_mu)) |>
-  mutate(exp_mu = (exp(diff_mu))-1) |>
-  arrange(desc(exp_mu)) |>
-  mutate(sq_diff = exp_mu^2) |>
-  arrange(desc(sq_diff))|>
-  ungroup()|>
-  #summarize(sq_diff = (diff(stratmu))^2, .groups = "drop") |> # calculate the relative differences and square them; drop the groups for further analysis
-  #group_by(SVSPP, SEASON) |>
-  summarize(mudiff = mean(sq_diff), .groups = "drop") |> # calculate the average; drop the grouping factor 
-  mutate(mudiff = sqrt(mudiff)*100) 
 
-incl.mu_diff
+(map1<- strata |> subset(Depth_m %in% ">183") |>
+    ggplot() + geom_sf(data = coastline, fill = "grey60", color = "black") + 
+ geom_sf(fill = "#d48a3a", color="black") + ggtitle(">183") +
+ geom_sf_text(aes(label=STRATUM), size=4, color="blue", family="sans"))
 
+(map2<- strata |> subset(Depth_m %in% "110-183") |>
+    ggplot() + geom_sf(data = coastline, fill = "grey60", color = "black") + 
+ geom_sf(fill = "#afdb88", color="black") + ggtitle("110-183") +
+ geom_sf_text(aes(label=STRATUM), size=4, color="blue", family="sans"))
+
+(map3<- strata |> subset(Depth_m %in% "18-27") |>
+    ggplot() + geom_sf(data = coastline, fill = "grey60", color = "black") + 
+ geom_sf(fill = "#21c99b", color="black") + ggtitle("18-27") +
+ geom_sf_text(aes(label=STRATUM), size=2, color="blue", family="sans"))
+
+(map4<- strata |> subset(Depth_m %in% "27-46") |>
+    ggplot() +  geom_sf(data = coastline, fill = "grey60", color = "black") + 
+ geom_sf(fill = "#e2b29b", color="black") + ggtitle("27-46") +
+ geom_sf_text(aes(label=STRATUM), size=4, color="blue", family="sans"))
+
+(map5<- strata |> subset(Depth_m %in% "27-55") |>
+    ggplot() + geom_sf(data = coastline, fill = "grey60", color = "black") + 
+ geom_sf(fill = "#ff6fcf", color="black") + ggtitle("27-55") +
+ geom_sf_text(aes(label=STRATUM), size=4, color="blue", family="sans"))
+
+(map6<- strata |> subset(Depth_m %in% "46-55") |>
+    ggplot() + geom_sf(data = coastline, fill = "grey60", color = "black") + 
+ geom_sf(fill = "#e8f5cc", color="black") + ggtitle("46-55") +
+ geom_sf_text(aes(label=STRATUM), size=4, color="blue", family="sans"))
+
+(map7<- strata |> subset(Depth_m %in% "55-110") |>
+    ggplot() + geom_sf(data = coastline, fill = "grey60", color = "black") + 
+ geom_sf(fill = "#6274db", color="black") + ggtitle("55-110") +
+ geom_sf_text(aes(label=STRATUM), size=4, color="red", family="sans"))
+
+(map8<- strata |> subset(Depth_m %in% "9-27") |>
+    ggplot() + geom_sf(data = coastline, fill = "grey60", color = "black") + 
+ geom_sf(fill = "#80e6e6", color="black") + ggtitle("9-27") +
+ geom_sf_text(aes(label=STRATUM), size=4, color="blue", family="sans"))
+
+(map9<- strata |> subset(Depth_m %in% "9-35") |>
+    ggplot() + geom_sf(data = coastline, fill = "grey60", color = "black") + 
+ geom_sf(fill = "#b0b1fa", color="black") + ggtitle("9-35") +
+ geom_sf_text(aes(label=STRATUM), size=4, color="blue", family="sans"))
+
+
+map10<- strata |>
+ ggplot() + geom_sf(data = coastline, fill = "grey60", color = "black") + 
+ geom_sf(fill = "#ffffcc", color="black")  +
+ geom_sf(data = wind_areas, fill="#ff9966", color="#330000")
+
+map11<- strata |>
+ ggplot() + geom_sf(data = coastline, fill = "grey60", color = "black") + 
+ geom_sf(fill = "#ffffcc", color="black")  +
+ geom_sf(data = wind_areas2, fill="#ccffff", color="#0099cc")
+
+
+
+scup_strata_spring <- right_join(scup_csum_spring, strata, by = "STRATUM") |> # join the filtered data to the strata shapefile; coearces the shapefile into a dataframe 
+  na.omit() |> # remove NAs
+  st_sf()
+
+
+scup_strata_fall <- right_join(scup_csum_fall, strata, by = "STRATUM") |> # join the filtered data to the strata shapefile; coearces the shapefile into a dataframe 
+  na.omit() |> # remove NAs
+  st_sf()
+
+
+
+ggplot(strata) + 
+  geom_sf(aes(fill = as.factor(Depth_m), geometry=Shape)) +  
+  scale_fill_manual(values = c("#d48a3a", "#afdb88", "#21c99b", "#e2b29b", "#ff6fcf","#e8f5cc","#6274db","#80e6e6","#b0b1fa")) +
+   geom_sf(data = subset(strata, STRATUM %in% c(1660,1620)), fill = "red") 
+ # geom_sf_label(aes(label=STRATUM), fun.geometry = sf::st_centroid) +
 
 ```
+
+Add additional strata to the 99 cumulative distribution
+
+strata fall 
+(3450, 1050, 1610, 1090, 3410, 3380, 3020, 3460 ,3050, 3440, 3260, 3350, 8510, 1010, 1060, 3080, 3230, 3320, 3290, 8500, 1650, 1690, 7520, 1100, 3110, 3140, 3170)
+add to fall
+(1020,1740,1700,1730,3200)
+add wind areas overlap
+(1660,1620)
+
+strata spring
+(1020, 1750, 1060, 1030, 3450, 1740, 1760, 1700, 1710, 3020, 1050, 1670, 1690, 1010, 8500)
+add to spring
+(1730, 1650, 1610, 1660, 1620, 8510, 1630, 8520, 1680, 1640, 8530)
+add wind areas overlap
+(3110, 1090,1100,3170,3200,3230,3260,3290)
 
 
 ```{r}
 
+strat_99_fall <- scup_strata_fall |> filter(csum_prop <= 0.99) 
+strat_99_fall$STRATUM
+
+
+#strata fall 
+strata_include_fall <- c(3450, 1050, 1610, 1090, 3410, 3380, 3020, 3460 ,3050, 3440, 3260, 3350, 8510, 1010,
+1060, 3080, 3230, 3320, 3290, 8500, 1650, 1690, 7520, 1100, 3110, 3140, 3170, 1020,1740,1700,1730,3200, 1660,1620
+)
+
+
+scup_stratafilter_fall <- scup_strata_fall |> 
+  subset(STRATUM %in% strata_include_fall)
+
+strat_99_spring <- scup_strata_spring |> filter(csum_prop <= 0.99) 
+strat_99_spring$STRATUM
+
+#strata spring
+strata_include_spring <- c(1020, 1750, 1060, 1030, 3450, 1740, 1760, 1700, 1710, 3020, 1050, 1670, 1690, 1010, 8500, 
+1730, 1650, 1610, 1660, 1620, 8510, 1630, 8520, 1680, 1640, 8530,3110, 1090,1100,3170,3200,3230,3260,3290)
+
+scup_stratafilter_spring <- scup_strata_spring |> 
+  subset(STRATUM %in% strata_include_spring) 
+
+
+
+
+
+(scup_strata_in_fall <- ggplot() + 
+    geom_sf(data = strata, fill = "white", color = "grey80") + 
+    geom_sf(data = coastline, fill = "grey60", color = "black") + 
+    geom_sf(data = scup_stratafilter_fall, fill = "#5dc5e9") +
+    geom_sf(data = wind_areas2, fill="#ede04b", color="grey80") +
+    scale_fill_distiller(palette = 8) +
+    coord_sf() +
+    #geom_point(data = x, mapping = aes(DECDEG_BEGLON, DECDEG_BEGLAT, alpha = 0.4), color = "white")
+    labs(title = "Scup strata in \nFall", 
+         x = "Longitude", y = "Latitude", fill = "", 
+         subtitle = "") +
+    theme_bw() + theme(plot.title = element_text(size=10),plot.subtitle = element_text(size=7)) +
+    theme(legend.position = "bottom", 
+          panel.grid = element_blank()))
+
+
+scup_strata_in_spring <- ggplot() + 
+    geom_sf(data = strata, fill = "white", color = "grey80") + 
+    geom_sf(data = coastline, fill = "grey60", color = "black") + 
+    geom_sf(data = scup_stratafilter_spring, fill = "#5dc5e9") +
+    geom_sf(data = wind_areas2, fill="#ede04b", color="grey80") +
+    scale_fill_distiller(palette = 8) +
+    coord_sf() +
+    #geom_point(data = x, mapping = aes(DECDEG_BEGLON, DECDEG_BEGLAT, alpha = 0.4), color = "white")
+    labs(title = "Scup strata in \nSpring", 
+         x = "Longitude", y = "Latitude", fill = "", 
+         subtitle = "") +
+    theme_bw() + theme(plot.title = element_text(size=10),plot.subtitle = element_text(size=7)) +
+    theme(legend.position = "bottom", 
+          panel.grid = element_blank())
+
+grid.arrange(scup_strata_in_spring,scup_strata_in_fall,ncol=2)
+
+
+
+```
+Data
+```{r}
+unique(scup_complete$STRATUM)
+strata_include_fall <- c(3450,1050,1610,1090,3410,3380,3020,3460,3050,3440,3260,3350,8510,1010,1060,3080,3230, 3320,3290,8500,1650,1690,7520,1100,3110,3140,3170,1020,1740,1700,1730,3200,1660,1620)
+
+strata_include_spring <- c(1020, 1750, 1060, 1030, 3450, 1740, 1760, 1700, 1710, 3020, 1050, 1670, 1690, 1010, 8500,1730, 1650, 1610, 1660, 1620, 8510, 1630, 8520, 1680, 1640, 8530,3110, 1090,1100,3170,3200,3230,3260,3290)
+
+### filter specific strata ####
+
+scup_fall <- scup_complete |>
+  filter(SEASON == "FALL",
+         STRATUM %in% strata_include_fall)
+
+scup_spring <- scup_complete |>
+  filter(SEASON == "SPRING",
+         STRATUM %in% strata_include_spring)
+
+na <- filter(scup_fall, is.na(AVGDEPTH)) # check for any na values
+scup_fall <- scup_fall |> filter(!is.na(AVGDEPTH))
+na <- filter(scup_spring, is.na(AVGDEPTH)) # check for any na values
+scup_spring <- scup_spring |> filter(!is.na(AVGDEPTH))
+
+
+scup_fall$ID <- seq.int(nrow(scup_fall))
+scup_spring$ID <- seq.int(nrow(scup_spring))
+
+```
+
+```{r}
+dist_fall <- ggplot(strata) + 
+  geom_sf() +  
+  geom_sf(data = scup_stratafilter_fall, fill = "lightcyan") +
+  geom_sf(data = wind_areas, fill="darkblue", color="grey80") +
+  geom_point(data=scup_fall, aes(x = DECDEG_BEGLON, y = DECDEG_BEGLAT), 
+             color = "firebrick2", shape = 20, alpha=0.2) +   scale_size(range = c(.1,10)) +
+  labs(title = "Fall distribution", x = "Long", y = "Lat")
+ #geom_sf(data = subset(strata, STRATUM %in% c(3200)), fill = "red") 
+
+
+dist_spring <- ggplot(strata) + 
+  geom_sf() +  
+  geom_sf(data = scup_stratafilter_spring, fill = "lightcyan") +
+  geom_sf(data = wind_areas, fill="darkblue", color="grey80") +
+  geom_point(data=scup_spring, aes(x = DECDEG_BEGLON, y = DECDEG_BEGLAT), 
+             color = "firebrick2", shape = 20, alpha=0.2) +   scale_size(range = c(.1,10)) +
+   labs(title = "Spring distribution", x = "Long", y = "Lat")
+ #geom_sf(data = subset(strata, STRATUM %in% c(3200)), fill = "red") 
+ 
+
+grid.arrange(dist_fall,dist_spring,ncol=2)
+```
+```{r}
+dist_wt_fall <- ggplot(strata) + 
+  geom_sf() +  
+  geom_point(data=scup_fall, aes(x = DECDEG_BEGLON, y = DECDEG_BEGLAT, size=EXPCATCHWT), 
+             color = "firebrick3", shape = 20, alpha=0.3) +   scale_size(range = c(.1,10)) +
+  labs(title = "Fall distribution of catches (kg)", x = "Long", y = "Lat")
+ #geom_sf(data = subset(strata, STRATUM %in% c(3200)), fill = "red") 
+
+
+dist_wt_spring <- ggplot(strata) + 
+  geom_sf() +  
+  geom_point(data=scup_spring, aes(x = DECDEG_BEGLON, y = DECDEG_BEGLAT, size=EXPCATCHWT), 
+             color = "firebrick3", shape = 20, alpha=0.5) +   scale_size(range = c(.1,10)) +
+   labs(title = "Spring distribution of catches (kg)", x = "Long", y = "Lat")
+ #geom_sf(data = subset(strata, STRATUM %in% c(3200)), fill = "red") 
+ 
+
+grid.arrange(dist_wt_fall,dist_wt_spring,ncol=2)
+```
+```{r}
+dist_num_fall <- ggplot(strata) + 
+  geom_sf() +  
+  geom_point(data=scup_fall, aes(x = DECDEG_BEGLON, y = DECDEG_BEGLAT, size=EXPCATCHNUM), 
+             color = "coral", shape = 20, alpha=0.3) +   scale_size(range = c(.1,10)) +
+  labs(title = "Fall distribution of catches (num)", x = "Long", y = "Lat")
+ #geom_sf(data = subset(strata, STRATUM %in% c(3200)), fill = "red") 
+
+
+dist_num_spring <- ggplot(strata) + 
+  geom_sf() +  
+  geom_point(data=scup_spring, aes(x = DECDEG_BEGLON, y = DECDEG_BEGLAT, size=EXPCATCHNUM), 
+             color = "coral", shape = 20, alpha=0.5) +   scale_size(range = c(.1,10)) +
+   labs(title = "Spring distribution of catches (num)", x = "Long", y = "Lat")
+ #geom_sf(data = subset(strata, STRATUM %in% c(3200)), fill = "red") 
+ 
+
+grid.arrange(dist_num_fall,dist_num_spring,ncol=2)
+```
+
+```{r}
+plot_wt_fall <- scup_fall |>
+  ggplot(aes(x=AVGDEPTH, y=EXPCATCHWT)) +
+  geom_jitter(position=position_jitter(width=0.1, height=0.2), aes(), 
+              show.legend = FALSE, alpha=0.9) +
+  theme(strip.text.x = element_text(size=9, color="black", face="bold"), 
+        axis.text.x = element_text(angle = 90)) +
+  labs(title="Fall", subtitle = "(a)",
+         x = "Temp",
+         y = "Catch (kg)")
+
+plot_wt_spring <- scup_spring |>
+  ggplot(aes(x=AVGDEPTH, y=EXPCATCHWT)) +
+  geom_jitter(position=position_jitter(width=0.1, height=0.2), aes(), 
+              show.legend = FALSE, alpha=0.9) +
+  theme(strip.text.x = element_text(size=9, color="black", face="bold"), 
+        axis.text.x = element_text(angle = 90)) +
+  labs(title="Spring", subtitle = "(b)",
+         x = "Temp",
+         y = "Catch (kg)")
+
+grid.arrange(plot_wt_fall,plot_wt_spring, ncol=2)
 ```
 
 
+Catch in number
+```{r}
+
+plot_num_fall <- scup_fall |>
+  ggplot(aes(x=AVGDEPTH, y=EXPCATCHNUM)) +
+  geom_jitter(position=position_jitter(width=0.1, height=0.2), aes(), 
+              show.legend = FALSE, alpha=0.9) +
+    geom_smooth(aes(x=AVGDEPTH, y=EXPCATCHNUM)) +
+  theme(strip.text.x = element_text(size=9, color="black", face="bold"), 
+        axis.text.x = element_text(angle = 90)) +
+  labs(title="Fall", subtitle = "(a)",
+         x = "Depth",
+         y = "Catch (num)")
+
+plot_num_spring <- scup_spring |>
+  ggplot(aes(x=AVGDEPTH, y=EXPCATCHNUM)) +
+  geom_jitter(position=position_jitter(width=0.1, height=0.2), aes(), 
+              show.legend = FALSE, alpha=0.9) +
+  geom_smooth(aes(x=AVGDEPTH, y=EXPCATCHNUM)) +
+  theme(strip.text.x = element_text(size=9, color="black", face="bold"), 
+        axis.text.x = element_text(angle = 90)) +
+  labs(title="Spring", subtitle = "(b)",
+         x = "Depth",
+         y = "Catch (num)")
+
+grid.arrange(plot_num_fall,plot_num_spring, ncol=2)
+```
+Catch in weight
+```{r}
+plot_wt_fall <- scup_fall |>
+  ggplot(aes(x=AVGDEPTH, y=EXPCATCHWT)) +
+  geom_jitter(position=position_jitter(width=0.1, height=0.2), aes(), 
+              show.legend = FALSE, alpha=0.9) +
+    geom_smooth(aes(x=AVGDEPTH, y=EXPCATCHWT)) +
+  theme(strip.text.x = element_text(size=9, color="black", face="bold"), 
+        axis.text.x = element_text(angle = 90)) +
+  labs(title="Fall", subtitle = "(a)",
+         x = "Depth",
+         y = "Catch (weight)")
+
+plot_wt_spring <- scup_spring |>
+  ggplot(aes(x=AVGDEPTH, y=EXPCATCHWT)) +
+  geom_jitter(position=position_jitter(width=0.1, height=0.2), aes(), 
+              show.legend = FALSE, alpha=0.9) +
+  geom_smooth(aes(x=AVGDEPTH, y=EXPCATCHWT)) +
+  theme(strip.text.x = element_text(size=9, color="black", face="bold"), 
+        axis.text.x = element_text(angle = 90)) +
+  labs(title="Spring", subtitle = "(b)",
+         x = "Depth",
+         y = "Catch (weight)")
+
+grid.arrange(plot_wt_fall,plot_wt_spring, ncol=2)
+  
+
+```
+Remove outliers
+
+```{r}
+
+scup_fall <- scup_fall |>
+  filter(AVGDEPTH <= 150,
+         ID != 314) #depth 104m and catch num 19491
+
+```
+
+```{r}
+fall_dist_hist <- ggplot(scup_fall, aes(EXPCATCHNUM)) + geom_histogram(bins = 100)  + xlim(NA,100) + ggtitle("Fall")
+
+spr_dist_hist <- ggplot(scup_spring, aes(EXPCATCHNUM)) + geom_histogram(bins = 100)  + xlim(NA,100) + ggtitle("Spring")
+
+grid.arrange(fall_dist_hist,spr_dist_hist, ncol=2)
+
+```
+
+Distribution of all the variables - FALL
+```{r}
+mean.data.yr.f <- scup_fall |> 
+        group_by(YEAR) |>
+        summarise(mean.catch_n = round(mean(EXPCATCHNUM), digits = 2)) 
+
+Year.f <- mean.data.yr.f |>
+  ggplot(aes(x=YEAR, y=mean.catch_n)) +
+  geom_point(alpha = 0.9, show.legend = FALSE) +
+  geom_smooth(method = "gam", formula = y~s(x, k=9))
 
 
+lat.f <- scup_fall |>
+  ggplot(aes(x=DECDEG_BEGLAT, y=EXPCATCHNUM)) +
+  geom_point(alpha = 0.9, show.legend = FALSE) +
+  geom_smooth(method = "gam", formula = y~s(x, k=9))
+
+lon.f <- scup_fall |>
+  ggplot(aes(x=DECDEG_BEGLON, y=EXPCATCHNUM)) +
+  geom_point(alpha = 0.9, show.legend = FALSE) +
+  geom_smooth(method = "gam", formula = y~s(x, k=9))
+
+
+
+Depth.f <- scup_fall |>
+  ggplot(aes(x=AVGDEPTH, y=EXPCATCHNUM)) +
+  geom_point(alpha = 0.9, show.legend = FALSE) +
+  geom_smooth(method = "gam", formula = y~s(x, k=9))
+
+
+library(patchwork)
+(Year.f + Depth.f + lat.f + lon.f) + plot_layout(ncol = 2, widths = c(1,1), guides = "collect")
+
+
+```
+
+Distribution of all the variables - SPRING
+```{r}
+mean.data.yr.s <- scup_spring |> 
+        group_by(YEAR) |>
+        summarise(mean.catch_n = round(mean(EXPCATCHNUM), digits = 2)) 
+
+Year.s <- mean.data.yr.s |>
+  ggplot(aes(x=YEAR, y=mean.catch_n)) +
+  geom_point(alpha = 0.9, show.legend = FALSE) +
+  geom_smooth(method = "gam", formula = y~s(x, k=9))
+
+
+lat.s <- scup_spring |>
+  ggplot(aes(x=DECDEG_BEGLAT, y=EXPCATCHNUM)) +
+  geom_point(alpha = 0.9, show.legend = FALSE) +
+  geom_smooth(method = "gam", formula = y~s(x, k=9))
+
+
+lon.s <- scup_spring |>
+  ggplot(aes(x=DECDEG_BEGLON, y=EXPCATCHNUM)) +
+  geom_point(alpha = 0.9, show.legend = FALSE) +
+  geom_smooth(method = "gam", formula = y~s(x, k=9))
+
+
+Depth.s <- scup_spring |>
+  ggplot(aes(x=AVGDEPTH, y=EXPCATCHNUM)) +
+  geom_point(alpha = 0.9, show.legend = FALSE) +
+  geom_smooth(method = "gam", formula = y~s(x, k=9))
+
+
+library(patchwork)
+(Year.s + Depth.s + lat.s + lon.s) + plot_layout(ncol = 2, widths = c(1,1), guides = "collect")
+
+```
+
+
+```{r}
+data.yr.f <- scup_fall |> 
+        group_by(YEAR) |>
+        summarise(mean.catch_n = round(mean(EXPCATCHNUM), digits = 2),
+                  var.catch_n = round(var(EXPCATCHNUM), digits = 2)) 
+
+
+
+```
+
+```{r}
+
+(strata.overlap <- ggplot() + 
+    geom_sf(data = strata, fill = "white", color = "grey80") + 
+    geom_sf(data = coastline, fill = "grey60", color = "black") + 
+    geom_sf(data = wind_areas1, fill="navyblue", color="grey80", alpha=0.5) +
+    geom_sf(data = subset(strata, STRATUM %in% c(3200)), fill = "firebrick2", alpha=0.4) +
+    coord_sf() + 
+    labs(title = "", x = "Longitude", y = "Latitude", fill = "") +
+    theme_bw() + theme(plot.title = element_text(size=10),plot.subtitle = element_text(size=7)) +
+    theme(legend.position = "bottom", panel.grid = element_blank()))
+```
+
+```{r}
+
+(so.zoom.in <- ggplot() + 
+    geom_sf(data = strata, fill = "white", color = "grey80") + 
+    geom_sf(data = coastline, fill = "grey60", color = "black") + 
+    geom_sf(data = wind_areas2, fill="navyblue", color="grey80", alpha=0.5) +
+    geom_sf(data = subset(strata, STRATUM %in% c(3200)), fill = "firebrick2", alpha=0.4) +
+    coord_sf(xlim = c(-73,-75), ylim=c(38,40), expand = FALSE) + 
+    labs(title = "", x = "Longitude", y = "Latitude", fill = "") +
+    theme_bw() + theme(plot.title = element_text(size=10),plot.subtitle = element_text(size=7)) +
+    theme(legend.position = "bottom", panel.grid = element_blank()))
+```
+
+
+```{r}
+strata |> filter(STRATUM == 3200)
+
+```
