@@ -88,14 +88,16 @@ Select locations and predictions from one year of past data to simulate values o
 set.seed(1211)
 year <- sample(unique(sf_fall$EST_YEAR), size = 1)
 # saveRDS(year, here(sim.check, "resample_year.rds"))
+set.seed(131)
 resample <- mod_preds |>
   # mutate(EST_YEAR = YEAR) |>
   filter(EST_YEAR == year) |> 
-  select(X, Y, STATION, STRATUM, CRUISE6, AVGDEPTH, EST_YEAR, AREA, omega_s) |> 
+  select(X, Y, STATION, STRATUM, CRUISE6, AVGDEPTH, EST_YEAR, AREA, omega_s, est, est_non_rf) |> 
   mutate(EST_YEAR = 1) |>
-  rename(fix_omegas = omega_s)
-# saveRDS(resample, here(sim.check, "resampled_data.rds"))
-head(resample)
+  rename(fix_omegas = omega_s) |> 
+  slice_sample(n = 5, replace = FALSE)
+# saveRDS(resample, here(sim.check, "resampled_data.rds")) 
+resample
 
 mesh <- make_mesh(resample, xy_cols = c("X", "Y"), cutoff = 10, seed = 42)
 # saveRDS(mesh, here(sim.check, "fall_mesh.rds"))
@@ -130,8 +132,9 @@ simdat1
 ```
 * result: fix_omegas and eta match. Can add next coefficient. 
 
-Add in a variable and its coeffcient 
+Test effect of area coefficient
 ```{r sim2}
+b <- c(0, coefs$estimate[14], 1)
 simdat2 <- sdmTMB_simulate(
     formula = ~1 +
       #poly(AVGDEPTH, 2, coefs = fall_depth_coefs) +
@@ -144,7 +147,7 @@ simdat2 <- sdmTMB_simulate(
     #spatial = "on",
     time = "EST_YEAR",
     #spatiotemporal = "iid",
-    B = c(0, 0.7, 1), # added wind coefficient
+    B = b, # added wind coefficient
     range = 0.5, 
     sigma_O = 0,
     sigma_E = 0, 
@@ -155,14 +158,17 @@ simdat2
 
 # saveRDS(simdat2, here(sim.check, "simdat2.rds"))
 ```
+* manually calculating `eta` based on the linear predictor formula and its coefficients 
 
-Add in 
+
+Test effect of depth coefficients 
 ```{r sim3}
+b <- c(0, coefs$estimate[1:2], 1)
 simdat3 <- sdmTMB_simulate(
     formula = ~1 +
-      #poly(AVGDEPTH, 2, coefs = fall_depth_coefs) +
+      poly(AVGDEPTH, 2, coefs = fall_depth_coefs) +
       #EST_YEAR +
-      as.factor(AREA) +
+      #as.factor(AREA) +
       fix_omegas,
     data = resample,
     mesh = mesh,
@@ -170,8 +176,8 @@ simdat3 <- sdmTMB_simulate(
     #spatial = "on",
     time = "EST_YEAR",
     #spatiotemporal = "iid",
-    B = c(0, 0.7, 1), 
-    range = ran_pars$estimate[1], # added range parameter
+    B = b, # added wind coefficient
+    range = 0.5, 
     sigma_O = 0,
     sigma_E = 0, 
     phi = 0.1, 
@@ -179,17 +185,17 @@ simdat3 <- sdmTMB_simulate(
     seed = 2)
 simdat3
 
-# saveRDS(simdat3, here(sim.check, "simdat3.rds"))
-
+# saveRDS(simdat2, here(sim.check, "simdat2.rds"))
 ```
 
-
+Test effect of year coefficient
 ```{r sim4}
+b <- c(0, coefs$estimate[10], 1)
 simdat4 <- sdmTMB_simulate(
     formula = ~1 +
       #poly(AVGDEPTH, 2, coefs = fall_depth_coefs) +
-      #EST_YEAR +
-      as.factor(AREA) +
+      EST_YEAR +
+      #as.factor(AREA) +
       fix_omegas,
     data = resample,
     mesh = mesh,
@@ -197,88 +203,25 @@ simdat4 <- sdmTMB_simulate(
     #spatial = "on",
     time = "EST_YEAR",
     #spatiotemporal = "iid",
-    B = c(0, 0.7, 1), 
-    range = ran_pars$estimate[1], 
+    B = b, # added wind coefficient
+    range = 0.5, 
     sigma_O = 0,
     sigma_E = 0, 
     phi = 0.1, 
-    tweedie_p = ran_pars$estimate[5], #added power parameter
+    tweedie_p = 1.5,
     seed = 2)
 simdat4
 
-# saveRDS(simdat4, here(sim.check, "simdat4.rds"))
-
+# saveRDS(simdat2, here(sim.check, "simdat2.rds"))
 ```
 
-Add in 
-```{r sim5}
+Add in all covariates to linear predictor and their respective coefficients 
+```{r }
+b <- c(0, coefs$estimate[1:2], coefs$estimate[10], coefs$estimate[14],1)
+
 simdat5 <- sdmTMB_simulate(
     formula = ~1 +
-      #poly(AVGDEPTH, 2, coefs = fall_depth_coefs) +
-      #EST_YEAR +
-      as.factor(AREA) +
-      fix_omegas,
-    data = resample,
-    mesh = mesh,
-    family = tweedie(),
-    #spatial = "on",
-    time = "EST_YEAR",
-    #spatiotemporal = "iid",
-    B = c(0, 0.7, 1), 
-    range = ran_pars$estimate[1], 
-    sigma_O = 0,
-    sigma_E = 0, 
-    phi = ran_pars$estimate[2], # added phi parameter
-    tweedie_p = ran_pars$estimate[5],
-    seed = 2)
-simdat5
-
-# saveRDS(simdat5, here(sim.check, "simdat5.rds"))
-```
-
-
-
-Add in 
-```{r sim6}
-b <- c(0, coefs$estimate[10], 0.7, 1) #save coefficients in object
-
-simdat6 <- sdmTMB_simulate(
-    formula = ~1 +
-      #poly(AVGDEPTH, 2, coefs = fall_depth_coefs) +
-      EST_YEAR + # added year coefficient
-      as.factor(AREA) +
-      fix_omegas,
-    data = resample,
-    mesh = mesh,
-    family = tweedie(),
-    #spatial = "on",
-    time = "EST_YEAR",
-    spatiotemporal = "IID",
-    B = b, # call coefficient here with new value added here
-    range = ran_pars$estimate[1], 
-    sigma_O = 0,
-    sigma_E = 0, 
-    phi = ran_pars$estimate[2], 
-    tweedie_p = ran_pars$estimate[5],
-    seed = 2)
-head(simdat6)
-
-# saveRDS(simdat6, here(sim.check, "simdat6.rds"))
-
-simdat6 |>  
-  select(!EST_YEAR) |> 
-  right_join(mod_preds, by = c("X", "Y")) |> 
-  select(X, Y, mu, eta, observed, est, est_non_rf, est_rf, fix_omegas)
-```
-
-
-Here we want `eta` and `est_non_rf` to match in value because we are not simulating random effects 
-```{r sim7}
-b2 <- c(0, coefs$estimate[1:2], coefs$estimate[10], 0.7, 1) # add poly(depth,2) coeficients
-
-simdat7 <- sdmTMB_simulate(
-    formula = ~1 +
-      poly(AVGDEPTH, 2, coefs = fall_depth_coefs) + #add depth to predictor
+      poly(AVGDEPTH, 2, coefs = fall_depth_coefs) +
       EST_YEAR +
       as.factor(AREA) +
       fix_omegas,
@@ -287,20 +230,142 @@ simdat7 <- sdmTMB_simulate(
     family = tweedie(),
     #spatial = "on",
     time = "EST_YEAR",
-    spatiotemporal = "IID",
-    B = b2, 
-    range = ran_pars$estimate[1], 
+    #spatiotemporal = "iid",
+    B = b, 
+    range = 0.5, 
+    sigma_O = 0,
+    sigma_E = 0, 
+    phi = 0.1, 
+    tweedie_p = 1.5,
+    seed = 2)
+simdat5
+resample
+
+# saveRDS(simdat3, here(sim.check, "simdat3.rds"))
+
+```
+
+
+```{r}
+simdat6 <- sdmTMB_simulate(
+    formula = ~1 +
+      poly(AVGDEPTH, 2, coefs = fall_depth_coefs) +
+      EST_YEAR +
+      as.factor(AREA) +
+      fix_omegas,
+    data = resample,
+    mesh = mesh,
+    family = tweedie(),
+    #spatial = "on",
+    time = "EST_YEAR",
+    #spatiotemporal = "IID",
+    B = b, 
+    range = ran_pars$estimate[1], # added range parameter
     sigma_O = 0,
     sigma_E = 0, 
     phi = ran_pars$estimate[2], 
     tweedie_p = ran_pars$estimate[5],
     seed = 2)
-head(simdat7)
+simdat6
 
-simdat7 |> 
-  select(!EST_YEAR) |>
-  right_join(mod_preds, by = c("X", "Y")) |> 
-  select(X, Y, mu, eta, observed, est, est_non_rf, est_rf, fix_omegas)|> head(n = 10)
+simdat6[,-1] |>  
+  right_join(resample, by = c("X", "Y", "EST_YEAR")) |>
+  select(!c(STATION, STRATUM, CRUISE6, AVGDEPTH, AREA, fix_omegas.y)) |> 
+  rename(fix_omegas = fix_omegas.x)
+
+```
+
+Add in 
+```{r}
+# simdat5 <- sdmTMB_simulate(
+#     formula = ~1 +
+#       #poly(AVGDEPTH, 2, coefs = fall_depth_coefs) +
+#       #EST_YEAR +
+#       as.factor(AREA) +
+#       fix_omegas,
+#     data = resample,
+#     mesh = mesh,
+#     family = tweedie(),
+#     #spatial = "on",
+#     time = "EST_YEAR",
+#     #spatiotemporal = "iid",
+#     B = c(0, 0.7, 1), 
+#     range = ran_pars$estimate[1], 
+#     sigma_O = 0,
+#     sigma_E = 0, 
+#     phi = ran_pars$estimate[2], # added phi parameter
+#     tweedie_p = ran_pars$estimate[5],
+#     seed = 2)
+# simdat5
+
+# saveRDS(simdat5, here(sim.check, "simdat5.rds"))
+```
+
+
+
+Add in 
+```{r}
+# b <- c(0, coefs$estimate[10], coefs$estimate[14], 1) #save coefficients in object
+# 
+# simdat6 <- sdmTMB_simulate(
+#     formula = ~1 +
+#       #poly(AVGDEPTH, 2, coefs = fall_depth_coefs) +
+#       EST_YEAR + # added year coefficient
+#       as.factor(AREA) +
+#       fix_omegas,
+#     data = resample,
+#     mesh = mesh,
+#     family = tweedie(),
+#     #spatial = "on",
+#     time = "EST_YEAR",
+#     spatiotemporal = "IID",
+#     B = b, # call coefficient here with new value added here
+#     range = ran_pars$estimate[1], 
+#     sigma_O = 0,
+#     sigma_E = 0, 
+#     phi = ran_pars$estimate[2], 
+#     tweedie_p = ran_pars$estimate[5],
+#     seed = 2)
+# head(simdat6)
+
+# saveRDS(simdat6, here(sim.check, "simdat6.rds"))
+# 
+# simdat6 |>  
+#   select(!EST_YEAR) |> 
+#   right_join(mod_preds, by = c("X", "Y")) |> 
+#   select(X, Y, mu, eta, observed, est, est_non_rf, est_rf, fix_omegas)
+```
+
+
+Here we want `eta` and `est_non_rf` to match in value because we are not simulating random effects 
+```{r}
+# b2 <- c(0, coefs$estimate[1:2], coefs$estimate[10], coefs$estimate[14], 1) # add poly(depth,2) coeficients
+# 
+# simdat7 <- sdmTMB_simulate(
+#     formula = ~1 +
+#       poly(AVGDEPTH, 2, coefs = fall_depth_coefs) + #add depth to predictor
+#       EST_YEAR +
+#       as.factor(AREA) +
+#       fix_omegas,
+#     data = resample,
+#     mesh = mesh,
+#     family = tweedie(),
+#     #spatial = "on",
+#     time = "EST_YEAR",
+#     spatiotemporal = "IID",
+#     B = b2, 
+#     range = ran_pars$estimate[1], 
+#     sigma_O = 0,
+#     sigma_E = 0, 
+#     phi = ran_pars$estimate[2], 
+#     tweedie_p = ran_pars$estimate[5],
+#     seed = 2)
+# head(simdat7)
+# 
+# simdat7 |> 
+#   select(!EST_YEAR) |>
+#   right_join(mod_preds, by = c("X", "Y")) |> 
+#   select(X, Y, mu, eta, observed, est, est_non_rf, est_rf, fix_omegas)|> head(n = 10)
 
 # plot(mod_preds$AVGDEPTH, mod_preds$est_non_rf)
 # plot(resample$AVGDEPTH, simdat7$`poly(AVGDEPTH, 2, coefs = fall_depth_coefs)1`)
