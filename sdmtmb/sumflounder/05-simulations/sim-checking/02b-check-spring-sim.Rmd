@@ -83,12 +83,15 @@ set.seed(1211)
 year <- sample(unique(sf_spring$EST_YEAR), size = 1)
 # saveRDS(year, here(sim.check, "spring_resample_year.rds"))
 set.seed(131)
-resample <- mod_preds |>
+subset_data <- mod_preds |>
   # mutate(EST_YEAR = YEAR) |>
   filter(EST_YEAR == year) |> 
   select(X, Y, STATION, STRATUM, CRUISE6, AVGDEPTH, EST_YEAR, AREA, omega_s, est, est_non_rf) |> 
   mutate(EST_YEAR = 1) |>
-  rename(fix_omegas = omega_s) |> 
+  rename(fix_omegas = omega_s)
+# saveRDS(subset_data, here(sim.check, "spring_subset_data.rds")) 
+
+resample <- subset_data |> 
   slice_sample(n = 5, replace = FALSE)
 # saveRDS(resample, here(sim.check, "spring_resampled_data.rds")) 
 resample

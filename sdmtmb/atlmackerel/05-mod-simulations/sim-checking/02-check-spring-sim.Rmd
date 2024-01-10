@@ -33,10 +33,6 @@ am_mod <- readRDS(here(atlmackerel.dat, "spring_mod.rds"))
 
 Data wrangle
 ```{r data}
-# convert year from factor to numeric
-
-
-
 # pull polynomial coefficients from fall model fit
 x_mat <- poly(am_spring$AVGDEPTH, 4)
 depth_coefs <- attr(x_mat,"coefs")
@@ -88,12 +84,15 @@ set.seed(1211)
 year <- sample(unique(am_spring$EST_YEAR), size = 1)
 # saveRDS(year, here(sim.check, "resample_year.rds"))
 set.seed(168)
-resample <- mod_preds |>
+subset_data <- mod_preds |>
   # mutate(EST_YEAR = YEAR) |>
   filter(EST_YEAR == year) |> 
   select(X, Y, STATION, STRATUM, CRUISE6, AVGDEPTH, EST_YEAR, AREA, omega_s, est, est_non_rf) |> 
   mutate(EST_YEAR = 1) |>
-  rename(fix_omegas = omega_s) |> 
+  rename(fix_omegas = omega_s) 
+# saveRDS(subset_data, here(sim.check, "subset_spring-resampled_data.rds")) 
+
+resample <- subset_data |> 
   slice_sample(n = 5, replace = FALSE)
 # saveRDS(resample, here(sim.check, "resampled_data.rds")) 
 resample

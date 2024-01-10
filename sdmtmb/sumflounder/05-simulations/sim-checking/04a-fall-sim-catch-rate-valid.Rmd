@@ -1,0 +1,238 @@
+---
+title: "Validate fall summer flounder catch rates"
+author: "Angelia Miller"
+date: "2024-01-10"
+output: word_document
+---
+
+## Objective 
+* simulate all historical years and 5 replicates of the two treatments and control 
+* plot the distribution of catch rates for each scenario 
+
+```{r load packages}
+# library(stringr)
+# library(sf)
+# library(patchwork)
+library(here)
+suppressPackageStartupMessages(library(tidyverse))
+library(sdmTMB) 
+source(here("R", "StratMeanFXs_v2.R"))
+
+sumflounder.dat <- here("sdmtmb", "sumflounder", "data")
+sim.check <- here("sdmtmb", "sumflounder", "data", "simulations", "sim-checking")
+sim.check.plots <- here("sdmtmb", "sumflounder", "plots", "simulations", "sim-checking")
+```
+
+```{r load data}
+# model fitting data 
+# sf_fall <- readRDS(here(sumflounder.dat, "sumflounder_fall.rds"))
+
+# model fitting mesh 
+#mesh <- readRDS(here(sumflounder.dat, "fall_mesh.rds"))
+
+# polynomial coefficients from fall model fit extracted in "02a-check-fall-sim.Rmd"
+fall_depth_coefs <- readRDS(here(sim.check, "fall_depth_coefs.rds"))
+
+# fall summer flounder model 
+fall_mod <- readRDS(here(sumflounder.dat, "fall_mod.rds"))
+
+# fall model predictions 
+fall_preds <- readRDS(here(sumflounder.dat, "fall_mod_preds.rds")) |> 
+  select(X, Y, STATION, CRUISE6, STRATUM, omega_s) |> 
+  rename(fix_omegas = omega_s)
+
+
+```
+
+
+```{r data wrangle}
+sf_fall <- sf_fall |> 
+  left_join(fall_preds, by = c("X", "Y", "STATION", "STRATUM", "CRUISE6"))
+
+sf_fall_info <- sf_fall |>
+  select(X, Y, EST_YEAR, STRATUM, CRUISE6, STATION, AREA, AREA_CODE, SEASON)
+
+# mesh for simulating
+mesh <- make_mesh(sf_fall, xy_cols = c("X", "Y"), cutoff = 10)
+
+# pull main effect parameters from fall model fit
+fall_coefs <- tidy(fall_mod) 
+
+# pull random effect parameters from fall model fit
+fall_ran_pars <- tidy(fall_mod, "ran_pars")
+
+
+fall_coefs
+fall_ran_pars
+
+```
+
+
+## Simulate Scenarios 
+### Base 
+```{r sim base}
+b <- c(0, fall_coefs$estimate[1:2], fall_coefs$estimate[14], 1)
+b <- c(fall_coefs$estimate, 1)
+
+base.sim.num <- vector(mode = "list", length = 5)
+set.seed(131)
+seed.num <- round(rnorm(5, mean = 1000, sd = 120), 0)
+#base.sim.seed <- map2(base.sim.num, seed.num, ~as.numeric(paste(.y)))
+fall.base <- map2(base.sim.num, seed.num, ~sdmTMB_simulate(
+    formula = ~poly(AVGDEPTH, 2, coefs = fall_depth_coefs) +
+      as.factor(EST_YEAR) +
+      as.factor(AREA) +
+      fix_omegas - 1,
+    data = sf_fall,
+    mesh = mesh,
+    family = tweedie(),
+    #spatial = "on",
+    time = "EST_YEAR",
+    spatiotemporal = "IID",
+    B = b,
+    range = fall_ran_pars$estimate[1], 
+    sigma_O = 0,
+    sigma_E = fall_ran_pars$estimate[4],
+    phi = fall_ran_pars$estimate[2],
+    tweedie_p = fall_ran_pars$estimate[5],
+    seed = .y)
+)
+
+#head(fall.base)
+# saveRDS(fall.base, here(sim.check, "fall_base-5sims.rds"))
+
+
+```
+
+### Enhanced
+```{r sim increase}
+b <- c(fall_coefs$estimate[1:13], (fall_coefs$estimate[14]+log(2)), 1)
+
+inc.sim.num <- vector(mode = "list", length = 5)
+
+fall.inc <- map2(inc.sim.num, seed.num, ~sdmTMB_simulate(
+    formula = ~poly(AVGDEPTH, 2, coefs = fall_depth_coefs) +
+      as.factor(EST_YEAR) +
+      as.factor(AREA) +
+      fix_omegas - 1,
+    data = sf_fall,
+    mesh = mesh,
+    family = tweedie(),
+    #spatial = "on",
+    time = "EST_YEAR",
+    spatiotemporal = "IID",
+    B = b,
+    range = fall_ran_pars$estimate[1], # added range parameter
+    sigma_O = 0,
+    sigma_E = fall_ran_pars$estimate[4],
+    phi = fall_ran_pars$estimate[2],
+    tweedie_p = fall_ran_pars$estimate[5],
+    seed = .y)
+)
+
+head(fall.inc)
+# saveRDS(fall.inc, here(sim.check, "fall_inc-5sim.rds"))
+```
+
+### Reduced
+```{r sim decrease}
+b <- c(fall_coefs$estimate[1:13], (fall_coefs$estimate[14]-log(2)), 1)
+
+#dec.sim.num <- vector(mode = "list", length = 5)
+
+fall.dec <- map2(1:5, seed.num, ~sdmTMB_simulate(
+    formula = ~poly(AVGDEPTH, 2, coefs = fall_depth_coefs) +
+      as.factor(EST_YEAR) +
+      as.factor(AREA) +
+      fix_omegas - 1,
+    data = sf_fall,
+    mesh = mesh,
+    family = tweedie(),
+    #spatial = "on",
+    time = "EST_YEAR",
+    spatiotemporal = "IID",
+    B = b,
+    range = fall_ran_pars$estimate[1], # added range parameter
+    sigma_O = 0,
+    sigma_E = fall_ran_pars$estimate[4],
+    phi = fall_ran_pars$estimate[2],
+    tweedie_p = fall_ran_pars$estimate[5],
+    seed = .y)
+)
+
+head(fall.dec)
+# saveRDS(fall.dec, here(sim.check, "fall_dec-5sim.rds"))
+```
+
+## Filter replicates based on wind-impacted strata
+```{r}
+set.seed(145)
+wind_strat <- fall.base[[1]] |> 
+  left_join(sf_fall_info, by = c("X", "Y", "EST_YEAR")) |> 
+  filter(AREA == "WIND") |> 
+  distinct(STRATUM) |> 
+  slice_sample(n = 1)
+
+fall.base.1strat <- map(fall.base, ~left_join(.x, sf_fall_info, by = c("X", "Y", "EST_YEAR")) |> 
+  filter(STRATUM == wind_strat$STRATUM) |> 
+  select(X, Y, EST_YEAR, observed, STRATUM, CRUISE6, STATION, AREA, AREA_CODE, SEASON))
+
+fall.inc.1strat <- map(fall.inc, ~left_join(.x, sf_fall_info, by = c("X", "Y", "EST_YEAR")) |> 
+  filter(STRATUM == wind_strat$STRATUM) |> 
+  select(X, Y, EST_YEAR, observed, STRATUM, CRUISE6, STATION, AREA, AREA_CODE, SEASON))
+
+
+fall.dec.1strat <- map(fall.dec, ~left_join(.x, sf_fall_info, by = c("X", "Y", "EST_YEAR")) |> 
+  filter(STRATUM == wind_strat$STRATUM) |> 
+  select(X, Y, EST_YEAR, observed, STRATUM, CRUISE6, STATION, AREA, AREA_CODE, SEASON))
+
+# saveRDS(fall.base.1strat, here(sim.check, "fall_base-5sim-1strat.rds"))
+# saveRDS(fall.inc.1strat, here(sim.check, "fall_inc-5sim-1strat.rds"))
+# saveRDS(fall.dec.1strat, here(sim.check, "fall_dec-5sim-1strat.rds"))
+```
+
+## Plot simulated catch rates 
+```{r}
+# create one large dataframe
+fall.base.df <- map2_dfr(fall.base.1strat, 1:5, ~mutate(.x, sim = .y)) |> 
+  mutate(SCENARIO = "Control")
+fall.inc.df <- map2_dfr(fall.inc.1strat, 1:5, ~mutate(.x, sim = .y)) |> 
+  mutate(SCENARIO = "Increase")
+fall.dec.df <- map2_dfr(fall.dec.1strat, 1:5, ~mutate(.x, sim = .y)) |> 
+  mutate(SCENARIO = "Decrease")
+
+fall.scenarios <- bind_rows(fall.base.df, fall.inc.df, fall.dec.df)
+
+```
+
+
+```{r}
+ggplot(fall.scenarios |> filter(observed >0, AREA == "WIND")) + 
+  geom_histogram(aes(x = observed)) + 
+  facet_grid(cols = vars(AREA), rows = vars(SCENARIO)) +
+  labs(x = "Biomass (kg/tow)", y = "Frequency of biomass observation", 
+       title = "Catch rates of fall summer flounder biomass in wind energy areas",
+       subtitle = "Biomass catch rates were simulated 5 times for each wind-driven scenario and \nrepresent tows occurring in strata 1650 (a wind-impacted strata)") + 
+  theme_bw()
+
+# ggsave("sumflounder_fall-5sim-wind-catch-rates.png", device = "png", last_plot(), here(sim.check.plots), width = 8, height = 6)
+
+```
+
+### Mean catch rate 
+```{r}
+# fall.scenarios |>
+#   group_by(sim, SCENARIO, EST_YEAR, AREA) |>
+#   summarise(mu = mean(observed)) |>
+#   filter(AREA == "WIND") |>
+#   ggplot() +
+#   geom_histogram(aes(x = mu, fill= SCENARIO))+
+#   #geom_boxplot(aes(x = as.factor(sim), y = mu, color= SCENARIO)) +
+#   labs(x = "Year", y = "Frequency of mean catch rate occurrence", subtitle = "Distribution of mean catch rates")+
+#   facet_grid(cols = vars(AREA), rows = vars(SCENARIO)) 
+#   #ylim(0,5)
+```
+
+
+
+

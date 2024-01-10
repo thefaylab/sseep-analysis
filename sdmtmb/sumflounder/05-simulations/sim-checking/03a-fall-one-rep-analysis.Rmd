@@ -1,0 +1,359 @@
+---
+title: "Summer flounder one rep analysis"
+author: "Angelia Miller"
+date: "2024-01-04"
+output: word_document
+---
+
+## Objective 
+* simulate 1 year and replicate of the two treatments and control 
+* calculate the stratified mean for that year and replicate 
+* calculate the linear regression for that year and replicate 
+
+```{r load packages}
+# library(stringr)
+# library(sf)
+# library(patchwork)
+library(here)
+suppressPackageStartupMessages(library(tidyverse))
+library(sdmTMB) 
+source(here("R", "StratMeanFXs_v2.R"))
+
+sumflounder.dat <- here("sdmtmb", "sumflounder", "data")
+sim.check <- here("sdmtmb", "sumflounder", "data", "simulations", "sim-checking")
+sim.check.plots <- here("sdmtmb", "sumflounder", "plots", "simulations", "sim-checking")
+```
+
+```{r load data}
+# fall summer flounder model 
+fall_mod <- readRDS(here(sumflounder.dat, "fall_mod.rds"))
+
+# polynomial coefficients from fall model fit extracted in "02a-check-fall-sim.Rmd"
+fall_depth_coefs <- readRDS(here(sim.check, "fall_depth_coefs.rds"))
+
+# a small subset of fall data created in "02a-check-fall-sim.Rmd"
+fall_subset <- readRDS(here(sim.check, "fall_subset_data.rds")) 
+
+# the year that was used to subset the data in "02a-check-fall-sim.Rmd"
+year <- readRDS(here(sim.check, "fall_resample_year.rds"))
+
+# mesh for the sampled subsetted dataframe 
+mesh <- make_mesh(fall_subset, xy_cols = c("X", "Y"), cutoff = 10)
+fall_subset
+plot(mesh)
+```
+
+```{r data wrangle}
+# pull main effect parameters from fall model fit
+fall_coefs <- tidy(fall_mod) 
+
+# pull random effect parameters from fall model fit
+fall_ran_pars <- tidy(fall_mod, "ran_pars")
+
+
+fall_coefs
+fall_ran_pars
+
+```
+
+```{r }
+# fall_pred_df <- fall_preds |> 
+#   select(X, Y, EST_YEAR, fixed_omega, AREA, AVGDEPTH)
+# spring_pred_df <- spring_preds |> 
+#   select(X, Y, EST_YEAR, fixed_omega, AREA, AVGDEPTH)
+# 
+# 
+# # set.seed(1221)
+# # resampled_fall <- sample(unique(fall_moddat$EST_YEAR), size = 1, replace = F)
+# # resampled_spr <- sample(unique(spr_moddat$EST_YEAR), size = 1, replace = F)
+# # 
+# # 
+# # filtered_fall <- fall_preds |> 
+# #     filter(EST_YEAR == resampled_fall) |> 
+# #     rename(fixed_omega = omega_s)
+# #     #mutate(EST_YEAR = future_years[t])
+# # filtered_spr <- spring_preds |> 
+# #   filter(EST_YEAR == resampled_spr) |> 
+# #   rename(fixed_omega = omega_s)
+# 
+# extract station info for binding to simulated data later
+fall_towdat <- fall_subset |> #filtered_fall|>
+  select(!c(fix_omegas, est, est_non_rf)) |> 
+  mutate(SVSPP = 103, 
+         EST_YEAR = 2016)
+
+# 
+# # create mesh of filtered data locations 
+# fall_mesh <- make_mesh(fall_pred_df, #filtered_fall, 
+#                        xy_cols = c("X", "Y"), cutoff = 10)
+# spring_mesh <- make_mesh(spring_pred_df, #filtered_spr, 
+#                          xy_cols = c("X", "Y"), cutoff = 10)
+# 
+# 
+# # plot each mesh
+# plot(fall_mesh)
+# plot(spring_mesh)
+
+```
+
+## Simulate scenarios 
+
+### Base
+```{r sim base}
+# fall
+b <- c(0, fall_coefs$estimate[1:2], fall_coefs$estimate[10], fall_coefs$estimate[14], 1)
+
+fall.base <- sdmTMB_simulate(
+    formula = ~1 +
+      poly(AVGDEPTH, 2, coefs = fall_depth_coefs) +
+      EST_YEAR +
+      as.factor(AREA) +
+      fix_omegas,
+    data = fall_subset,
+    mesh = mesh,
+    family = tweedie(),
+    #spatial = "on",
+    time = "EST_YEAR",
+    spatiotemporal = "IID",
+    B = b,
+    range = fall_ran_pars$estimate[1], # added range parameter
+    sigma_O = 0,
+    sigma_E = fall_ran_pars$estimate[4],
+    phi = fall_ran_pars$estimate[2],
+    tweedie_p = fall_ran_pars$estimate[5],
+    seed = 2)
+
+head(fall.base)
+# saveRDS(fall.base, here(sim.check, "fall_base-sim.rds"))
+```
+
+```{r}
+names <- c(names(fall.base[1:7]), "Intercept", "depth_1", "depth_2", "year_covar", "wind_covar",names(fall.base[13]))
+names(fall.base) <- names
+
+fall.base |> filter(wind_covar == 1) |> head(n = 5)
+```
+
+
+### Enhanced
+```{r sim enhanced}
+b <- c(0, fall_coefs$estimate[1:2], fall_coefs$estimate[10], (fall_coefs$estimate[14]+log(2)), 1)
+
+fall.inc <- sdmTMB_simulate(
+    formula = ~1 +
+      poly(AVGDEPTH, 2, coefs = fall_depth_coefs) +
+      EST_YEAR +
+      as.factor(AREA) +
+      fix_omegas,
+    data = fall_subset,
+    mesh = mesh,
+    family = tweedie(),
+    #spatial = "on",
+    time = "EST_YEAR",
+    spatiotemporal = "IID",
+    B = b,
+    range = fall_ran_pars$estimate[1], # added range parameter
+    sigma_O = 0,
+    sigma_E = fall_ran_pars$estimate[4],
+    phi = fall_ran_pars$estimate[2],
+    tweedie_p = fall_ran_pars$estimate[5],
+    seed = 2)
+
+head(fall.inc)
+# saveRDS(fall.inc, here(sim.check, "fall_inc-sim.rds"))
+```
+
+```{r}
+names <- c(names(fall.inc[1:7]), "Intercept", "depth_1", "depth_2", "year_covar", "wind_covar",names(fall.inc[13]))
+names(fall.inc) <- names
+
+fall.inc |> filter(wind_covar == 1) |> head(n = 5)
+```
+
+
+### Reduced
+```{r sim reduction}
+b <- c(0, fall_coefs$estimate[1:2], fall_coefs$estimate[10], (fall_coefs$estimate[14]-log(2)), 1)
+
+fall.dec <- sdmTMB_simulate(
+    formula = ~1 +
+      poly(AVGDEPTH, 2, coefs = fall_depth_coefs) +
+      EST_YEAR +
+      as.factor(AREA) +
+      fix_omegas,
+    data = fall_subset,
+    mesh = mesh,
+    family = tweedie(),
+    #spatial = "on",
+    time = "EST_YEAR",
+    spatiotemporal = "IID",
+    B = b,
+    range = fall_ran_pars$estimate[1], # added range parameter
+    sigma_O = 0,
+    sigma_E = fall_ran_pars$estimate[4],
+    phi = fall_ran_pars$estimate[2],
+    tweedie_p = fall_ran_pars$estimate[5],
+    seed = 2)
+
+head(fall.dec)
+# saveRDS(fall.dec, here(sim.check, "fall_dec-sim.rds"))
+```
+
+```{r}
+names <- c(names(fall.dec[1:7]), "Intercept", "depth_1", "depth_2", "year_covar", "wind_covar",names(fall.dec[13]))
+names(fall.dec) <- names
+
+fall.dec |> filter(wind_covar == 1) |> head(n = 5)
+```
+
+## Calculate stratified mean ####
+```{r data prep}
+fall.base.join <- fall.base[,-1] |> 
+  right_join(fall_towdat, by = c("X", "Y")) |> 
+  rename(EXPCATCHWT = observed)
+fall.inc.join <- fall.inc[,-1] |> 
+  right_join(fall_towdat, by = c("X", "Y")) |> 
+  rename(EXPCATCHWT = observed)
+fall.dec.join <- fall.dec[,-1] |> 
+  right_join(fall_towdat, by = c("X", "Y")) |> 
+  rename(EXPCATCHWT = observed)
+
+# sum of survey area
+BTSArea <- sum(strata_wts$Area_SqNm)
+
+```
+
+
+```{r base strat}
+# with wind included 
+fall.base.stratmu.ww <- fall.base.join |> 
+  stratified.mean() |> 
+  mutate(TYPE = "With Wind Included", 
+         SCENARIO = "Baseline")
+
+# with wind precluded
+fall.base.stratmu.wow <- fall.base.join |> 
+  filter(AREA == "OUTSIDE") |>
+  stratified.mean() |> 
+  mutate(TYPE = "With Wind Precluded", 
+         SCENARIO = "Baseline")
+
+fall.base.stratmu <- bind_rows(fall.base.stratmu.ww, fall.base.stratmu.wow)
+
+fall.base.stratmu
+# saveRDS(fall.base.stratmu.ww, here(sim.check, "sumflounder_fall_base-one-sim-stratmu-ww.rds"))
+# saveRDS(fall.base.stratmu.wow, here(sim.check, "sumflounder_fall_base-one-sim-stratmu-wow.rds"))
+# saveRDS(fall.base.stratmu, here(sim.check, "sumflounder_fall_base-one-sim-stratmu.rds"))
+
+```
+
+```{r enhanced strat}
+fall.inc.stratmu.ww <- fall.inc.join |> 
+  stratified.mean() |> 
+  mutate(TYPE = "With Wind Included", 
+         SCENARIO = "Enhanced")
+
+fall.inc.stratmu.wow <- fall.inc.join |> 
+  filter(AREA == "OUTSIDE") |> 
+  stratified.mean() |> 
+  mutate(TYPE = "With Wind Precluded", 
+         SCENARIO = "Enhanced")
+
+fall.inc.stratmu <- bind_rows(fall.inc.stratmu.ww, fall.inc.stratmu.wow)
+
+fall.inc.stratmu
+
+# saveRDS(fall.inc.stratmu.ww, here(sim.check, "sumflounder_fall_inc-one-sim-stratmu-ww.rds"))
+# saveRDS(fall.inc.stratmu.wow, here(sim.check, "sumflounder_fall_inc-one-sim-stratmu-wow.rds"))
+# saveRDS(fall.inc.stratmu, here(sim.check, "sumflounder_fall_inc-one-sim-stratmu.rds"))
+```
+
+```{r reduced strat}
+fall.dec.stratmu.ww <- fall.dec.join |> 
+  stratified.mean() |> 
+  mutate(TYPE = "With Wind Included", 
+         SCENARIO = "Reduced")
+
+fall.dec.stratmu.wow <- fall.dec.join |> 
+  filter(AREA == "OUTSIDE") |> 
+  stratified.mean() |> 
+  mutate(TYPE = "With Wind Precluded", 
+         SCENARIO = "Reduced")
+
+fall.dec.stratmu <- bind_rows(fall.dec.stratmu.ww, fall.dec.stratmu.wow)
+
+fall.dec.stratmu
+
+# saveRDS(fall.dec.stratmu.ww, here(sim.check, "sumflounder_fall_dec-one-sim-stratmu-ww.rds"))
+# saveRDS(fall.dec.stratmu.wow, here(sim.check, "sumflounder_fall_dec-one-sim-stratmu-wow.rds"))
+# saveRDS(fall.dec.stratmu, here(sim.check, "sumflounder_fall_dec-one-sim-stratmu.rds"))
+
+```
+
+```{r}
+all_stratmu <- bind_rows(fall.base.stratmu, fall.inc.stratmu, fall.dec.stratmu)
+
+all_stratmu
+```
+
+## Calculate Mean Squared Difference 
+```{r}
+mudiff_dat <- all_stratmu |> 
+  #mutate(stratmu = ifelse(stratmu==0, 1, stratmu)) |>
+  #filter(EST_YEAR %in% c(2016:2019, 2021)) |> #filter for recent 5 years, skipping 2020
+  #mutate(log_mu = log(stratmu)) |>
+  #arrange(desc(stratmu)) |>
+  group_by(SCENARIO) |> #, 
+  #summarize(sq_diff = (exp(diff(log(stratmu)))-1)^2, .groups = "drop") |>
+  summarise(diff_mu = diff(stratmu)) |>
+  arrange(desc(diff_mu)) |>
+  mutate(exp_mu = (exp(diff_mu))-1) |>
+  arrange(desc(exp_mu)) |>
+  mutate(sq_diff = exp_mu^2) |>
+  arrange(desc(sq_diff))|>
+  ungroup()|>
+  #summarize(sq_diff = (diff(stratmu))^2, .groups = "drop") |> # calculate the relative differences and square them; drop the groups for further analysis
+  #group_by(SVSPP, SEASON) |>
+  #summarize(mudiff = mean(sq_diff), .groups = "drop") |> # calculate the average; drop the grouping factor 
+  mutate(mudiff = sqrt(sq_diff)*100) |>
+  arrange(desc(mudiff)) 
+
+mudiff_dat
+# saveRDS(mudiff_dat, here(sim.check, "sumflounder_fall_one-sim-mudiff.rds"))
+```
+
+## Plot
+```{r}
+all_stratmu <- all_stratmu |> 
+  group_by(TYPE, SCENARIO) |> 
+  mutate(sdlog = sqrt(log(1+(sqrt(stratvar)/stratmu)^2)), #logistic standard deviation
+         lower = qlnorm(0.025, log(stratmu), sdlog), # lower quantile of the logistic normal distribution
+         upper = qlnorm(0.975, log(stratmu), sdlog)) |> # upper quantile of the logistic normal distribution
+  mutate(sdlog = ifelse(is.nan(sdlog), 0, sdlog), # if sdlog is NaN, replace with 0
+         lower = ifelse(is.nan(lower), 0, lower), # if the lower quantile is NaN, replace with 0
+         upper = ifelse(is.nan(upper), 0, upper))
+
+all_stratmu
+# saveRDS(all_stratmu, here(sim.check, "sumflounder_fall_one-sim-stratmu.rds"))
+```
+
+
+```{r}
+ggplot(all_stratmu) +
+  aes(x = SCENARIO, y = stratmu, color = TYPE, shape = TYPE) +
+  #geom_point() +
+  geom_pointrange(aes(ymin=lower, ymax = upper), position =  position_dodge2(width=0.4)) +
+  #facet_wrap(vars(SEASON), scales = "free_y") +
+  #facet_grid(rows = vars(GEO_AREA), cols = vars(SEASON), scales = "free_y") + 
+  labs(x = "Wind-driven productivity scenario", y = "Stratified Mean (kg/tow)", title = "Fall productivity scenarios for summer flounder", subtitle = "Changes in the 2016 abundance index for summer flounder in response to changes in productivity inside wind energy areas") +
+  ylim(0,NA) +
+  theme_bw() + 
+  theme(legend.position="bottom",
+        legend.title = element_blank(), 
+        #axis.text.x = element_text(angle = 90, hjust = -1), 
+        axis.title.x = element_text(margin = unit(c(5, 0, 0, 0), "mm")), 
+        axis.title.y = element_text(margin = unit(c(0, 3, 0, 0), "mm")))
+
+# ggsave("sumflounder_fall-sim-one-rep.png", device = "png", last_plot(), here(sim.check.plots), width = 9, height = 6)
+```
+

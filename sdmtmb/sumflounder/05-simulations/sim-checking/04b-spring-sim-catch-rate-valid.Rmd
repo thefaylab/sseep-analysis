@@ -1,0 +1,226 @@
+---
+title: "Validate spring summer flounder catch rates"
+author: "Angelia Miller"
+date: "2024-01-10"
+output: word_document
+---
+
+## Objective 
+* simulate all historical years and 5 replicates of the two treatments and control 
+* plot the distribution of catch rates for each scenario 
+
+```{r load packages}
+# library(stringr)
+# library(sf)
+# library(patchwork)
+library(here)
+suppressPackageStartupMessages(library(tidyverse))
+library(sdmTMB) 
+source(here("R", "StratMeanFXs_v2.R"))
+
+sumflounder.dat <- here("sdmtmb", "sumflounder", "data")
+sim.check <- here("sdmtmb", "sumflounder", "data", "simulations", "sim-checking")
+sim.check.plots <- here("sdmtmb", "sumflounder", "plots", "simulations", "sim-checking")
+```
+
+```{r load data}
+# model fitting data 
+sf_spring <- readRDS(here(sumflounder.dat, "sumflounder_spring.rds"))
+
+# model fitting mesh 
+#mesh <- readRDS(here(sumflounder.dat, "spring_mesh.rds"))
+
+# polynomial coefficients from spring model fit extracted in "02a-check-spring-sim.Rmd"
+spring_depth_coefs <- readRDS(here(sim.check, "spring_depth_coefs.rds"))
+
+# spring summer flounder model 
+spring_mod <- readRDS(here(sumflounder.dat, "spring_mod.rds"))
+
+# spring model predictions 
+spring_preds <- readRDS(here(sumflounder.dat, "spring_mod_preds.rds")) |> 
+  select(X, Y, STATION, CRUISE6, STRATUM, omega_s) |> 
+  rename(fix_omegas = omega_s)
+
+
+```
+
+
+```{r data wrangle}
+sf_spring <- sf_spring |> 
+  left_join(spring_preds, by = c("X", "Y", "STATION", "STRATUM", "CRUISE6"))
+
+sf_spring_info <- sf_spring |>
+  select(X, Y, EST_YEAR, STRATUM, CRUISE6, STATION, AREA, AREA_CODE, SEASON)
+
+# mesh for simulating
+mesh <- make_mesh(sf_spring, xy_cols = c("X", "Y"), cutoff = 10)
+
+# pull main effect parameters from spring model fit
+spring_coefs <- tidy(spring_mod) 
+
+# pull random effect parameters from spring model fit
+spring_ran_pars <- tidy(spring_mod, "ran_pars")
+
+# generate random numbers as seed argument for simulation
+set.seed(131)
+seed.num <- round(rnorm(5, mean = 1000, sd = 120), 0)
+
+seed.num
+spring_coefs
+spring_ran_pars
+
+```
+
+
+## Simulate Scenarios 
+### Base 
+```{r sim base}
+b <- c(spring_coefs$estimate, 1)
+
+# base.sim.num <- vector(mode = "list", length = 5)
+
+#base.sim.seed <- map2(base.sim.num, seed.num, ~as.numeric(paste(.y)))
+spring.base <- map2(1:5, seed.num, ~sdmTMB_simulate(
+    formula = ~poly(AVGDEPTH, 2, coefs = spring_depth_coefs) +
+      as.factor(EST_YEAR) +
+      as.factor(AREA) +
+      fix_omegas - 1,
+    data = sf_spring,
+    mesh = mesh,
+    family = tweedie(),
+    #spatial = "on",
+    time = "EST_YEAR",
+    spatiotemporal = "IID",
+    B = b,
+    range = spring_ran_pars$estimate[1], 
+    sigma_O = 0,
+    sigma_E = spring_ran_pars$estimate[4],
+    phi = spring_ran_pars$estimate[2],
+    tweedie_p = spring_ran_pars$estimate[5],
+    seed = .y)
+)
+
+#head(spring.base)
+# saveRDS(spring.base, here(sim.check, "spring_base-5sims.rds"))
+
+
+```
+
+### Enhanced
+```{r sim increase}
+b <- c(spring_coefs$estimate[1:14], (spring_coefs$estimate[15]+log(2)), 1)
+
+# inc.sim.num <- vector(mode = "list", length = 5)
+
+spring.inc <- map2(1:5, seed.num, ~sdmTMB_simulate(
+    formula = ~poly(AVGDEPTH, 2, coefs = spring_depth_coefs) +
+      as.factor(EST_YEAR) +
+      as.factor(AREA) +
+      fix_omegas - 1,
+    data = sf_spring,
+    mesh = mesh,
+    family = tweedie(),
+    #spatial = "on",
+    time = "EST_YEAR",
+    spatiotemporal = "IID",
+    B = b,
+    range = spring_ran_pars$estimate[1], # added range parameter
+    sigma_O = 0,
+    sigma_E = spring_ran_pars$estimate[4],
+    phi = spring_ran_pars$estimate[2],
+    tweedie_p = spring_ran_pars$estimate[5],
+    seed = .y)
+)
+
+head(spring.inc)
+# saveRDS(spring.inc, here(sim.check, "spring_inc-5sim.rds"))
+```
+
+### Reduced
+```{r sim decrease}
+b <- c(spring_coefs$estimate[1:14], (spring_coefs$estimate[15]-log(2)), 1)
+
+#dec.sim.num <- vector(mode = "list", length = 5)
+
+spring.dec <- map2(1:5, seed.num, ~sdmTMB_simulate(
+    formula = ~poly(AVGDEPTH, 2, coefs = spring_depth_coefs) +
+      as.factor(EST_YEAR) +
+      as.factor(AREA) +
+      fix_omegas - 1,
+    data = sf_spring,
+    mesh = mesh,
+    family = tweedie(),
+    #spatial = "on",
+    time = "EST_YEAR",
+    spatiotemporal = "IID",
+    B = b,
+    range = spring_ran_pars$estimate[1], # added range parameter
+    sigma_O = 0,
+    sigma_E = spring_ran_pars$estimate[4],
+    phi = spring_ran_pars$estimate[2],
+    tweedie_p = spring_ran_pars$estimate[5],
+    seed = .y)
+)
+
+head(spring.dec)
+# saveRDS(spring.dec, here(sim.check, "spring_dec-5sim.rds"))
+```
+
+## Filter replicates based on wind-impacted strata
+```{r}
+set.seed(151)
+wind_strat <- spring.base[[1]] |> 
+  left_join(sf_spring_info, by = c("X", "Y", "EST_YEAR")) |> 
+  filter(AREA == "WIND") |> 
+  distinct(STRATUM) |> 
+  slice_sample(n = 1)
+
+spring.base.1strat <- map(spring.base, ~left_join(.x, sf_spring_info, by = c("X", "Y", "EST_YEAR")) |> 
+  filter(STRATUM == wind_strat$STRATUM) |> 
+  select(X, Y, EST_YEAR, observed, STRATUM, CRUISE6, STATION, AREA, AREA_CODE, SEASON))
+
+spring.inc.1strat <- map(spring.inc, ~left_join(.x, sf_spring_info, by = c("X", "Y", "EST_YEAR")) |> 
+  filter(STRATUM == wind_strat$STRATUM) |> 
+  select(X, Y, EST_YEAR, observed, STRATUM, CRUISE6, STATION, AREA, AREA_CODE, SEASON))
+
+
+spring.dec.1strat <- map(spring.dec, ~left_join(.x, sf_spring_info, by = c("X", "Y", "EST_YEAR")) |> 
+  filter(STRATUM == wind_strat$STRATUM) |> 
+  select(X, Y, EST_YEAR, observed, STRATUM, CRUISE6, STATION, AREA, AREA_CODE, SEASON))
+
+# saveRDS(spring.base.1strat, here(sim.check, "spring_base-5sim-1strat.rds"))
+# saveRDS(spring.inc.1strat, here(sim.check, "spring_inc-5sim-1strat.rds"))
+# saveRDS(spring.dec.1strat, here(sim.check, "spring_dec-5sim-1strat.rds"))
+```
+
+## Plot simulated catch rates 
+```{r}
+# create one large dataframe
+spring.base.df <- map2_dfr(spring.base.1strat, 1:5, ~mutate(.x, sim = .y)) |> 
+  mutate(SCENARIO = "Control")
+spring.inc.df <- map2_dfr(spring.inc.1strat, 1:5, ~mutate(.x, sim = .y)) |> 
+  mutate(SCENARIO = "Increase")
+spring.dec.df <- map2_dfr(spring.dec.1strat, 1:5, ~mutate(.x, sim = .y)) |> 
+  mutate(SCENARIO = "Decrease")
+
+spring.scenarios <- bind_rows(spring.base.df, spring.inc.df, spring.dec.df)
+
+```
+
+
+```{r}
+ggplot(spring.scenarios |> filter(observed >0, AREA == "WIND")) + 
+  geom_histogram(aes(x = observed)) + 
+  facet_grid(cols = vars(AREA), rows = vars(SCENARIO)) +
+  labs(x = "Biomass (kg/tow)", y = "Frequency of biomass observation", 
+       title = "Catch rates of spring summer flounder biomass in wind energy areas",
+       subtitle = "Biomass catch rates were simulated 5 times for each wind-driven scenario and \nrepresent tows occurring in strata 1050 (a wind-impacted strata)") + 
+  theme_bw()
+
+# ggsave("sumflounder_spring-5sim-wind-catch-rates.png", device = "png", last_plot(), here(sim.check.plots), width = 8, height = 6)
+
+```
+
+
+
+

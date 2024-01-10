@@ -1,0 +1,351 @@
+---
+title: "Spring summer flounder one rep analysis"
+author: "Angelia Miller"
+date: "2024-01-04"
+output: word_document
+---
+
+## Objective 
+* simulate 1 year and replicate of the two treatments and control 
+* calculate the stratified mean for that year and replicate 
+* calculate the linear regression for that year and replicate 
+
+```{r load packages}
+# library(stringr)
+# library(sf)
+# library(patchwork)
+library(here)
+suppressPackageStartupMessages(library(tidyverse))
+library(sdmTMB) 
+source(here("R", "StratMeanFXs_v2.R"))
+
+sumflounder.dat <- here("sdmtmb", "sumflounder", "data")
+sim.check <- here("sdmtmb", "sumflounder", "data", "simulations", "sim-checking")
+sim.check.plots <- here("sdmtmb", "sumflounder", "plots", "simulations", "sim-checking")
+```
+
+```{r load data}
+# spring summer flounder model 
+spring_mod <- readRDS(here(sumflounder.dat, "spring_mod.rds"))
+
+# polynomial coefficients from spring model fit extracted in "02a-check-spring-sim.Rmd"
+spring_depth_coefs <- readRDS(here(sim.check, "spring_depth_coefs.rds"))
+
+# a small subset of spring data created in "02a-check-spring-sim.Rmd"
+spring_subset <- readRDS(here(sim.check, "spring_subset_data.rds")) 
+
+# the year that was used to subset the data in "02a-check-spring-sim.Rmd"
+year <- readRDS(here(sim.check, "spring_resample_year.rds"))
+
+# mesh for the sampled subsetted dataframe 
+mesh <- make_mesh(spring_subset, xy_cols = c("X", "Y"), cutoff = 10)
+spring_subset
+plot(mesh)
+```
+
+```{r data wrangle}
+# pull main effect parameters from spring model fit
+spring_coefs <- tidy(spring_mod) 
+
+# pull random effect parameters from spring model fit
+spring_ran_pars <- tidy(spring_mod, "ran_pars")
+
+
+spring_coefs
+spring_ran_pars
+
+```
+
+```{r }
+# spring_pred_df <- spring_preds |> 
+#   select(X, Y, EST_YEAR, fixed_omega, AREA, AVGDEPTH)
+# spring_pred_df <- spring_preds |> 
+#   select(X, Y, EST_YEAR, fixed_omega, AREA, AVGDEPTH)
+# 
+# 
+# # set.seed(1221)
+# # resampled_spring <- sample(unique(spring_moddat$EST_YEAR), size = 1, replace = F)
+# # resampled_spr <- sample(unique(spr_moddat$EST_YEAR), size = 1, replace = F)
+# # 
+# # 
+# # filtered_spring <- spring_preds |> 
+# #     filter(EST_YEAR == resampled_spring) |> 
+# #     rename(fixed_omega = omega_s)
+# #     #mutate(EST_YEAR = future_years[t])
+# # filtered_spr <- spring_preds |> 
+# #   filter(EST_YEAR == resampled_spr) |> 
+# #   rename(fixed_omega = omega_s)
+# 
+# extract station info for binding to simulated data later
+spring_towdat <- spring_subset |> #filtered_spring|>
+  select(!c(fix_omegas, est, est_non_rf)) |> 
+  mutate(SVSPP = 103, 
+         EST_YEAR = 2016)
+
+# 
+# # create mesh of filtered data locations 
+# spring_mesh <- make_mesh(spring_pred_df, #filtered_spring, 
+#                        xy_cols = c("X", "Y"), cutoff = 10)
+# spring_mesh <- make_mesh(spring_pred_df, #filtered_spr, 
+#                          xy_cols = c("X", "Y"), cutoff = 10)
+# 
+# 
+# # plot each mesh
+# plot(spring_mesh)
+# plot(spring_mesh)
+
+```
+
+## Simulate scenarios 
+
+### Base
+```{r sim base}
+# spring
+b <- c(0, spring_coefs$estimate[1:2], spring_coefs$estimate[13], spring_coefs$estimate[15], 1)
+
+spring.base <- sdmTMB_simulate(
+    formula = ~1 +
+      poly(AVGDEPTH, 2, coefs = spring_depth_coefs) +
+      EST_YEAR +
+      as.factor(AREA) +
+      fix_omegas,
+    data = spring_subset,
+    mesh = mesh,
+    family = tweedie(),
+    #spatial = "on",
+    time = "EST_YEAR",
+    spatiotemporal = "IID",
+    B = b,
+    range = spring_ran_pars$estimate[1], # added range parameter
+    sigma_O = 0,
+    sigma_E = spring_ran_pars$estimate[4],
+    phi = spring_ran_pars$estimate[2],
+    tweedie_p = spring_ran_pars$estimate[5],
+    seed = 2)
+
+head(spring.base)
+# saveRDS(spring.base, here(sim.check, "spring_base-sim.rds"))
+```
+
+```{r}
+names <- c(names(spring.base[1:7]), "Intercept", "depth_1", "depth_2", "year_covar", "wind_covar",names(spring.base[13]))
+names(spring.base) <- names
+
+spring.base |> filter(wind_covar == 1) |> head(n = 5)
+```
+
+
+### Enhanced
+```{r sim enhanced}
+b <- c(0, spring_coefs$estimate[1:2], spring_coefs$estimate[13], (spring_coefs$estimate[15]+log(2)), 1)
+
+spring.inc <- sdmTMB_simulate(
+    formula = ~1 +
+      poly(AVGDEPTH, 2, coefs = spring_depth_coefs) +
+      EST_YEAR +
+      as.factor(AREA) +
+      fix_omegas,
+    data = spring_subset,
+    mesh = mesh,
+    family = tweedie(),
+    #spatial = "on",
+    time = "EST_YEAR",
+    spatiotemporal = "IID",
+    B = b,
+    range = spring_ran_pars$estimate[1], # added range parameter
+    sigma_O = 0,
+    sigma_E = spring_ran_pars$estimate[4],
+    phi = spring_ran_pars$estimate[2],
+    tweedie_p = spring_ran_pars$estimate[5],
+    seed = 2)
+
+head(spring.inc)
+# saveRDS(spring.inc, here(sim.check, "spring_inc-sim.rds"))
+```
+
+```{r}
+names <- c(names(spring.inc[1:7]), "Intercept", "depth_1", "depth_2", "year_covar", "wind_covar",names(spring.inc[13]))
+names(spring.inc) <- names
+
+spring.inc |> filter(wind_covar == 1) |> head(n = 5)
+```
+
+
+### Reduced
+```{r sim reduction}
+b <-c(0, spring_coefs$estimate[1:2], spring_coefs$estimate[13], (spring_coefs$estimate[15]-log(2)), 1)
+
+spring.dec <- sdmTMB_simulate(
+    formula = ~1 +
+      poly(AVGDEPTH, 2, coefs = spring_depth_coefs) +
+      EST_YEAR +
+      as.factor(AREA) +
+      fix_omegas,
+    data = spring_subset,
+    mesh = mesh,
+    family = tweedie(),
+    #spatial = "on",
+    time = "EST_YEAR",
+    spatiotemporal = "IID",
+    B = b,
+    range = spring_ran_pars$estimate[1], # added range parameter
+    sigma_O = 0,
+    sigma_E = spring_ran_pars$estimate[4],
+    phi = spring_ran_pars$estimate[2],
+    tweedie_p = spring_ran_pars$estimate[5],
+    seed = 2)
+
+head(spring.dec)
+# saveRDS(spring.dec, here(sim.check, "spring_dec-sim.rds"))
+```
+
+```{r}
+names <- c(names(spring.dec[1:7]), "Intercept", "depth_1", "depth_2", "year_covar", "wind_covar",names(spring.dec[13]))
+names(spring.dec) <- names
+
+spring.dec |> filter(wind_covar == 1) |> head(n = 5)
+```
+
+## Calculate stratified mean ####
+```{r data prep}
+spring.base.join <- spring.base[,-1] |> 
+  right_join(spring_towdat, by = c("X", "Y")) |> 
+  rename(EXPCATCHWT = observed)
+spring.inc.join <- spring.inc[,-1] |> 
+  right_join(spring_towdat, by = c("X", "Y")) |> 
+  rename(EXPCATCHWT = observed)
+spring.dec.join <- spring.dec[,-1] |> 
+  right_join(spring_towdat, by = c("X", "Y")) |> 
+  rename(EXPCATCHWT = observed)
+
+# sum of survey area
+BTSArea <- sum(strata_wts$Area_SqNm)
+
+```
+
+
+```{r base strat}
+# with wind included 
+spring.base.stratmu.ww <- spring.base.join |> 
+  stratified.mean() |> 
+  mutate(TYPE = "With Wind Included", 
+         SCENARIO = "Baseline")
+
+# with wind precluded
+spring.base.stratmu.wow <- spring.base.join |> 
+  filter(AREA == "OUTSIDE") |>
+  stratified.mean() |> 
+  mutate(TYPE = "With Wind Precluded", 
+         SCENARIO = "Baseline")
+
+spring.base.stratmu <- bind_rows(spring.base.stratmu.ww, spring.base.stratmu.wow)
+
+spring.base.stratmu
+# saveRDS(spring.base.stratmu.ww, here(sim.check, "sumflounder_spring_base-one-sim-stratmu-ww.rds"))
+# saveRDS(spring.base.stratmu.wow, here(sim.check, "sumflounder_spring_base-one-sim-stratmu-wow.rds"))
+# saveRDS(spring.base.stratmu, here(sim.check, "sumflounder_spring_base-one-sim-stratmu.rds"))
+
+```
+
+```{r enhanced strat}
+spring.inc.stratmu.ww <- spring.inc.join |> 
+  stratified.mean() |> 
+  mutate(TYPE = "With Wind Included", 
+         SCENARIO = "Enhanced")
+
+spring.inc.stratmu.wow <- spring.inc.join |> 
+  filter(AREA == "OUTSIDE") |> 
+  stratified.mean() |> 
+  mutate(TYPE = "With Wind Precluded", 
+         SCENARIO = "Enhanced")
+
+spring.inc.stratmu <- bind_rows(spring.inc.stratmu.ww, spring.inc.stratmu.wow)
+
+spring.inc.stratmu
+
+# saveRDS(spring.inc.stratmu.ww, here(sim.check, "sumflounder_spring_inc-one-sim-stratmu-ww.rds"))
+# saveRDS(spring.inc.stratmu.wow, here(sim.check, "sumflounder_spring_inc-one-sim-stratmu-wow.rds"))
+# saveRDS(spring.inc.stratmu, here(sim.check, "sumflounder_spring_inc-one-sim-stratmu.rds"))
+```
+
+```{r reduced strat}
+spring.dec.stratmu.ww <- spring.dec.join |> 
+  stratified.mean() |> 
+  mutate(TYPE = "With Wind Included", 
+         SCENARIO = "Reduced")
+
+spring.dec.stratmu.wow <- spring.dec.join |> 
+  filter(AREA == "OUTSIDE") |> 
+  stratified.mean() |> 
+  mutate(TYPE = "With Wind Precluded", 
+         SCENARIO = "Reduced")
+
+spring.dec.stratmu <- bind_rows(spring.dec.stratmu.ww, spring.dec.stratmu.wow)
+
+spring.dec.stratmu
+
+# saveRDS(spring.dec.stratmu.ww, here(sim.check, "sumflounder_spring_dec-one-sim-stratmu-ww.rds"))
+# saveRDS(spring.dec.stratmu.wow, here(sim.check, "sumflounder_spring_dec-one-sim-stratmu-wow.rds"))
+# saveRDS(spring.dec.stratmu, here(sim.check, "sumflounder_spring_dec-one-sim-stratmu.rds"))
+
+```
+
+```{r}
+all_stratmu <- bind_rows(spring.base.stratmu, spring.inc.stratmu, spring.dec.stratmu)
+
+all_stratmu
+```
+
+## Calculate Mean Squared Difference 
+```{r}
+mudiff_dat <- all_stratmu |> 
+  group_by(SCENARIO) |> #, 
+  summarise(diff_mu = diff(stratmu)) |>
+  arrange(desc(diff_mu)) |>
+  mutate(exp_mu = (exp(diff_mu))-1) |>
+  arrange(desc(exp_mu)) |>
+  mutate(sq_diff = exp_mu^2) |>
+  arrange(desc(sq_diff))|>
+  ungroup()|>
+  mutate(mudiff = sqrt(sq_diff)*100) |>
+  arrange(desc(mudiff)) 
+
+mudiff_dat
+# saveRDS(mudiff_dat, here(sim.check, "sumflounder_spring_one-sim-mudiff.rds"))
+```
+
+## Plot
+```{r}
+all_stratmu <- all_stratmu |> 
+  group_by(TYPE, SCENARIO) |> 
+  mutate(sdlog = sqrt(log(1+(sqrt(stratvar)/stratmu)^2)), #logistic standard deviation
+         lower = qlnorm(0.025, log(stratmu), sdlog), # lower quantile of the logistic normal distribution
+         upper = qlnorm(0.975, log(stratmu), sdlog)) |> # upper quantile of the logistic normal distribution
+  mutate(sdlog = ifelse(is.nan(sdlog), 0, sdlog), # if sdlog is NaN, replace with 0
+         lower = ifelse(is.nan(lower), 0, lower), # if the lower quantile is NaN, replace with 0
+         upper = ifelse(is.nan(upper), 0, upper))
+
+all_stratmu
+# saveRDS(all_stratmu, here(sim.check, "sumflounder_spring_one-sim-stratmu.rds"))
+```
+
+
+```{r}
+ggplot(all_stratmu) +
+  aes(x = SCENARIO, y = stratmu, color = TYPE, shape = TYPE) +
+  #geom_point() +
+  geom_pointrange(aes(ymin=lower, ymax = upper), position =  position_dodge2(width=0.4)) +
+  #facet_wrap(vars(SEASON), scales = "free_y") +
+  #facet_grid(rows = vars(GEO_AREA), cols = vars(SEASON), scales = "free_y") + 
+  labs(x = "Wind-driven productivity scenario", y = "Stratified Mean (kg/tow)", title = "Spring productivity scenarios for summer flounder", subtitle = "Changes in the 2019 abundance index for summer flounder in response to changes in productivity inside wind energy areas") +
+  ylim(0,NA) +
+  theme_bw() + 
+  theme(legend.position="bottom",
+        legend.title = element_blank(), 
+        #axis.text.x = element_text(angle = 90, hjust = -1), 
+        axis.title.x = element_text(margin = unit(c(5, 0, 0, 0), "mm")), 
+        axis.title.y = element_text(margin = unit(c(0, 3, 0, 0), "mm")))
+
+# ggsave("sumflounder_spring-sim-one-rep.png", device = "png", last_plot(), here(sim.check.plots), width = 9, height = 6)
+```
+
