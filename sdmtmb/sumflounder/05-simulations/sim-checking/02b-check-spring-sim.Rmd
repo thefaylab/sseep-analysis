@@ -1,0 +1,312 @@
+---
+title: "Summer flounder spring simulation check"
+author: "Angelia Miller"
+date: "2024-01-09"
+output: word_document
+---
+
+## Objective 
+* simulate 1 year and replicate  
+
+
+
+```{r load packages}
+# library(stringr)
+# library(sf)
+# library(patchwork)
+library(here)
+suppressPackageStartupMessages(library(tidyverse))
+library(sdmTMB) 
+source(here("R", "StratMeanFXs_v2.R"))
+
+sumflounder.dat <- here("sdmtmb", "sumflounder", "data")
+sim.check <- here("sdmtmb", "sumflounder", "data", "simulations", "sim-checking")
+```
+
+Model fitting data
+```{r}
+sf_spring <- readRDS(here(sumflounder.dat, "sumflounder_spring.rds"))
+spring_mesh <- readRDS(here(sumflounder.dat, "spring_mesh.rds"))
+```
+
+Data wrangle
+```{r data}
+# pull polynomial coefficients from spring model fit
+spring_x_mat <- poly(sf_spring$AVGDEPTH, 2)
+spring_depth_coefs <- attr(spring_x_mat,"coefs")
+# saveRDS(spring_x_mat, here(sim.check, "spring_depth_matrix.rds"))
+# saveRDS(spring_depth_coefs, here(sim.check, "spring_depth_coefs.rds"))
+spring_depth_coefs
+```
+
+
+Re-fit the model 
+```{r}
+spring_mod <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 2, coefs = spring_depth_coefs) + 
+                    as.factor(EST_YEAR) + 
+                    as.factor(AREA) - 1,
+                  data = sf_spring,
+                  mesh = spring_mesh,
+                  family = tweedie(link = "log"), 
+                  spatial = "on", 
+                  time = "EST_YEAR",
+                  spatiotemporal = "IID",
+                  control = sdmTMBcontrol(newton_loops = 1)) 
+
+sanity(spring_mod)
+#saveRDS(spring_mod, here(sim.check, "spring_mod.rds"))
+```
+
+
+```{r}
+coefs <- tidy(spring_mod)
+ran_pars <- tidy(spring_mod, "ran_pars")
+
+spring_depth_coefs
+coefs
+ran_pars
+```
+
+
+Generate predictions
+```{r preds}
+mod_preds <- predict(spring_mod)
+# saveRDS(mod_preds, here(sim.check, "spring_predictions.rds"))
+
+str(mod_preds)
+```
+
+
+Select locations and predictions from one year of past data to simulate values of biomass
+```{r resample}
+set.seed(1211)
+year <- sample(unique(sf_spring$EST_YEAR), size = 1)
+# saveRDS(year, here(sim.check, "spring_resample_year.rds"))
+set.seed(131)
+resample <- mod_preds |>
+  # mutate(EST_YEAR = YEAR) |>
+  filter(EST_YEAR == year) |> 
+  select(X, Y, STATION, STRATUM, CRUISE6, AVGDEPTH, EST_YEAR, AREA, omega_s, est, est_non_rf) |> 
+  mutate(EST_YEAR = 1) |>
+  rename(fix_omegas = omega_s) |> 
+  slice_sample(n = 5, replace = FALSE)
+# saveRDS(resample, here(sim.check, "spring_resampled_data.rds")) 
+resample
+
+mesh <- make_mesh(resample, xy_cols = c("X", "Y"), cutoff = 10, seed = 42)
+# saveRDS(mesh, here(sim.check, "spring_mesh.rds"))
+plot(mesh)
+```
+
+
+Simulate without any random effects 
+* expected: eta and fix_omegas should match
+```{r sim1}
+simdat1 <- sdmTMB_simulate(
+    formula = ~1 +
+      #poly(AVGDEPTH, 2, coefs = spring_depth_coefs) +
+      #EST_YEAR +
+      #as.factor(AREA) +
+      fix_omegas,
+    data = resample,
+    mesh = mesh,
+    family = tweedie(),
+    #spatial = "on",
+    time = "EST_YEAR",
+    #spatiotemporal = "iid",
+    B = c(0, 1), 
+    range = 0.5, 
+    sigma_O = 0,
+    sigma_E = 0, 
+    phi = 0.1,
+    tweedie_p = 1.5,
+    seed = 2)
+simdat1
+# saveRDS(simdat1, here(sim.check, "spring_simdat1.rds"))
+```
+* `eta` = `fix_omegas` : **TRUE**
+
+Test effect of area coefficient
+```{r sim2}
+b <- c(0, coefs$estimate[15])
+simdat2 <- sdmTMB_simulate(
+    formula = ~1 +
+      #poly(AVGDEPTH, 2, coefs = spring_depth_coefs) +
+      #EST_YEAR +
+      as.factor(AREA),# +
+      #fix_omegas,
+    data = resample,
+    mesh = mesh,
+    family = tweedie(),
+    #spatial = "on",
+    time = "EST_YEAR",
+    #spatiotemporal = "iid",
+    B = b,
+    range = 0.5, 
+    sigma_O = 0,
+    sigma_E = 0, 
+    phi = 0.1, 
+    tweedie_p = 1.5,
+    seed = 2)
+simdat2
+
+# saveRDS(simdat2, here(sim.check, "spring_simdat2.rds"))
+```
+* `eta` = wind coefficient x as.factor(AREA)WIND : **TRUE**
+
+
+Test effect of depth coefficients 
+```{r sim3}
+b <- c(0, coefs$estimate[1:2])
+simdat3 <- sdmTMB_simulate(
+    formula = ~1 +
+      poly(AVGDEPTH, 2, coefs = spring_depth_coefs),# +
+      #EST_YEAR +
+      #as.factor(AREA) +
+      #fix_omegas,
+    data = resample,
+    mesh = mesh,
+    family = tweedie(),
+    #spatial = "on",
+    time = "EST_YEAR",
+    #spatiotemporal = "iid",
+    B = b, 
+    range = 0.5, 
+    sigma_O = 0,
+    sigma_E = 0, 
+    phi = 0.1, 
+    tweedie_p = 1.5,
+    seed = 2)
+simdat3
+
+# saveRDS(simdat3, here(sim.check, "spring_simdat3.rds"))
+```
+
+* `eta` = (depth coefficient1 x simulated depth val1) + (depth coefficient2 x simulated depth val2): **TRUE**
+
+Test effect of year coefficient
+```{r sim4}
+b <- c(0, coefs$estimate[13])
+simdat4 <- sdmTMB_simulate(
+    formula = ~1 +
+      #poly(AVGDEPTH, 2, coefs = spring_depth_coefs) +
+      EST_YEAR,# +
+      #as.factor(AREA) +
+      #fix_omegas,
+    data = resample,
+    mesh = mesh,
+    family = tweedie(),
+    #spatial = "on",
+    time = "EST_YEAR",
+    #spatiotemporal = "iid",
+    B = b, 
+    range = 0.5, 
+    sigma_O = 0,
+    sigma_E = 0, 
+    phi = 0.1, 
+    tweedie_p = 1.5,
+    seed = 2)
+simdat4
+
+# saveRDS(simdat4, here(sim.check, "spring_simdat4.rds"))
+```
+
+* `eta` = 2016 coefficient x EST_YEAR : **TRUE**
+
+
+Add in all covariates to linear predictor and their respective coefficients 
+```{r sim5}
+b <- c(0, coefs$estimate[1:2], coefs$estimate[13], coefs$estimate[15])
+
+simdat5 <- sdmTMB_simulate(
+    formula = ~1 +
+      poly(AVGDEPTH, 2, coefs = spring_depth_coefs) +
+      EST_YEAR +
+      as.factor(AREA),#+
+      #fix_omegas,
+    data = resample,
+    mesh = mesh,
+    family = tweedie(),
+    #spatial = "on",
+    #time = "EST_YEAR",
+    #spatiotemporal = "iid",
+    B = b, 
+    range = 0.5, 
+    sigma_O = 0,
+    sigma_E = 0, 
+    phi = 0.1, 
+    tweedie_p = 1.5,
+    seed = 2)
+simdat5
+
+simdat5 |>  
+  right_join(resample, by = c("X", "Y", "EST_YEAR")) |>
+  select(!c(STATION, STRATUM, CRUISE6, AVGDEPTH, AREA))
+
+# saveRDS(simdat5, here(sim.check, "spring_simdat5.rds"))
+
+```
+* `eta` = `est_non_rf`: **TRUE**
+* therefore, sdmtmb_simulate is simulating the same values as the model estimates in the base scenario and we can be sure that any treatment will be reflected in the simulated values. 
+
+Simulate the increase scenario without spatiotemporal random effects
+```{r sim increase}
+b <- c(0, coefs$estimate[1:2], coefs$estimate[13], (coefs$estimate[15]+log(2)), 1)
+
+simdat6 <- sdmTMB_simulate(
+    formula = ~1 +
+      poly(AVGDEPTH, 2, coefs = spring_depth_coefs) +
+      EST_YEAR +
+      as.factor(AREA) +
+      fix_omegas,
+    data = resample,
+    mesh = mesh,
+    family = tweedie(),
+    #spatial = "on",
+    time = "EST_YEAR",
+    #spatiotemporal = "IID",
+    B = b,
+    range = ran_pars$estimate[1], # added range parameter
+    sigma_O = 0,
+    sigma_E = 0,
+    phi = ran_pars$estimate[2],
+    tweedie_p = ran_pars$estimate[5],
+    seed = 2)
+simdat6
+
+# saveRDS(simdat6, here(sim.check, "spring_simdat6.rds"))
+```
+* `eta` = (depth coefficient1 x simulated depth val1) + (depth coefficient2 x simulated depth val2) + (2016 coefficient x EST_YEAR) + ((wind coefficient + log(2)) x as.factor(AREA)WIND) + fix_omegas : **TRUE**
+* therefore, we can be sure when factoring in treatment and spatiotemporal effects, any deviation from the `eta` value here in simulated biomass is due to the random effects. 
+
+
+Simulate the increase scenario without spatiotemporal random effects
+```{r sim decrease}
+b <- c(0, coefs$estimate[1:2], coefs$estimate[13], (coefs$estimate[15]-log(2)), 1)
+
+simdat7 <- sdmTMB_simulate(
+    formula = ~1 +
+      poly(AVGDEPTH, 2, coefs = spring_depth_coefs) +
+      EST_YEAR +
+      as.factor(AREA) +
+      fix_omegas,
+    data = resample,
+    mesh = mesh,
+    family = tweedie(),
+    #spatial = "on",
+    time = "EST_YEAR",
+    #spatiotemporal = "IID",
+    B = b,
+    range = ran_pars$estimate[1], # added range parameter
+    sigma_O = 0,
+    sigma_E = 0,
+    phi = ran_pars$estimate[2],
+    tweedie_p = ran_pars$estimate[5],
+    seed = 2)
+simdat7
+
+# saveRDS(simdat7, here(sim.check, "spring_simdat7.rds"))
+```
+
+* `eta` = (depth coefficient1 x simulated depth val1) + (depth coefficient2 x simulated depth val2) + (2016 coefficient x EST_YEAR) + ((wind coefficient - log(2)) x as.factor(AREA)WIND) + fix_omegas : **TRUE**
+* therefore, we can be sure when factoring in treatment and spatiotemporal effects, any deviation from the `eta` value here in simulated biomass is due to the random effects. 
