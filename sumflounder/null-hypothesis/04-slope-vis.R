@@ -184,4 +184,4 @@ ggsave("fall-lin-reg-dists.png", plot = fall_dist_plots, device = "png", path = 
 
 ggsave("spr-lin-reg-dists.png", plot = spr_dist_plots, device = "png", path = here(sumflounder.plots), width = 15, height = 10)
 
-ggsave("incl-lin-reg-dists.png", plot = incl_plots, device = "png", path = here(sumflounder.plots), width = 10, height = 5)
+ggsave("incl-lin-reg-dists.png", plot = incl_plots, device = "png", path = here(sumflounder.plots), width = 15, height = 10)
