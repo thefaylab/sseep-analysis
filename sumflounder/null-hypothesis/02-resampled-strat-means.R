@@ -1,5 +1,5 @@
 ### created: 07/27/2023
-### last updated: 
+### last updated: 01/26/2024
 
 #  02 - NULL HYPOTHESIS TESTING: STRATIFIED MEANS OF RESAMPLED DATA  ####
 
@@ -17,14 +17,16 @@ library(infer)
 library(broom)
 source(here("R", "StratMeanFXs_v2.R"))
 
+null.hyp.data <- here("data", "sumflounder", "null-hypothesis")
+
 set.seed(120)
 
 ### LOAD DATA ####
 # "Wind Included" dataset containing 1000 replicates of summer flounder data resampled for 100% of the historical observations created here("sumflounder", "01-data-resample.R")
-full_reps <- readRDS(here("data", "sumflounder", "fulldat_resample.rds"))
+full_reps <- readRDS(here(null.hyp.data, "fulldat_resample.rds"))
 
 # "Wind Precluded" dataset containing 1000 replicates of summer flounder data resampled for 90% of the historical observations created here("sumflounder", "01-data-resample.R")
-wind_reps <- readRDS(here("data", "sumflounder", "winddat_resample.rds"))
+wind_reps <- readRDS(here(null.hyp.data, "winddat_resample.rds"))
 
 ## STRATIFIED MEAN CALCULATIONS ####
 
@@ -47,7 +49,7 @@ windreps_mu <- wind_reps |>
 
 
 ### save the data
-saveRDS(fullreps_mu, here("data", "sumflounder", "full_resamp_stratmu.rds"))
-saveRDS(windreps_mu, here("data", "sumflounder", "wind_resamp_stratmu.rds"))
+saveRDS(fullreps_mu, here(null.hyp.data, "full_resamp_stratmu.rds"))
+saveRDS(windreps_mu, here(null.hyp.data, "wind_resamp_stratmu.rds"))
 
 

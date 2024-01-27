@@ -1,5 +1,5 @@
 ### created: 12/05/2023
-### last updated: 
+### last updated: 01/26/2024
 
 # 05 - CALCULATE STRATIFIED MEAN: SUMMER FLOUNDER ####
 
@@ -7,12 +7,16 @@
 ## OBJECTIVE ####
 # calculate stratified mean index using the summer flounder footprint under the status quo and preclusion scenarios 
 # compare the indices using a mean percent relative difference for the most recent 5 years 
+# calculate the change in indices over time using a linear regression
 # plot the indices over time 
 
 ### LOAD PACKAGES ####
 library(here)
 library(tidyverse)
+library(nationalparkcolors)
 source(here("R", "StratMeanFXs_v2.R"))
+
+pal <- park_palette("Badlands")
 
 ### LOAD DATA ####
 # summer flounder data consisting of observations filtered based on seasonal footprints created here("sumflounder", "04-filter-summer-flounder.R")

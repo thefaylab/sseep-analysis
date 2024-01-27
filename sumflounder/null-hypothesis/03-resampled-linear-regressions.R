@@ -1,5 +1,5 @@
 ### created: 07/27/2023
-### last updated: 
+### last updated: 01/26/2024
 
 #  03 - NULL HYPOTHESIS TESTING: LINEAR REGRESSIONS OF STRATIFIED MEANS  ####
 
@@ -15,15 +15,16 @@ library(infer)
 library(broom)
 source(here("R", "StratMeanFXs_v2.R"))
 
-set.seed(120)
+null.hyp.data <- here("data", "sumflounder", "null-hypothesis")
 
+set.seed(120)
 
 ### LOAD DATA ####
 # "No preclusion" dataset containing 1000 replicates of summer flounder data resampled for 100% of the historical observations created here("sumflounder", "01-data-resample.R")
-fullreps_mu <- readRDS(here("data", "sumflounder", "full_resamp_stratmu.rds"))
+fullreps_mu <- readRDS(here(null.hyp.data, "full_resamp_stratmu.rds"))
 
 # "Preclusion" dataset containing 1000 replicates of summer flounder data resampled for 90% of the historical observations created here("sumflounder", "01-data-resample.R")
-windreps_mu <- readRDS(here("data", "sumflounder", "wind_resamp_stratmu.rds"))
+windreps_mu <- readRDS(here(null.hyp.data, "wind_resamp_stratmu.rds"))
 
 
 
@@ -55,5 +56,5 @@ windreps_mod <- windreps_mu |>
 
 
 ### save the data
-saveRDS(fullreps_mod, here("data", "sumflounder", "fullresamp_mods.rds"))
-saveRDS(windreps_mod, here("data", "sumflounder", "windresamp_mods.rds"))
+saveRDS(fullreps_mod, here(null.hyp.data, "fullresamp_mods.rds"))
+saveRDS(windreps_mod, here(null.hyp.data, "windresamp_mods.rds"))

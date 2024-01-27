@@ -1,5 +1,5 @@
 ### created: 1/23/2022
-### last updated: 07/27/2023
+### last updated: 01/26/2024
 
 #  01 - NULL HYPOTHESIS TESTING: RESAMPLE OBSERVED DATA ####
 
@@ -18,12 +18,14 @@ library(boot)
 library(infer)
 library(broom)
 
+null.hyp.data <- here("data", "sumflounder", "null-hypothesis") 
+
 
 ### LOAD DATA ####
 set.seed(120)
 
-# summer flounder dataset created from 95% cumulative distribution here("tidy-data", "spatial-filter-data.R"), and filtered here("sumflounder", "01-filter-summer-flounder.R"). 
-data <- readRDS(here("data", "sumflounder", "sf_95bts_data.rds")) |> mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT))
+# summer flounder data consisting of observations filtered based on seasonal footprints created here("sumflounder", "04-filter-summer-flounder.R")
+data <- readRDS(here("data", "sumflounder", "sumflounder.rds"))
 
 ## CALCULATE THE PROPORTION OF WIND TOWS ####
 #count the number of wind tows and divide by the total number of tows to find the proportion made up by wind tows  
@@ -45,5 +47,5 @@ wind_reps <- data |>
 
 
 ### save the data 
-saveRDS(wind_reps, here("data", "sumflounder", "winddat_resample.rds"))
-saveRDS(full_reps, here("data", "sumflounder", "fulldat_resample.rds"))
+saveRDS(wind_reps, here(null.hyp.data, "winddat_resample.rds"))
+saveRDS(full_reps, here(null.hyp.data, "fulldat_resample.rds"))
