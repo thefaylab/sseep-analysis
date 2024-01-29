@@ -1,5 +1,5 @@
 ### created: 03/17/2023
-### last updated:
+### last updated: 01/29/2024
 
 # 02a - SYSTEMATIC PRECLUSION: SPRING ####
 
@@ -16,9 +16,12 @@ suppressPackageStartupMessages(library(tidyverse))
 theme_set(theme_bw())
 source(here("R", "StratMeanFXs_v2.R"))
 
+system.precl.dat <- here("data", "sumflounder", "systematic-preclusion")
+sumflounder.dat <- here("data", "sumflounder")
+
 ### LOAD DATA ####
 # summer flounder data 
-sf_spring <- readRDS(here("data", "sumflounder", "sf_95spring_data.rds"))
+sf_spring <- readRDS(here(sumflounder.dat, "sumflounder_spring.rds"))
 
 # filter for summer flounder data only
 # sf_stratmean <- readRDS(here("data", "sumflounder", "sf_stratmu.rds")) |>  
@@ -40,6 +43,8 @@ x <- c()
 
 # create storage data frame for stratified mean values 
 ww.data <- data.frame()
+# create year object for the years in the dataframe to filter for in the loop 
+years <- c(2022, sort(unique(sf_spring$EST_YEAR), decreasing = TRUE))
 
 ### TEST LOOP ###
 # test <- strata.mean(sf_spring)
@@ -62,12 +67,12 @@ ww.data <- data.frame()
 
 
 ### LOOP #### 
-for(i in seq(2022, 2009)){ # count backwards by one starting at 2022 
+for(i in years){ # count backwards by one starting at 2022 
   x <- append(x, i) # add i to the storage vector
   y <- sf_spring |> 
     filter(!EST_YEAR %in% x) |> # filter out x value from year
     stratified.mean() |> # calculate stratified mean
-    mutate(STEP = length(x) - 1, # count each loop starting at -1 to represent the number of years removed
+    mutate(STEP = (length(x) - 1), # count each loop starting at -1 to represent the number of years removed
            TYPE = "Included")
   ww.data <- bind_rows(ww.data, y) # add each loop step the stratified means to the with wind dataframe
 }
@@ -83,7 +88,7 @@ for(i in seq(2022, 2009)){ # count backwards by one starting at 2022
 #   arrange(STEP)
 
 ### save data 
-saveRDS(ww.data, here("data", "sumflounder", "sf_spr-with_wind-system_rm.rds"))
+saveRDS(ww.data, here(system.precl.dat, "sf_spr-with_wind-system_rm.rds"))
 
 ## WIND PRECLUDED LOOP ####
 # create storage vector for years 
@@ -94,19 +99,19 @@ wo.data <- data.frame()
 
 
 ### LOOP ####
-for(i in seq(2021,2009)){ # count backwards by one starting at 2021 
+for(i in years){ # count backwards by one starting at 2021 
   x <- append(x, i) # add i to the storage vector
   y <- sf_spring |> 
     filter(EST_YEAR %in% c(x), AREA == "OUTSIDE") |> # filter out x value from year, and wind tows 
     stratified.mean() |> #calculate stratified means
-    mutate(STEP = length(x), # count each loop starting at 1 to represent the number of years removed
+    mutate(STEP = length(x)-1, # count each loop starting at 1 to represent the number of years removed
            TYPE = "Precluded")
   wo.data <- bind_rows(wo.data, y) # add each loop step the stratified means to the with wind dataframe
 }
 
 
 ### save data 
-saveRDS(wo.data, here("data", "sumflounder", "sf_spr-without_wind-system_rm.rds"))
+saveRDS(wo.data, here(system.precl.dat, "sf_spr-without_wind-system_rm.rds"))
 
 
 ## COMBINE DATA ####
@@ -115,7 +120,7 @@ all.data <- bind_rows(ww.data, wo.data) |>
   arrange(STEP)
 
 ### save data 
-saveRDS(all.data, here("data", "sumflounder", "sf_spr-system_rm-fullset.rds"))
+saveRDS(all.data, here(sumflounder.dat, "sf_spr-system_rm-fullset.rds"))
 
 # averages <- all.data |>
 #   group_by(STEP) |>

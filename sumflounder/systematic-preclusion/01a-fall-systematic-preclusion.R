@@ -1,5 +1,5 @@
 ### created: 03/17/2023
-### last updated: 07/28/2023
+### last updated: 01/29/2024
 
 # 01a - SYSTEMATIC PRECLUSION: FALL ####
 
@@ -16,9 +16,12 @@ suppressPackageStartupMessages(library(tidyverse))
 theme_set(theme_bw())
 source(here("R", "StratMeanFXs_v2.R")) # stratified mean functions
 
+system.precl.dat <- here("data", "sumflounder", "systematic-preclusion")
+sumflounder.dat <- here("data", "sumflounder")
+
 ### LOAD DATA ####
-# summer flounder data 
-sf_fall <- readRDS(here("data", "sumflounder", "sf_95fall_data.rds"))
+# summer flounder data consisting of observations filtered based on seasonal footprints created here("sumflounder", "04-filter-summer-flounder.R")
+sf_fall <- readRDS(here(sumflounder.dat, "sumflounder_fall.rds"))
 
 # stratified mean
 # sf_stratmu <- readRDS(here("data", "sumflounder", "sf_stratmu.rds")) |> 
@@ -40,6 +43,8 @@ sf_fall <- readRDS(here("data", "sumflounder", "sf_95fall_data.rds"))
 x <- c()
 # create storage data frame for stratified mean values 
 ww.data <- data.frame()
+# create year object for the years in the dataframe to filter for in the loop 
+years <- c(2022, sort(unique(sf_fall$EST_YEAR), decreasing = TRUE))
 
 ### TEST LOOP ###
 # test <- stratified.mean(sf_fall)
@@ -60,12 +65,12 @@ ww.data <- data.frame()
 # wo.data <- bind_rows(wo.data, y)
 
 ### LOOP ####
-for(i in seq(2022, 2009, -1)){ # count backwards by one starting at 2022 
+for(i in years){ # count backwards by one starting at 2022 
   x <- append(x, i) # add i to the storage vector
   y <- sf_fall |> 
     filter(!EST_YEAR %in% x) |> # filter out x value from year
     stratified.mean() |> # calculate stratified mean
-    mutate(STEP = (length(x)-2), # count each loop starting at -1 to represent the number of years removed
+    mutate(STEP = (length(x)-1), # count each loop starting at -1 to represent the number of years removed
            TYPE = "Included")
   ww.data <- bind_rows(ww.data, y) # add each loop step the stratified means to the with wind dataframe
 }
@@ -75,7 +80,7 @@ ww.data <- filter(ww.data, !STEP == 0) |>
   mutate(STEP = ifelse(STEP == -1, 0, STEP)) # replace -1 with 0, representing no years removed 
 
 ### save data 
-saveRDS(ww.data, here("data", "sumflounder", "sf_fall-with_wind-system_rm.rds"))
+saveRDS(ww.data, here(system.precl.dat, "sf_fall-with_wind-system_rm.rds"))
 
 ## WIND PRECLUDED LOOP ####
 # create storage vector for years 
@@ -84,23 +89,25 @@ x <- c()
 # create storage dataframe for stratified mean values
 wo.data <- data.frame()
 
+# create year object for the years in the dataframe to filter for in the loop 
+years <- sort(unique(sf_fall$EST_YEAR), decreasing = TRUE)
 
 ### LOOP ####
-for(i in seq(2022,2009, -1)){ # count backwards by one starting at 2022 
+for(i in years){ # count backwards by one starting at 2022 
   x <- append(x, i) # add i to the storage vector
   y <- sf_fall |> 
     filter(EST_YEAR %in% c(x), AREA == "OUTSIDE") |> # filter out x value from year, and tows indicated as wind tows 
     stratified.mean() |> # calculate stratified mean
-    mutate(STEP = (length(x)-2), # count each loop starting at -1 to represent the number of years removed
+    mutate(STEP = (length(x)), # count each loop starting at -1 to represent the number of years removed
            TYPE = "Precluded")
   wo.data <- bind_rows(wo.data, y) # add each loop step the stratified means to the with wind dataframe
 }
 
 # filter out repeated values of 2021, keep where time step == 1 to represent 1 year precluded 
-wo.data <- filter(wo.data, !STEP == 0)
+# wo.data <- filter(wo.data, !STEP == 0)
 
 ### save data 
-saveRDS(wo.data, here("data", "sumflounder", "sf_fall-without_wind-system_rm.rds"))
+saveRDS(wo.data, here(system.precl.dat, "sf_fall-without_wind-system_rm.rds"))
 
 ## COMBINE DATA ####
 # bind with wind and without wind stratified mean values to the same dataframe 
@@ -108,7 +115,7 @@ all.data <- bind_rows(ww.data, wo.data) |>
   arrange(STEP)
 
 ### save data 
-saveRDS(all.data, here("data", "sumflounder", "sf_fall-system_rm-fullset.rds"))
+saveRDS(all.data, here(system.precl.dat, "sf_fall-system_rm-fullset.rds"))
 
 # averages <- all.data |>
 #   group_by(STEP) |>
