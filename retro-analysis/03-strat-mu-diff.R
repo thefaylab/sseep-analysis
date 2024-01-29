@@ -1,5 +1,5 @@
 ### created: 11/28/2022
-### last updated: 12/8/2022
+### last updated: 11/28/2023
 
 # 03 - CALCULATING MEAN SQUARED DIFFERENCES FOR STRATIFIED MEANS BY SPECIES ####
 
@@ -61,27 +61,31 @@ mudiff_dat <- data |>
 topten_fall <- mudiff_dat |>
   filter(SEASON == "FALL") |>
   head(10) |> 
-  mutate(mudiff = round(mudiff, 2), 
-         COMNAME = str_to_sentence(COMNAME)) |> 
+  mutate(mudiff = round(mudiff,0), 
+         COMNAME = str_to_sentence(COMNAME), 
+         SEASON = str_to_sentence(SEASON))|> 
   rename(Species = COMNAME, 
+         Season = SEASON, 
          "Relative Percent Difference" = mudiff)
 
 fall_table <- kable(topten_fall[,c(4,3,2)], align = "lcccc", caption = "Ten Highest Percent Differences in Abundance Indices by Species", format.args = list(big.mark = ","), booktabs = TRUE) |>
   kable_styling(full_width = F, fixed_thead = T, font_size = 14) #|>
 
-save_kable(fall_table, here("outputs", "fall_mudiff.png"))
+# save_kable(fall_table, here("outputs", "fall_mudiff.png"))
 
 
 topten_spring <- mudiff_dat |>
-  filter(SEASON == "SPRING") |> 
+  filter(SEASON == "SPRING") |>
   head(10) |> 
-  mutate(mudiff = round(mudiff, 2), 
-         COMNAME = str_to_sentence(COMNAME)) |> 
+  mutate(mudiff = round(mudiff,0), 
+         COMNAME = str_to_sentence(COMNAME), 
+         SEASON = str_to_sentence(SEASON))|> 
   rename(Species = COMNAME, 
+         Season = SEASON, 
          "Relative Percent Difference" = mudiff)
 
 
-spring_table <- kable(topten_spring[,c(4,3,2)], align = "lcccc", caption = "Top Ten Mean Squared Differences by Species", format.args = list(big.mark = ","), booktabs = TRUE) |>
+spring_table <- kable(topten_spring[,c(4,3,2)], align = "lcccc", caption = "Ten Highest Percent Differences in Abundance Indices by Species", format.args = list(big.mark = ","), booktabs = TRUE) |>
   kable_styling(full_width = F, fixed_thead = T, font_size = 14)
 
 save_kable(spring_table, here("outputs", "spring_mudiff.png"))
