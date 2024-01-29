@@ -122,7 +122,6 @@ ggplot(am_spring, aes(AVGDEPTH)) +
 ```{r cumulative biomass by depth}
 summary(am_spring$AVGDEPTH)
 
-
 am_spring$depth_bin <- case_when(am_spring$AVGDEPTH <= 24 ~ 24, 
                                  am_spring$AVGDEPTH > 24 & am_spring$AVGDEPTH <= 36 ~ 36,
                                  am_spring$AVGDEPTH > 36 & am_spring$AVGDEPTH <= 48 ~ 48,
@@ -177,7 +176,73 @@ ggplot(depth_csum) +
 
 ggsave("atlmack_csum-bio-by-depth.png", last_plot(), device = "png", here("outputs", "atlmackerel"), width = 10, height = 6)
 
-depth_csum
+kable(depth_csum, align = "lcccc", caption = "Spring Atlantic mackerel cumulative distribution of biomass by depth bin. Bin value is the upper limit of the range of depths included.", format.args = list(big.mark = ","), booktabs = TRUE) |>
+  kable_styling(full_width = T, fixed_thead = T, font_size = 14) 
+
+```
+
+
+```{r}
+am_spring1 <- am_spring |> filter(EST_YEAR != 2020) 
+summary(am_spring1$AVGDEPTH)
+
+am_spring1$depth_bin <- case_when(am_spring1$AVGDEPTH <= 24 ~ 24, 
+                                 am_spring1$AVGDEPTH  > 24 & am_spring1$AVGDEPTH  <= 36 ~ 36,
+                                 am_spring1$AVGDEPTH  > 36 & am_spring1$AVGDEPTH  <= 48 ~ 48,
+                                 am_spring1$AVGDEPTH  > 48 & am_spring1$AVGDEPTH  <= 60 ~ 60,
+                                 am_spring1$AVGDEPTH  > 60 & am_spring1$AVGDEPTH  <= 72 ~ 72,
+                                 am_spring1$AVGDEPTH  > 72 & am_spring1$AVGDEPTH  <= 84 ~ 84,
+                                 am_spring1$AVGDEPTH  > 84 & am_spring1$AVGDEPTH  <= 96 ~ 96,
+                                 am_spring1$AVGDEPTH  > 96 & am_spring1$AVGDEPTH  <= 108 ~ 108,
+                                 am_spring1$AVGDEPTH  > 108 & am_spring1$AVGDEPTH  <= 120 ~ 120,
+                                 am_spring1$AVGDEPTH  > 120 & am_spring1$AVGDEPTH  <= 132 ~ 132,
+                                 am_spring1$AVGDEPTH  > 132 & am_spring1$AVGDEPTH  <= 144 ~ 144,
+                                 am_spring1$AVGDEPTH  > 144 & am_spring1$AVGDEPTH  <= 156 ~ 156,
+                                 am_spring1$AVGDEPTH  > 156 & am_spring1$AVGDEPTH  <= 168 ~ 168,
+                                 am_spring1$AVGDEPTH  > 168 & am_spring1$AVGDEPTH  <= 180 ~ 180,
+                                 am_spring1$AVGDEPTH  > 180 & am_spring1$AVGDEPTH  <= 192 ~ 192,
+                                 am_spring1$AVGDEPTH  > 192 & am_spring1$AVGDEPTH  <= 204 ~ 204,
+                                 am_spring1$AVGDEPTH  > 204 & am_spring1$AVGDEPTH  <= 216 ~ 216,
+                                 am_spring1$AVGDEPTH  > 216 & am_spring1$AVGDEPTH  <= 228 ~ 228,
+                                 am_spring1$AVGDEPTH  > 228 & am_spring1$AVGDEPTH  <= 240 ~ 240,
+                                 am_spring1$AVGDEPTH  > 240 & am_spring1$AVGDEPTH  <= 252 ~ 252,
+                                 am_spring1$AVGDEPTH  > 252 & am_spring1$AVGDEPTH  <= 264 ~ 264,
+                                 am_spring1$AVGDEPTH  > 264 & am_spring1$AVGDEPTH  <= 276 ~ 276,
+                                 am_spring1$AVGDEPTH  > 276 & am_spring1$AVGDEPTH  <= 288 ~ 288,
+                                 am_spring1$AVGDEPTH  > 288 & am_spring1$AVGDEPTH  <= 300 ~ 300,
+                                 am_spring1$AVGDEPTH  > 300 & am_spring1$AVGDEPTH  <= 312 ~ 312,
+                                 am_spring1$AVGDEPTH  > 312 & am_spring1$AVGDEPTH  <= 324 ~ 324,
+                                 am_spring1$AVGDEPTH  > 324 & am_spring1$AVGDEPTH  <= 336 ~ 336,
+                                 am_spring1$AVGDEPTH  > 336 & am_spring1$AVGDEPTH  <= 348 ~ 348,
+                                 am_spring1$AVGDEPTH  > 348 & am_spring1$AVGDEPTH  <= 360 ~ 360,
+                                 am_spring1$AVGDEPTH  > 360 & am_spring1$AVGDEPTH <= 372 ~ 372
+                                 )
+
+depth_csum1 <- am_spring1 |> 
+     group_by(depth_bin) |> 
+     summarise(total_bio = sum(EXPCATCHWT), .groups = "drop") |> 
+     arrange(desc(total_bio)) |>
+     mutate(csum_bio = cumsum(total_bio), 
+            csum_prop = csum_bio/max(csum_bio))
+
+lim95.1 <- max(depth_csum1$csum_bio)*0.95
+lim99.1 <- max(depth_csum1$csum_bio)*0.99
+
+ggplot(depth_csum1) + 
+  geom_point(aes(x = fct_reorder(as.character(depth_bin), csum_bio), y = csum_bio)) + 
+  ylim(0, NA) + 
+  geom_hline(yintercept = lim95.1, color = "red") +
+  geom_hline(yintercept = lim99.1, color = "blue") +
+  labs(x = "Depth (m)", y = "Cumulative Biomass (kg)", title = "AtlMack Cumulative Distribution of Biomass") +
+  theme_bw() + 
+  theme(axis.text.x = element_text(size = 8, hjust = 0.75, angle = 45, margin = margin(t = 2, r = 10, b = 10, l = 5, unit = "pt")), 
+        plot.margin = margin(t = 5, r = 15, b = 5, l = 5))
+
+#ggsave("atlmack_csum-bio-by-depth.png", last_plot(), device = "png", here("outputs", "atlmackerel"), width = 10, height = 6)
+
+kable(depth_csum1, align = "lcccc", caption = "Spring Atlantic mackerel cumulative distribution of biomass by depth bin. Bin value is the upper limit of the range of depths included.", format.args = list(big.mark = ","), booktabs = TRUE) |>
+  kable_styling(full_width = T, fixed_thead = T, font_size = 14) 
+
 
 ```
 
