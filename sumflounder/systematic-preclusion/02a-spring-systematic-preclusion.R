@@ -120,7 +120,7 @@ all.data <- bind_rows(ww.data, wo.data) |>
   arrange(STEP)
 
 ### save data 
-saveRDS(all.data, here(sumflounder.dat, "sf_spr-system_rm-fullset.rds"))
+saveRDS(all.data, here(system.precl.dat, "sf_spr-system_rm-fullset.rds"))
 
 # averages <- all.data |>
 #   group_by(STEP) |>
