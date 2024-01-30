@@ -323,7 +323,8 @@ all_stratmu <- all_stratmu |>
          upper = qlnorm(0.975, log(stratmu), sdlog)) |> # upper quantile of the logistic normal distribution
   mutate(sdlog = ifelse(is.nan(sdlog), 0, sdlog), # if sdlog is NaN, replace with 0
          lower = ifelse(is.nan(lower), 0, lower), # if the lower quantile is NaN, replace with 0
-         upper = ifelse(is.nan(upper), 0, upper))
+         upper = ifelse(is.nan(upper), 0, upper), 
+         season = "Spring")
 
 all_stratmu
 # saveRDS(all_stratmu, here(sim.check, "sumflounder_spring_one-sim-stratmu.rds"))
@@ -337,9 +338,10 @@ ggplot(all_stratmu) +
   geom_pointrange(aes(ymin=lower, ymax = upper), position =  position_dodge2(width=0.4)) +
   #facet_wrap(vars(SEASON), scales = "free_y") +
   #facet_grid(rows = vars(GEO_AREA), cols = vars(SEASON), scales = "free_y") + 
-  labs(x = "Wind-driven productivity scenario", y = "Stratified Mean (kg/tow)", title = "Spring productivity scenarios for summer flounder", subtitle = "Changes in the 2019 abundance index for summer flounder in response to changes in productivity inside wind energy areas") +
+  labs(x = "Wind-driven productivity scenario", y = "Stratified Mean (kg/tow)", subtitle = "Changes in the 2019 abundance index for summer flounder in response to changes in productivity inside wind energy areas") +
   ylim(0,NA) +
   theme_bw() + 
+  facet_wrap(~season) +
   theme(legend.position="bottom",
         legend.title = element_blank(), 
         #axis.text.x = element_text(angle = 90, hjust = -1), 

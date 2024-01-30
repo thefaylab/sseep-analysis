@@ -163,7 +163,8 @@ head(fall.inc)
 # saveRDS(fall.inc, here(sim.check, "fall_inc-sim.rds"))
 ```
 
-```{r}
+Compare to base wind tows chunk above to ensure changes in `eta` and `observed`
+```{r inc wind tows}
 names <- c(names(fall.inc[1:7]), "Intercept", "depth_1", "depth_2", "year_covar", "wind_covar",names(fall.inc[13]))
 names(fall.inc) <- names
 
@@ -198,8 +199,8 @@ fall.dec <- sdmTMB_simulate(
 head(fall.dec)
 # saveRDS(fall.dec, here(sim.check, "fall_dec-sim.rds"))
 ```
-
-```{r}
+Compare to base wind tows chunk above to ensure changes in `eta` and `observed`
+```{r dec wind tows}
 names <- c(names(fall.dec[1:7]), "Intercept", "depth_1", "depth_2", "year_covar", "wind_covar",names(fall.dec[13]))
 names(fall.dec) <- names
 
@@ -322,6 +323,19 @@ mudiff_dat
 # saveRDS(mudiff_dat, here(sim.check, "sumflounder_fall_one-sim-mudiff.rds"))
 ```
 
+## Absolute percentage difference 
+```{r}
+abs_diff <- all_stratmu |> 
+  group_by(SCENARIO) |> 
+  summarise(diff_mu = abs(diff(stratmu)), 
+            avg_mu = mean(stratmu)) |>
+  mutate(percent_diff = round((diff_mu / avg_mu)*100, 0))
+
+kable(abs_diff[,c(1,4)], col.names = c("Treatment", "Absolute percent difference")) |> kable_styling()
+  
+```
+
+
 ## Plot
 ```{r}
 all_stratmu <- all_stratmu |> 
@@ -331,7 +345,8 @@ all_stratmu <- all_stratmu |>
          upper = qlnorm(0.975, log(stratmu), sdlog)) |> # upper quantile of the logistic normal distribution
   mutate(sdlog = ifelse(is.nan(sdlog), 0, sdlog), # if sdlog is NaN, replace with 0
          lower = ifelse(is.nan(lower), 0, lower), # if the lower quantile is NaN, replace with 0
-         upper = ifelse(is.nan(upper), 0, upper))
+         upper = ifelse(is.nan(upper), 0, upper), 
+         season = "Fall")
 
 all_stratmu
 # saveRDS(all_stratmu, here(sim.check, "sumflounder_fall_one-sim-stratmu.rds"))
@@ -345,8 +360,9 @@ ggplot(all_stratmu) +
   geom_pointrange(aes(ymin=lower, ymax = upper), position =  position_dodge2(width=0.4)) +
   #facet_wrap(vars(SEASON), scales = "free_y") +
   #facet_grid(rows = vars(GEO_AREA), cols = vars(SEASON), scales = "free_y") + 
-  labs(x = "Wind-driven productivity scenario", y = "Stratified Mean (kg/tow)", title = "Fall productivity scenarios for summer flounder", subtitle = "Changes in the 2016 abundance index for summer flounder in response to changes in productivity inside wind energy areas") +
+  labs(x = "Wind-driven productivity scenario", y = "Stratified Mean (kg/tow)", subtitle = "Changes in the 2016 abundance index for summer flounder in response to changes in productivity inside wind energy areas") +
   ylim(0,NA) +
+  facet_wrap(~season)
   theme_bw() + 
   theme(legend.position="bottom",
         legend.title = element_blank(), 
