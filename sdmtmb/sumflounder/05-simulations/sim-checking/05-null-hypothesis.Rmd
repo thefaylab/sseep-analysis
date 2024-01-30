@@ -1,0 +1,342 @@
+---
+title: "Simulate null hypothesis for summer flounder catch rates"
+author: "Angelia Miller"
+date: "2024-01-30"
+output: word_document
+---
+
+## Objective 
+* simulate one year and 500 replicates of catch rates in one wind-overlapped strata when the predicted wind treatment has been removed 
+* plot the distribution of catch rates and mean catch rates for each season 
+
+
+```{r load packages}
+# library(stringr)
+# library(sf)
+# library(patchwork)
+library(here)
+suppressPackageStartupMessages(library(tidyverse))
+library(sdmTMB) 
+source(here("R", "StratMeanFXs_v2.R"))
+theme_set(theme_bw())
+
+sumflounder.dat <- here("sdmtmb", "sumflounder", "data")
+sim.check <- here("sdmtmb", "sumflounder", "data", "simulations", "sim-checking")
+sim.check.plots <- here("sdmtmb", "sumflounder", "plots", "simulations", "sim-checking")
+```
+
+## Data set up
+Generate a random set of numbers for the number of iterations that will be produced in the simulation to use as the set seed argument for reproducibility. 
+```{r number generation}
+set.seed(72346)
+
+# generate 3000 random numbers and sample for 500 to set seed with each iteration of sdmTMB_simulate for reproducibility
+seed.num.gen <- round(rnorm(3000, mean = 1305700, sd = 10000), 0)
+seed.num <- sample(seed.num.gen, size = 500, replace = FALSE)
+# length(which(duplicated(seed.num) == TRUE))
+
+```
+
+### Fall 
+Load in the model fitting data, fitted model, and the model predictions 
+```{r fall data}
+# model fitting data 
+sf_fall <- readRDS(here(sumflounder.dat, "sumflounder_fall.rds"))
+
+# polynomial coefficients from fall model fit extracted in "02a-check-fall-sim.Rmd"
+fall_depth_coefs <- readRDS(here(sim.check, "fall_depth_coefs.rds"))
+
+# fall summer flounder model 
+fall_mod <- readRDS(here(sumflounder.dat, "fall_mod.rds"))
+
+# fall model predictions 
+fall_preds <- readRDS(here(sumflounder.dat, "fall_mod_preds.rds")) |> 
+  select(X, Y, STATION, CRUISE6, STRATUM, omega_s, ) |> 
+  rename(fix_omegas = omega_s)
+
+
+```
+
+Find the number of wind tows in each strata and year and the total proportion those tows make up of the overall tows observed in that year and strata. From here we want to select a strata and year that have ~50% proportion of wind tows, and where the observations of biomass in those tows are of equal magnitude to those observations of biomass that occurred in outside tows. 
+```{r fall summary}
+# identify which year and stratum has the most wind tows
+fall_wind <- sf_fall |> 
+  filter(AREA == "WIND") |> 
+  group_by(EST_YEAR, STRATUM) |> 
+  summarise(count = length(unique(TOWID))) |> 
+  arrange(desc(count))
+fall_outside <- sf_fall |> 
+  filter(AREA == "OUTSIDE") |> 
+  group_by(EST_YEAR, STRATUM) |> 
+  summarise(count = length(unique(TOWID))) |> 
+  arrange(desc(count))
+left_join(outside_tows, wind_tows, by = c("EST_YEAR", "STRATUM")) |> janitor::clean_names() |> 
+  mutate(prop = count_y / (count_x + count_y)) |> 
+  arrange(desc(prop))
+
+```
+
+Set the year and strata to filter the model fitted data and predictions by to create a new dataset of locations that will be used to simulate values of biomass at. 
+```{r fall wrangle}
+fall_year <- 2018
+fall_strat <- 3200
+
+# join prediction data to model fitting data to add predicted spatial estimate for data simulation
+sf_fall <-   sf_fall |> 
+  left_join(fall_preds, by = c("X", "Y", "STATION", "STRATUM", "CRUISE6")) |> 
+  filter(EST_YEAR == fall_year, STRATUM == fall_strat) |> 
+  mutate(EST_YEAR = 1)
+
+# mesh for simulating
+fall_mesh <- make_mesh(sf_fall, xy_cols = c("X", "Y"), cutoff = 10)
+
+# pull main effect parameters from fall model fit
+fall_coefs <- tidy(fall_mod) 
+
+# pull random effect parameters from fall model fit
+fall_ran_pars <- tidy(fall_mod, "ran_pars")
+
+
+fall_coefs
+fall_ran_pars
+
+```
+
+
+
+### Spring
+```{r spring data}
+# model fitting data 
+sf_spring <- readRDS(here(sumflounder.dat, "sumflounder_spring.rds"))
+
+# polynomial coefficients from spring model fit extracted in "02a-check-spring-sim.Rmd"
+spring_depth_coefs <- readRDS(here(sim.check, "spring_depth_coefs.rds"))
+
+# spring summer flounder model 
+spring_mod <- readRDS(here(sumflounder.dat, "spring_mod.rds"))
+
+# spring model predictions 
+spring_preds <- readRDS(here(sumflounder.dat, "spring_mod_preds.rds")) |> 
+  select(X, Y, STATION, CRUISE6, STRATUM, omega_s) |> 
+  rename(fix_omegas = omega_s)
+
+```
+
+Find the number of wind tows in each strata and year and the total proportion those tows make up of the overall tows observed in that year and strata. From here we want to select a strata and year that have ~50% proportion of wind tows, and where the observations of biomass in those tows are of equal magnitude to those observations of biomass that occurred in outside tows. 
+```{r spring summary}
+# identify which year and stratum has the most wind tows
+spring_wind <- sf_spring |> 
+  filter(AREA == "WIND") |> 
+  group_by(EST_YEAR, STRATUM) |> 
+  summarise(count = length(unique(TOWID))) |> 
+  arrange(desc(count))
+spring_outside <- sf_spring |> 
+  filter(AREA == "OUTSIDE") |> 
+  group_by(EST_YEAR, STRATUM) |> 
+  summarise(count = length(unique(TOWID))) |> 
+  arrange(desc(count))
+left_join(spring_outside, spring_wind, by = c("EST_YEAR", "STRATUM")) |> janitor::clean_names() |> 
+  mutate(prop = count_y / (count_x + count_y)) |> 
+  arrange(desc(prop))
+
+```
+
+
+
+Set the year and strata to filter the model fitted data and predictions by to create a new dataset of locations that will be used to simulate values of biomass at. 
+```{r spring wrangle}
+spring_year <- 2016
+spring_strat <- 1690
+
+# join prediction data to model fitting data to add predicted spatial estimate for data simulation
+sf_spring <-   sf_spring |> 
+  left_join(spring_preds, by = c("X", "Y", "STATION", "STRATUM", "CRUISE6")) |> 
+  filter(EST_YEAR == spring_year, STRATUM == spring_strat) |> 
+  mutate(EST_YEAR = 1)
+
+# mesh for simulating
+spring_mesh <- make_mesh(sf_spring, xy_cols = c("X", "Y"), cutoff = 10)
+
+# pull main effect parameters from fall model fit
+spring_coefs <- tidy(spring_mod) 
+
+# pull random effect parameters from fall model fit
+spring_ran_pars <- tidy(spring_mod, "ran_pars")
+
+
+spring_coefs
+spring_ran_pars
+
+```
+
+
+
+
+
+
+
+## Simulate Scenarios 
+Set the b argument by extracting the coefficients for the depth effects, the selected year, and the area effect with and without the intended treatment effects. Remove the intercept value by setting its coefficient to 0, and fix the predicted spatial effect from the model by setting its coefficient to 1 and removing the `sigma_O` argument from the simulation.
+
+### Fall Baseline
+```{r fall base}
+b <- c(0, fall_coefs$estimate[1:2], fall_coefs$estimate[11],
+       0, 1)
+
+fall.base <- map2(1:500, seed.num, ~sdmTMB_simulate(
+    formula = ~1 + poly(AVGDEPTH, 2, coefs = fall_depth_coefs) +
+      EST_YEAR +
+      as.factor(AREA) +
+      fix_omegas,
+    data = sf_fall,
+    mesh = fall_mesh,
+    family = tweedie(),
+    #spatial = "on",
+    time = "EST_YEAR",
+    spatiotemporal = "IID",
+    B = b,
+    range = fall_ran_pars$estimate[1], 
+    sigma_O = 0,
+    sigma_E = fall_ran_pars$estimate[4],
+    phi = fall_ran_pars$estimate[2],
+    tweedie_p = fall_ran_pars$estimate[5],
+    seed = .y)
+)
+
+head(fall.base)
+# saveRDS(fall.base, here(sim.check, "fall_base-500sim.rds"))
+
+
+```
+
+### Spring Baseline
+```{r spring base}
+b <-  c(0, spring_coefs$estimate[1:2], spring_coefs$estimate[10],
+       0, 1)
+
+spring.base <- map2(1:500, seed.num, ~sdmTMB_simulate(
+    formula = ~1 + poly(AVGDEPTH, 2, coefs = spring_depth_coefs) +
+      EST_YEAR +
+      as.factor(AREA) +
+      fix_omegas,
+    data = sf_spring,
+    mesh = spring_mesh,
+    family = tweedie(),
+    #spatial = "on",
+    time = "EST_YEAR",
+    spatiotemporal = "IID",
+    B = b,
+    range = spring_ran_pars$estimate[1], 
+    sigma_O = 0,
+    sigma_E = spring_ran_pars$estimate[4],
+    phi = spring_ran_pars$estimate[2],
+    tweedie_p = spring_ran_pars$estimate[5],
+    seed = .y)
+)
+
+head(spring.base)
+
+```
+
+
+
+## Plot distributions of simulated catch rates 
+### Fall Baseline
+```{r fall plot}
+# create one large dataframe and add a sim column 
+fall.base.df <- map(fall.base, ~janitor::clean_names(.)) |> 
+  map2_dfr(1:500, ~mutate(.x, sim = .y)) |> 
+  select(observed, as_factor_area_wind, sim) |> 
+  mutate(season = "Fall", 
+         area = case_when(
+           as_factor_area_wind == 0 ~ "Outside", 
+           as_factor_area_wind == 1 ~ "Wind"))
+
+fall.base.df |> filter(observed>0) |> group_by(area) |> summarise(count = length(area))
+
+
+ggplot(fall.base.df |> filter(observed >0)) + 
+  geom_histogram(aes(x = observed, fill = as.factor(area)), position = "dodge") + 
+  facet_wrap(~season) + 
+  labs(x = "Simulated biomass (kg/tow)", y = "Frequency of biomass observation", fill = "Area", subtitle = "Distribution of catch rates when the baseline wind effect is removed from data simulation") 
+
+# ggsave("fall_500sim_catch-dist.png", device = "png", last_plot(), here(sim.check.plots), width = 8, height = 6)
+
+
+```
+
+*Results* Catch rates without a wind effect are similar. Average depth in the strata ranges from 21m to 26m (an inshore strata).
+
+```{r}
+fall_base_mu <- fall.base.df |> 
+  group_by(sim, area) |> 
+  summarise(mu = mean(observed), 
+            var = var(observed), 
+            cv = sqrt(var)/mu) |> 
+  mutate(scenario = "Baseline", 
+         season = "Fall")
+
+ggplot(fall_base_mu |> filter(mu >0)) + 
+  geom_histogram(aes(x = mu, fill = as.factor(area)), position = "dodge") + 
+  facet_wrap(~season) + 
+  labs(x = "Simulated mean biomass (kg/tow)", y = "Frequency of mean biomass observation", fill = "Area", subtitle = "Distribution of mean catch rates when the baseline wind effect is removed from data simulation") 
+
+# ggsave("fall_500sim_catch-mu-dist.png", device = "png", last_plot(), here(sim.check.plots), width = 8, height = 6)
+
+
+
+```
+
+*Results* Mean catch rates are similar when the wind area is turned off
+
+
+### Spring Baseline
+```{r}
+# create one large dataframe and add a sim column 
+spring.base.df <- map(spring.base, ~janitor::clean_names(.)) |> 
+  map2_dfr(1:500, ~mutate(.x, sim = .y)) |> 
+  select(observed, as_factor_area_wind, sim) |> 
+  mutate(season = "Spring", 
+         area = case_when(
+           as_factor_area_wind == 0 ~ "Outside", 
+           as_factor_area_wind == 1 ~ "Wind"))
+
+spring.base.df |> filter(observed>0) |> group_by(area) |> summarise(count = length(area))
+
+
+ggplot(spring.base.df |> filter(observed >0)) + 
+  geom_histogram(aes(x = observed, fill = as.factor(area)), position = "dodge") + 
+  facet_wrap(~season) + 
+  labs(x = "Simulated biomass (kg/tow)", y = "Frequency of biomass observation", fill = "Area", subtitle = "Distribution of catch rates when the baseline wind effect is removed from data simulation") 
+
+# ggsave("spring_500sim_catch-dist.png", device = "png", last_plot(), here(sim.check.plots), width = 8, height = 6)
+
+
+
+```
+
+*Results* Frequency of catch rates without a wind effect are higher inside wind areas but overall values are similar. Average depth in the strata ranges from 19m to 34m.
+
+
+```{r}
+spring_base_mu <- spring.base.df |> 
+  group_by(sim, area) |> 
+  summarise(mu = mean(observed), 
+            var = var(observed), 
+            cv = sqrt(var)/mu) |> 
+  mutate(scenario = "Baseline", 
+         season = "Spring")
+
+ggplot(spring_base_mu |> filter(mu >0)) + 
+  geom_histogram(aes(x = mu, fill = as.factor(area)), position = "dodge") + 
+  facet_wrap(~season) + 
+  labs(x = "Simulated mean biomass (kg/tow)", y = "Frequency of mean biomass observation", fill = "Area", subtitle = "Distribution of mean catch rates when the baseline wind effect is removed from data simulation") 
+
+# ggsave("spring_500sim_catch-mu-dist.png", device = "png", last_plot(), here(sim.check.plots), width = 8, height = 6)
+
+
+```
+
+*Results* Mean catch rates are similar when the wind area is turned off
+
+
