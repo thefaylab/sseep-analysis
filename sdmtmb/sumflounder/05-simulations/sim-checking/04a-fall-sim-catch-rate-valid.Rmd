@@ -6,7 +6,7 @@ output: word_document
 ---
 
 ## Objective 
-* simulate all historical years and 5 replicates of the two treatments and control 
+* simulate one year and 500 replicates of the two treatments and control in one wind-overlapped strata
 * plot the distribution of catch rates for each scenario 
 
 ```{r load packages}
@@ -23,6 +23,8 @@ sim.check <- here("sdmtmb", "sumflounder", "data", "simulations", "sim-checking"
 sim.check.plots <- here("sdmtmb", "sumflounder", "plots", "simulations", "sim-checking")
 ```
 
+### Data set up
+Load in the model fitting data, fitted model, and the model predictions 
 ```{r load data}
 # model fitting data 
 sf_fall <- readRDS(here(sumflounder.dat, "sumflounder_fall.rds"))
@@ -38,22 +40,49 @@ fall_mod <- readRDS(here(sumflounder.dat, "fall_mod.rds"))
 
 # fall model predictions 
 fall_preds <- readRDS(here(sumflounder.dat, "fall_mod_preds.rds")) |> 
-  select(X, Y, STATION, CRUISE6, STRATUM, omega_s) |> 
+  select(X, Y, STATION, CRUISE6, STRATUM, omega_s, ) |> 
   rename(fix_omegas = omega_s)
 
 
 ```
 
+Generate a random set of numbers for the number of iterations that will be produced in the simulation to use as the set seed argument for reproducibility. 
+Then find the number of wind tows in each strata and year and the total proportion those tows make up of the overall tows observed in that year and strata. From here we want to select a strata and year that have ~50% proportion of wind tows, and where the observations of biomass in those tows are of equal magnitude to those observations of biomass that occurred in outside tows. 
+```{r number generation}
+set.seed(72346)
 
+# generate 3000 random numbers and sample for 500 to set seed with each iteration of sdmTMB_simulate for reproducibility
+seed.num.gen <- round(rnorm(3000, mean = 1305700, sd = 10000), 0)
+seed.num <- sample(seed.num.gen, size = 500, replace = FALSE)
+# length(which(duplicated(seed.num) == TRUE))
+
+# identify which year and stratum has the most wind tows
+wind_tows <- sf_fall |> 
+  filter(AREA == "WIND") |> 
+  group_by(EST_YEAR, STRATUM) |> 
+  summarise(count = length(unique(TOWID))) |> 
+  arrange(desc(count))
+outside_tows <- sf_fall |> 
+  filter(AREA == "OUTSIDE") |> 
+  group_by(EST_YEAR, STRATUM) |> 
+  summarise(count = length(unique(TOWID))) |> 
+  arrange(desc(count))
+left_join(outside_tows, wind_tows, by = c("EST_YEAR", "STRATUM")) |> janitor::clean_names() |> 
+  mutate(prop = count_y / (count_x + count_y)) |> 
+  arrange(desc(prop))
+
+```
+
+Set the year and strata to filter the model fitted data and predictions by to create a new dataset of locations that will be used to simulate values of biomass at. 
 ```{r data wrangle}
-set.seed(131)
-seed.num <- round(rnorm(5, mean = 1000, sd = 120), 0)
+year <- 2018
+strat <- 3200
 
-sf_fall <- sf_fall |> 
-  left_join(fall_preds, by = c("X", "Y", "STATION", "STRATUM", "CRUISE6"))
-
-sf_fall_info <- sf_fall |>
-  select(X, Y, EST_YEAR, STRATUM, CRUISE6, STATION, AREA, AREA_CODE, SEASON)
+# join prediction data to model fitting data to add predicted spatial estimate for data simulation
+sf_fall <-   sf_fall |> 
+  left_join(fall_preds, by = c("X", "Y", "STATION", "STRATUM", "CRUISE6")) |> 
+  filter(EST_YEAR == year, STRATUM == strat) |> 
+  mutate(EST_YEAR = 1)
 
 # mesh for simulating
 mesh <- make_mesh(sf_fall, xy_cols = c("X", "Y"), cutoff = 10)
@@ -71,19 +100,24 @@ fall_ran_pars
 ```
 
 
+
+
+
+
+
 ## Simulate Scenarios 
+Set the b argument by extracting the coefficients for the depth effects, the selected year, and the area effect with and without the intended treatment effects. Remove the intercept value by setting its coefficient to 0, and fix the predicted spatial effect from the model by setting its coefficient to 1 and removing the `sigma_O` argument from the simulation.
+
 ### Base 
 ```{r sim base}
-# b <- c(0, fall_coefs$estimate[1:2], fall_coefs$estimate[14], 1)
-b <- c(fall_coefs$estimate, 1)
+b <- c(0, fall_coefs$estimate[1:2], fall_coefs$estimate[11],
+       fall_coefs$estimate[14], 1)
 
-# base.sim.num <- vector(mode = "list", length = 5)
-
-fall.base <- map2(1:5, seed.num, ~sdmTMB_simulate(
-    formula = ~poly(AVGDEPTH, 2, coefs = fall_depth_coefs) +
-      as.factor(EST_YEAR) +
+fall.base <- map2(1:500, seed.num, ~sdmTMB_simulate(
+    formula = ~1 + poly(AVGDEPTH, 2, coefs = fall_depth_coefs) +
+      EST_YEAR +
       as.factor(AREA) +
-      fix_omegas - 1,
+      fix_omegas,
     data = sf_fall,
     mesh = mesh,
     family = tweedie(),
@@ -99,23 +133,22 @@ fall.base <- map2(1:5, seed.num, ~sdmTMB_simulate(
     seed = .y)
 )
 
-#head(fall.base)
-# saveRDS(fall.base, here(sim.check, "fall_base-5sims.rds"))
+head(fall.base)
+# saveRDS(fall.base, here(sim.check, "fall_base-500sim.rds"))
 
 
 ```
 
 ### Enhanced
 ```{r sim increase}
-b <- c(fall_coefs$estimate[1:13], (fall_coefs$estimate[14]+log(2)), 1)
+b <- c(0, fall_coefs$estimate[1:2], fall_coefs$estimate[11],
+       (fall_coefs$estimate[14]+log(2)), 1)
 
-# inc.sim.num <- vector(mode = "list", length = 5)
-
-fall.inc <- map2(1:5, seed.num, ~sdmTMB_simulate(
-    formula = ~poly(AVGDEPTH, 2, coefs = fall_depth_coefs) +
-      as.factor(EST_YEAR) +
+fall.inc <- map2(1:500, seed.num, ~sdmTMB_simulate(
+    formula = ~1 +poly(AVGDEPTH, 2, coefs = fall_depth_coefs) +
+      EST_YEAR +
       as.factor(AREA) +
-      fix_omegas - 1,
+      fix_omegas,
     data = sf_fall,
     mesh = mesh,
     family = tweedie(),
@@ -132,20 +165,19 @@ fall.inc <- map2(1:5, seed.num, ~sdmTMB_simulate(
 )
 
 head(fall.inc)
-# saveRDS(fall.inc, here(sim.check, "fall_inc-5sim.rds"))
+# saveRDS(fall.inc, here(sim.check, "fall_inc-500sim.rds"))
 ```
 
 ### Reduced
 ```{r sim decrease}
-b <- c(fall_coefs$estimate[1:13], (fall_coefs$estimate[14]-log(2)), 1)
+b <- c(0, fall_coefs$estimate[1:2], fall_coefs$estimate[11],
+       (fall_coefs$estimate[14]-log(2)), 1)
 
-#dec.sim.num <- vector(mode = "list", length = 5)
-
-fall.dec <- map2(1:5, seed.num, ~sdmTMB_simulate(
-    formula = ~poly(AVGDEPTH, 2, coefs = fall_depth_coefs) +
-      as.factor(EST_YEAR) +
+fall.dec <- map2(1:500, seed.num, ~sdmTMB_simulate(
+    formula = ~1+ poly(AVGDEPTH, 2, coefs = fall_depth_coefs) +
+      EST_YEAR +
       as.factor(AREA) +
-      fix_omegas - 1,
+      fix_omegas,
     data = sf_fall,
     mesh = mesh,
     family = tweedie(),
@@ -162,203 +194,132 @@ fall.dec <- map2(1:5, seed.num, ~sdmTMB_simulate(
 )
 
 head(fall.dec)
-# saveRDS(fall.dec, here(sim.check, "fall_dec-5sim.rds"))
+# saveRDS(fall.dec, here(sim.check, "fall_dec-500sim.rds"))
 ```
 
-## Filter replicates based on wind-impacted strata
-```{r}
-set.seed(145)
-wind_strat <- fall.base[[1]] |> 
-  left_join(sf_fall_info, by = c("X", "Y", "EST_YEAR")) |> 
-  filter(AREA == "WIND") |> 
-  distinct(STRATUM) |> 
-  slice_sample(n = 1)
 
-fall.base.1strat <- map(fall.base, ~left_join(.x, sf_fall_info, by = c("X", "Y", "EST_YEAR")) |> 
-  filter(STRATUM == wind_strat$STRATUM) |> 
-  select(X, Y, EST_YEAR, observed, AREA, AREA_CODE))
-
-fall.inc.1strat <- map(fall.inc, ~left_join(.x, sf_fall_info, by = c("X", "Y", "EST_YEAR")) |> 
-  filter(STRATUM == wind_strat$STRATUM) |> 
-  select(X, Y, EST_YEAR, observed, AREA, AREA_CODE, SEASON))
-
-
-fall.dec.1strat <- map(fall.dec, ~left_join(.x, sf_fall_info, by = c("X", "Y", "EST_YEAR")) |> 
-  filter(STRATUM == wind_strat$STRATUM) |> 
-  select(X, Y, EST_YEAR, observed, AREA, AREA_CODE, SEASON))
-
-# saveRDS(fall.base.1strat, here(sim.check, "fall_base-5sim-1strat.rds"))
-# saveRDS(fall.inc.1strat, here(sim.check, "fall_inc-5sim-1strat.rds"))
-# saveRDS(fall.dec.1strat, here(sim.check, "fall_dec-5sim-1strat.rds"))
-```
-
-##Calculate Mean catch rate
-The mean catch rate for each scenario for strata 1650 and the absolute percent difference between survey effort reduction 
+##Calculate Statistics
+The mean catch rate for each productivity scenario simulation and the absolute percent difference between survey effort reduction scenarios
 
 ### Base
 ```{r}
-# fall_base_ww <- map(fall.base.1strat, ~mutate(.x, SVSPP = 103) |> rename(EXPCATCHWT = observed) |> stratified.mean() |> mutate(TYPE = "With Wind Included")) |>
-#   map2_dfr(1:5, ~mutate(.x, sim = .y, SCENARIO = "Baseline"))
-fall.base.1strat <- map(fall.base.1strat, ~janitor::clean_names(.)) |> 
-  map2_dfr(1:5, ~mutate(.x, sim = .y))
+# create one large dataframe and add a sim column 
+filtered.base.df <- map(fall.base, ~janitor::clean_names(.)) |> 
+  map2_dfr(1:500, ~mutate(.x, sim = .y))
 
-fall_base_ww <- fall.base.1strat |> 
-  group_by(est_year, sim) |> 
+# calculate the "status quo" scenario
+fall_base_ww <- filtered.base.df |> 
+  group_by(sim) |> 
   summarise(mu = mean(observed), 
             var = var(observed)) |> 
   mutate(scenario = "Baseline")
 
-# fall_base_ww <- map(fall.base.1strat, 
-#                     ~summarise(.x, 
-#                                towct = length(unique(STATION)),
-#                                mu = sum(observed)/towct, 
-#                                var = ifelse(towct == 1, 0,sum((observed - mu)^2)/(towct - 1)), 
-#                                .by = EST_YEAR)) 
-  
-fall_base_wow <- fall.base.1strat |> 
-  filter(area == "OUTSIDE") |>
-  group_by(est_year, sim) |> 
+# calculate the "precluded" scenario
+fall_base_wow <- filtered.base.df |> 
+  filter(as_factor_area_wind == 0) |> #outside areas
+  group_by(sim) |> 
   summarise(mu = mean(observed), 
             var = var(observed)) |> 
   mutate(scenario = "Baseline")
 
-# fall_base_wow <- map(fall.base.1strat, 
-#                     ~filter(.x, AREA == "OUTSIDE") |> 
-#                       summarise( 
-#                                towct = length(unique(STATION)),
-#                                mu = sum(observed)/towct, 
-#                                var = ifelse(towct == 1, 0,sum((observed - mu)^2)/(towct - 1)), 
-#                                .by = EST_YEAR)) 
-
-base_diff <- left_join(fall_base_ww, fall_base_wow, by = c("est_year", "sim", "scenario")) |>
+# bind the scenarios to calculate the absolute percent difference
+base_diff <- left_join(fall_base_ww, fall_base_wow, by = c("sim", "scenario")) |>
   janitor::clean_names() |>
-  group_by(sim, est_year) |>
+  group_by(sim) |> #, est_year) |>
   summarise(abs_diff =( abs(mu_x - mu_y) / mu_x)*100) |>
   mutate(abs_diff = ifelse(is.nan(abs_diff), 0, abs_diff),
          scenario = "Baseline")
 
-# map2(fall_base_ww, fall_base_wow, ~(abs(.x$mu - .y$mu)/.x$mu)*100)
+# saveRDS(fall_base_ww, here(sim.check, "fall_base_ww-500sim.rds"))
+# saveRDS(fall_base_wow, here(sim.check, "fall_base_wow-500sim.rds"))
+# saveRDS(base_diff, here(sim.check, "fall_base_diff-500sim.rds"))
   
 ```
 
 ### Enhanced
 ```{r}
-fall.inc.1strat <- map(fall.inc.1strat, ~janitor::clean_names(.)) |> 
-  map2_dfr(1:5, ~mutate(.x, sim = .y))
+# create one large dataframe and add a sim column 
+filtered.inc.df <- map(fall.inc, ~janitor::clean_names(.)) |> 
+  map2_dfr(1:500, ~mutate(.x, sim = .y))
 
-fall_inc_ww <- fall.inc.1strat |> 
-  group_by(est_year, sim) |> 
+# calculate the "status quo" scenario
+fall_inc_ww <- filtered.inc.df |> 
+  group_by(sim) |> 
   summarise(mu = mean(observed), 
             var = var(observed)) |> 
   mutate(scenario = "Enhanced")
   
-fall_inc_wow <- fall.inc.1strat |> 
-  filter(area == "OUTSIDE") |>
-  group_by(est_year, sim) |> 
+# calculate the "precluded" scenario
+fall_inc_wow <- filtered.inc.df |> 
+  filter(as_factor_area_wind == 0) |> #outside areas
+  group_by(sim) |> 
   summarise(mu = mean(observed), 
             var = var(observed)) |> 
   mutate(scenario = "Enhanced")
 
-inc_diff <- left_join(fall_inc_ww, fall_inc_wow, by = c("est_year", "sim", "scenario")) |>
+# bind the scenarios to calculate the absolute percent difference
+inc_diff <- left_join(fall_inc_ww, fall_inc_wow, by = c("sim", "scenario")) |>
   janitor::clean_names() |>
-  group_by(sim, est_year) |>
+  group_by(sim) |> #, est_year) |>
   summarise(abs_diff =( abs(mu_x - mu_y) / mu_x)*100) |>
   mutate(abs_diff = ifelse(is.nan(abs_diff), 0, abs_diff),
          scenario = "Enhanced")
+
+# saveRDS(fall_inc_ww, here(sim.check, "fall_inc_ww-500sim.rds"))
+# saveRDS(fall_inc_wow, here(sim.check, "fall_inc_wow-500sim.rds"))
+# saveRDS(inc_diff, here(sim.check, "fall_inc_diff-500sim.rds"))
 
 ```
 
 ### Reduced
 ```{r}
-fall.dec.1strat <- map(fall.dec.1strat, ~janitor::clean_names(.)) |> 
-  map2_dfr(1:5, ~mutate(.x, sim = .y))
+# create one large dataframe and add a sim column 
+filtered.dec.df <- map(fall.dec, ~janitor::clean_names(.)) |> 
+  map2_dfr(1:500, ~mutate(.x, sim = .y))
 
-fall_dec_ww <- fall.dec.1strat |> 
-  group_by(est_year, sim) |> 
+# calculate the "status quo" scenario
+fall_dec_ww <- filtered.dec.df |> 
+  group_by(sim) |> 
   summarise(mu = mean(observed), 
             var = var(observed)) |> 
   mutate(scenario = "Reduced")
   
-fall_dec_wow <- fall.dec.1strat |> 
-  filter(area == "OUTSIDE") |>
-  group_by(est_year, sim) |> 
+# calculate the "precluded" scenario
+fall_dec_wow <- filtered.dec.df |> 
+  filter(as_factor_area_wind == 0) |> #outside areas
+  group_by(sim) |> 
   summarise(mu = mean(observed), 
             var = var(observed)) |> 
   mutate(scenario = "Reduced")
 
-dec_diff <- left_join(fall_dec_ww, fall_dec_wow, by = c("est_year", "sim", "scenario")) |>
+# bind the scenarios to calculate the absolute percent difference
+dec_diff <- left_join(fall_dec_ww, fall_dec_wow, by = c("sim", "scenario")) |>
   janitor::clean_names() |>
-  group_by(sim, est_year) |>
+  group_by(sim) |> #, est_year) |>
   summarise(abs_diff =( abs(mu_x - mu_y) / mu_x)*100) |>
   mutate(abs_diff = ifelse(is.nan(abs_diff), 0, abs_diff),
          scenario = "Reduced")
+
+# saveRDS(fall_dec_ww, here(sim.check, "fall_dec_ww-500sim.rds"))
+# saveRDS(fall_dec_wow, here(sim.check, "fall_dec_wow-500sim.rds"))
+# saveRDS(dec_diff, here(sim.check, "fall_dec_diff-500sim.rds"))
+
 ```
 
 ### PLOT DISTRIBUTION
 ```{r}
+# bind the absolute percent difference dataframes of all three productivity scenarios and plot the distribution of differences 
 bind_rows(base_diff, inc_diff, dec_diff) |> 
   ggplot() + 
   geom_boxplot(aes(x = as.factor(scenario), y = abs_diff)) + 
-  labs(x = "Productivity scenario", y = "Absolute percent difference between survey effort scenarios", subtitle = "Distribution of differences between survey effort scenarios for each productivity scenario\noccurring in stratum 1650 and across years and 5 replicates") + 
+  labs(x = "Productivity scenario", y = "Absolute percent difference between survey effort scenarios", subtitle = str_c("Distribution of differences between survey effort scenarios for each productivity scenario\nobserved in stratum", strat, "in", year, "and across 500 replicates", sep = " ")) + 
   theme_bw()
 
-ggsave("fall_5sim_1strat_diff-dist.png", device = "png", last_plot(), here(sim.check.plots), width = 8, height = 6)
+# to extract exact median values plotted in the boxplot
+median(base_diff$abs_diff)
+median(inc_diff$abs_diff)
+median(dec_diff$abs_diff)
+
+# ggsave("fall_500sim_diff-dist.png", device = "png", last_plot(), here(sim.check.plots), width = 8, height = 6)
 ```
-
-
-
-## Simulated catch rates 
-```{r}
-# create one large dataframe
-# fall.base.df <- map2_dfr(fall.base.1strat, 1:5, ~mutate(.x, sim = .y)) |> 
-#   mutate(SCENARIO = "Control")
-# fall.inc.df <- map2_dfr(fall.inc.1strat, 1:5, ~mutate(.x, sim = .y)) |> 
-#   mutate(SCENARIO = "Increase")
-# fall.dec.df <- map2_dfr(fall.dec.1strat, 1:5, ~mutate(.x, sim = .y)) |> 
-#   mutate(SCENARIO = "Decrease")
-# 
-# fall.scenarios <- bind_rows(fall.base.df, fall.inc.df, fall.dec.df)
-
-```
-
-
-```{r}
-# ggplot(fall.scenarios |> filter(observed >0)) + 
-#   geom_histogram(aes(x = observed)) + 
-#   facet_grid(cols = vars(AREA), rows = vars(SCENARIO)) +
-#   labs(x = "Biomass (kg/tow)", y = "Frequency of biomass observation", 
-#        title = "Catch rates of fall summer flounder biomass in wind energy areas",
-#        subtitle = "Biomass catch rates were simulated 5 times for each wind-driven scenario and \nrepresent tows occurring in strata 1650 (a wind-impacted strata)") + 
-#   theme_bw()
-
-# ggsave("sumflounder_fall-5sim-wind-catch-rates.png", device = "png", last_plot(), here(sim.check.plots), width = 8, height = 6)
-
-```
-
-```{r}
-# ggplot(fall.scenarios |> filter(observed >0)) + 
-#   geom_histogram(aes(x = observed, fill = AREA)) + 
-#   facet_wrap(~SCENARIO) +
-#   labs(x = "Biomass (kg/tow)", y = "Frequency of biomass observation", 
-#        title = "Catch rates of fall summer flounder biomass in wind energy areas",
-#        subtitle = "Biomass catch rates were simulated 5 times for each wind-driven scenario and \nrepresent tows occurring in strata 1650 (a wind-impacted strata)") + 
-#   theme_bw()
-
-# ggsave("sumflounder_fall-5sim-wind-catch-rates2.png", device = "png", last_plot(), here(sim.check.plots), width = 8, height = 6)
-```
-
-
-
-```{r}
-# ggplot(fall.scenarios |> filter(observed >0)) + 
-#   geom_boxplot(aes(x = as.factor(SCENARIO), observed, color = AREA)) + 
-#   #facet_grid(cols = vars(AREA), rows = vars(SCENARIO)) +
-#   labs(x = "Scenario", y = "Biomass catch rates (kg/tow)", 
-#        title = "Catch rates of simulated fall summer flounder biomass",
-#        subtitle = "Biomass catch rates were simulated 5 times for each wind-driven scenario and \nrepresent tows occurring in strata 1650 (a wind-impacted strata)") + 
-#   theme_bw()
-
-# ggsave("sumflounder_fall-5sim-wind-catch-rates3.png", device = "png", last_plot(), here(sim.check.plots), width = 8, height = 6)
-```
-
 
