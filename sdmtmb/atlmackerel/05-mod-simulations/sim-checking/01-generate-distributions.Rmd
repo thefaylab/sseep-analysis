@@ -1,0 +1,666 @@
+---
+title: "Generating tweedie distributions"
+author: "Angelia Miller"
+date: "2024-01-30"
+output: word_document
+---
+
+## Objective 
+* generate random numbers from the model fit to Atlantic mackerel with varying scales of a mean (control)
+* generate random numbers from the model fit to Atlantic mackerel with varying scales of a mean plus the intended treatment effect (treatment)
+* randomly sample the control for the same proportion that represents the wind tow observations from the historical dataset, and for the same proportion that represents the outside wind area observations for a given number of replicates 
+* calculate the means of each replicate sample where the wind proportions are and are not included (baseline mean)
+* calculate the absolute percent difference between the two means 
+* randomly sample the treatment for the same proportion that represents the wind tow observations from the historical dataset, and the control for the same proportion that represents the outside wind area observations for a given number of replicates 
+* calculate the means of each replicate sample where the wind proportions are and are not included (treatment mean) 
+* calculate the absolute percent difference between the two means 
+* plot the distribution of differences in means across treatments
+
+
+```{r load packages}
+# library(stringr)
+# library(sf)
+# library(patchwork)
+library(here)
+suppressPackageStartupMessages(library(tidyverse))
+library(sdmTMB) 
+library(tweedie)
+#source(here("R", "StratMeanFXs_v2.R"))
+
+atlmackerel.dat <- here("sdmtmb", "atlmackerel", "data")
+sim.check <- here("sdmtmb", "atlmackerel", "data", "simulations", "sim-checking")
+sim.check.plots <- here("sdmtmb", "atlmackerel", "plots", "simulations", "sim-checking")
+```
+
+
+```{r load data}
+season <- "spring"
+
+# read in fall model 
+mod <- readRDS(here(atlmackerel.dat, str_c(season, "mod.rds", sep = "_")))
+
+# extract the random parameters from the model fit to call in random number generation
+ran_pars <- tidy(mod, "ran_pars")
+ran_pars
+# read in spring model
+# spring_mod <- readRDS(here(atlmackerel.dat, "spring_mod.rds"))
+# spring_ran_pars <- tidy(spring_mod, "ran_pars")
+
+```
+
+
+
+```{r data wrangle}
+# extract model fitting data 
+moddat <- mod$data |> 
+  mutate(AREA = as.character(AREA))
+
+mu_tows <- moddat |> group_by(EST_YEAR) |> summarise(tows = length(TOWID)) |> ungroup() |> summarise(mu_tows = mean(tows))
+
+# check the proportion of outside wind tows to inside wind tows
+outside <- moddat |> filter(AREA == "OUTSIDE")
+wind <- moddat |> filter(AREA == "WIND")
+
+wind_prop <- nrow(wind)/nrow(outside)
+out_prop <- 1 - wind_prop
+
+samp_wind <- round(mu_tows*wind_prop,0)
+samp_out <- round(mu_tows*out_prop,0)
+
+# number of samples to represent wind tows
+samp_wind
+
+# number of samples to represent outside wind tows
+samp_out
+
+```
+
+## Generate random numbers 
+We generate 1000 random numbers from a tweedie distribution with the seasonal model estimated power (tweedie_p) and dispersion (phi) parameter, and a mean of 1, 10, and 100. 
+### Unperturbed values
+```{r}
+set.seed(987654)
+
+# mean 1 values
+rnum1 <- data.frame(val = rtweedie(1000, power = ran_pars$estimate[5], mu = 1, phi=ran_pars$estimate[2]),
+                    type = "Control")
+
+# mean 10 values
+rnum10 <- data.frame(val = rtweedie(1000, power = ran_pars$estimate[5], mu = 10, phi = ran_pars$estimate[2]), 
+                     type = "Control")
+
+
+# mean 100 values 
+rnum100 <- data.frame(val = rtweedie(1000, power = ran_pars$estimate[5], mu = 100, phi = ran_pars$estimate[2]), 
+                      type = "Control")
+
+```
+
+
+Next, we generate 1000 random numbers from a tweedie distribution with the seasonal model estimated power (tweedie_p) and dispersion (phi) parameter, and a mean of 1, 10, and 100 that is multiplied by 2 to represent the "Enchanced productivity" scenario. 
+
+### Enhanced values 
+```{r}
+set.seed(987654)
+
+# mean 1 values
+rnum1.1 <- data.frame(val = rtweedie(1000,  power = ran_pars$estimate[5], mu = (1*2), phi=ran_pars$estimate[2]), 
+                      type = "Enhanced")
+
+# mean 10 values
+rnum10.1 <- data.frame(val = rtweedie(1000, power = ran_pars$estimate[5], mu = (10*2), phi=ran_pars$estimate[2]), 
+                       type = "Enhanced")
+
+# mean 100 values
+rnum100.1 <- data.frame(val = rtweedie(1000, power = ran_pars$estimate[5], mu = (100*2), phi=ran_pars$estimate[2]), 
+                        type = "Enhanced")
+```
+
+
+Then, we generate 1000 random numbers from a tweedie distribution with the seasonal model estimated power (tweedie_p) and dispersion (phi) parameter, and a mean of 1, 10, and 100 that is divided by 2 to represent the "Reduced productivity" scenario. 
+
+### Reduced values
+```{r}
+set.seed(987654)
+
+# mean 1 values
+rnum1.2 <- data.frame(val = rtweedie(1000,  power = ran_pars$estimate[5], mu = (1*0.5), phi=ran_pars$estimate[2]), 
+                      type = "Reduced")
+
+# mean 10 values
+rnum10.2 <- data.frame(val = rtweedie(100, power = ran_pars$estimate[5], mu = (10*0.5), phi=ran_pars$estimate[2]), 
+                       type = "Reduced")
+
+# mean 100 values
+rnum100.2 <- data.frame(val = rtweedie(100, power = ran_pars$estimate[5], mu = (100*0.5), phi=ran_pars$estimate[2]), 
+                        type = "Reduced")
+
+```
+
+
+## Create tow data frame
+A dataframe is created to represent the historical survey tows under the status quo survey effort scenario by randomly sampling each of the random number dataframes based on the proportion of tows that occurred in and outside of wind energy areas. 
+
+### Baseline
+Numbers are sampled under each distribution generated from a mean of 1, 10, and 100. 
+#### Mean 1
+```{r}
+set.seed(987654)
+
+# create wind tows data frame
+wind1 <- map_dfc(1:1000, ~sample(rnum1$val, size = samp_wind$mu_tows, replace = TRUE)) 
+colnames(wind1) <- 1:1000 #rename columns 
+# create long dataframe, add replicate number, and treatment type
+wind1 <- wind1 |> pivot_longer(cols = c(1:1000), names_to = "replicate", names_transform = as.integer, values_to = "val") |> 
+  mutate(type = "Control", 
+         area = "Wind",
+         mean = 1)
+
+# create outside wind tows 
+outside1 <- map_dfc(1:1000, ~sample(rnum1$val, size = samp_out$mu_tows, replace = TRUE)) 
+colnames(outside1) <- 1:1000 #rename columns
+# create long dataframe, add replicate number, and treatment type
+outside1 <- outside1 |> pivot_longer(cols = c(1:1000), names_to = "replicate", names_transform = as.integer, values_to = "val") |> 
+  mutate(type = "Control", 
+         area = "Outside", 
+         mean = 1)
+
+# combine to create a "full dataset"
+base1 <- bind_rows(wind1, outside1)
+```
+
+#### Mean 10
+```{r}
+set.seed(987654)
+
+# create wind tows data frame
+wind10 <- map_dfc(1:1000, ~sample(rnum10$val, size = samp_wind$mu_tows, replace = TRUE)) 
+colnames(wind10) <- 1:1000 #rename columns 
+# create long dataframe, add replicate number, and treatment type
+wind10 <- wind10 |> pivot_longer(cols = c(1:1000), names_to = "replicate", names_transform = as.integer, values_to = "val") |> 
+  mutate(type = "Control", 
+         area = "Wind", 
+         mean = 10)
+
+# create outside wind tows 
+outside10 <- map_dfc(1:1000, ~sample(rnum10$val, size = samp_out$mu_tows, replace = TRUE)) 
+colnames(outside10) <- 1:1000 #rename columns
+# create long dataframe, add replicate number, and treatment type
+outside10 <- outside10 |> pivot_longer(cols = c(1:1000), names_to = "replicate", names_transform = as.integer, values_to = "val") |> 
+  mutate(type = "Control", 
+         area = "Outside", 
+         mean = 10)
+
+# combine to create a "full dataset"
+base10 <- bind_rows(wind10, outside10)
+```
+
+
+#### Mean 100
+```{r}
+set.seed(987654)
+
+# create wind tows data frame
+wind100 <- map_dfc(1:1000, ~sample(rnum100$val, size = samp_wind$mu_tows, replace = TRUE)) 
+colnames(wind100) <- 1:1000 #rename columns 
+# create long dataframe, add replicate number, and treatment type
+wind100 <- wind100 |> pivot_longer(cols = c(1:1000), names_to = "replicate", names_transform = as.integer, values_to = "val") |> 
+  mutate(type = "Control", 
+         area = "Wind", 
+         mean = 100)
+
+# create outside wind tows 
+outside100 <- map_dfc(1:1000, ~sample(rnum100$val, size = samp_out$mu_tows, replace = TRUE)) 
+colnames(outside100) <- 1:1000 #rename columns
+# create long dataframe, add replicate number, and treatment type
+outside100 <- outside100 |> pivot_longer(cols = c(1:1000), names_to = "replicate", names_transform = as.integer, values_to = "val") |> 
+  mutate(type = "Control", 
+         area = "Outside", 
+         mean = 100)
+
+# combine to create a "full dataset"
+base100 <- bind_rows(wind100, outside100)
+```
+
+
+
+### Enhanced Wind Areas
+Samples are generated as the same size as those of historical "wind tows" from each distribution generated from a mean of 1, 10, and 100 multiplied by 2 to represent the "Enchanced productivity" inside wind energy areas scenario. These samples are then combined with the samples generated above as the same size as those tows occurring "outside wind energy areas" according to the respective mean (i.e. 1, 10, 100). The combinations of these samples represent a status quo survey effort scenario where fish density has been increased inside wind energy areas. 
+
+#### Mean 1
+```{r}
+set.seed(987654)
+
+# create wind tows data frame
+wind1.1 <- map_dfc(1:1000, ~sample(rnum1.1$val, size = samp_wind$mu_tows, replace = TRUE)) 
+colnames(wind1.1) <- 1:1000 #rename columns 
+# create long dataframe, add replicate number, and treatment type
+wind1.1 <- wind1.1 |> pivot_longer(cols = c(1:1000), names_to = "replicate", names_transform = as.integer, values_to = "val") |> 
+  mutate(type = "Enhanced", 
+         area = "Wind",
+         mean = 1)
+
+#outside1$type <- "Enhanced"
+
+# combine to create a "full dataset"
+enhanced1 <- bind_rows(wind1.1, outside1)
+
+```
+
+#### Mean 10
+```{r}
+set.seed(987654)
+
+# create wind tows data frame
+wind10.1 <- map_dfc(1:1000, ~sample(rnum10.1$val, size = samp_wind$mu_tows, replace = TRUE)) 
+colnames(wind10.1) <- 1:1000 #rename columns 
+# create long dataframe, add replicate number, and treatment type
+wind10.1 <- wind10.1 |> pivot_longer(cols = c(1:1000), names_to = "replicate", names_transform = as.integer, values_to = "val") |> 
+  mutate(type = "Enhanced", 
+         area = "Wind", 
+         mean = 10)
+
+# outside10$type <- "Enhanced"
+
+# combine to create a "full dataset"
+enhanced10 <- bind_rows(wind10.1, outside10)
+
+```
+
+
+#### Mean 100
+```{r}
+set.seed(987654)
+
+# create wind tows data frame
+wind100.1 <- map_dfc(1:1000, ~sample(rnum100.1$val, size = samp_wind$mu_tows, replace = TRUE)) 
+colnames(wind100.1) <- 1:1000 #rename columns 
+# create long dataframe, add replicate number, and treatment type
+wind100.1 <- wind100.1 |> pivot_longer(cols = c(1:1000), names_to = "replicate", names_transform = as.integer, values_to = "val") |> 
+  mutate(type = "Enhanced", 
+         area = "Wind", 
+         mean = 100)
+
+# outside100$type <- "Enhanced"
+
+# combine to create a "full dataset"
+enhanced100 <- bind_rows(wind100.1, outside100)
+
+```
+
+
+
+
+### Reduced 
+Samples are generated as the same size as those of historical "wind tows" from each distribution generated from a mean of 1, 10, and 100 divided by 2 to represent the "Reduced productivity" inside wind energy areas scenario. These samples are then combined with the samples generated above as the same size as those tows occurring "outside wind energy areas" according to the respective mean (i.e. 1, 10, 100). The combinations of these samples represent a status quo survey effort scenario where fish density has been decreased inside wind energy areas. 
+#### Mean 1
+```{r}
+set.seed(987654)
+
+# create wind tows data frame
+wind1.2 <- map_dfc(1:1000, ~sample(rnum1.2$val, size = samp_wind$mu_tows, replace = TRUE)) 
+colnames(wind1.2) <- 1:1000 #rename columns 
+# create long dataframe, add replicate number, and treatment type
+wind1.2 <- wind1.2 |> pivot_longer(cols = c(1:1000), names_to = "replicate", names_transform = as.integer, values_to = "val") |> 
+  mutate(type = "Reduced", 
+         area = "Wind",
+         mean = 1)
+
+# create outside wind tows 
+# outside1$type <- "Reduced"
+
+# combine to create a "full dataset"
+reduced1 <- bind_rows(wind1.2, outside1)
+
+```
+
+#### Mean 10
+```{r}
+set.seed(987654)
+
+# create wind tows data frame
+wind10.2 <- map_dfc(1:1000, ~sample(rnum10.2$val, size = samp_wind$mu_tows, replace = TRUE)) 
+colnames(wind10.2) <- 1:1000 #rename columns 
+# create long dataframe, add replicate number, and treatment type
+wind10.2 <- wind10.2 |> pivot_longer(cols = c(1:1000), names_to = "replicate", names_transform = as.integer, values_to = "val") |> 
+  mutate(type = "Reduced", 
+         area = "Wind", 
+         mean = 10)
+
+# create outside wind tows 
+# outside10$type <- "Reduced"
+
+# combine to create a "full dataset"
+reduced10 <- bind_rows(wind10.2, outside10)
+
+```
+
+
+#### Mean 100
+```{r}
+set.seed(987654)
+
+# create wind tows data frame
+wind100.2 <- map_dfc(1:1000, ~sample(rnum100.2$val, size = samp_wind$mu_tows, replace = TRUE)) 
+colnames(wind100.2) <- 1:1000 #rename columns 
+# create long dataframe, add replicate number, and treatment type
+wind100.2 <- wind100.2 |> pivot_longer(cols = c(1:1000), names_to = "replicate", names_transform = as.integer, values_to = "val") |> 
+  mutate(type = "Reduced", 
+         area = "Wind", 
+         mean = 100)
+
+# create outside wind tows 
+# outside100$type <- "Reduced"
+
+# combine to create a "full dataset"
+reduced100 <- bind_rows(wind100.2, outside100)
+```
+
+
+
+## Calculate Means 
+### Status Quo Effort 
+The mean is calculated for each of the productivity scenarios (Baseline, Enhanced, and Reduced) to emulate an abundance index calculated under the status quo survey effort scenario. Means are calculated for each sampled distribution generated from a mean of 1, 10, and 100. 
+#### Baseline
+```{r}
+# mean 1 
+base_sq.mu1 <- base1 |> 
+  group_by(replicate) |> 
+  summarise(mu = mean(val), 
+            var = var(val), 
+            cv = sqrt(var)/mu) |> 
+  mutate(type = "Control", 
+         effort = "Status Quo")
+
+# mean 10 
+base_sq.mu10 <- base10 |> 
+  group_by(replicate) |> 
+  summarise(mu = mean(val), 
+            var = var(val), 
+            cv = sqrt(var)/mu) |> 
+  mutate(type = "Control", 
+         effort = "Status Quo")
+
+# mean 100 
+base_sq.mu100 <- base100 |> 
+  group_by(replicate) |> 
+  summarise(mu = mean(val), 
+            var = var(val), 
+            cv = sqrt(var)/mu) |> 
+  mutate(type = "Control", 
+         effort = "Status Quo")
+```
+
+#### Enhanced 
+```{r}
+# mean 1 
+enhanced_sq.mu1 <- enhanced1 |> 
+  group_by(replicate) |> 
+  summarise(mu = mean(val), 
+            var = var(val), 
+            cv = sqrt(var)/mu) |> 
+  mutate(type = "Enhanced", 
+         effort = "Status Quo")
+
+# mean 10 
+enhanced_sq.mu10 <- enhanced10 |> 
+  group_by(replicate) |> 
+  summarise(mu = mean(val), 
+            var = var(val), 
+            cv = sqrt(var)/mu) |> 
+  mutate(type = "Enhanced", 
+         effort = "Status Quo")
+
+# mean 100 
+enhanced_sq.mu100 <- enhanced100 |> 
+  group_by(replicate) |> 
+  summarise(mu = mean(val), 
+            var = var(val), 
+            cv = sqrt(var)/mu) |> 
+  mutate(type = "Enhanced", 
+         effort = "Status Quo")
+```
+
+
+#### Reduced 
+```{r}
+# mean 1 
+reduced_sq.mu1 <- reduced1 |> 
+  group_by(replicate) |> 
+  summarise(mu = mean(val), 
+            var = var(val), 
+            cv = sqrt(var)/mu) |> 
+  mutate(type = "Reduced", 
+         effort = "Status Quo")
+
+# mean 10 
+reduced_sq.mu10 <- reduced10 |> 
+  group_by(replicate) |> 
+  summarise(mu = mean(val), 
+            var = var(val), 
+            cv = sqrt(var)/mu) |> 
+  mutate(type = "Reduced", 
+         effort = "Status Quo")
+
+# mean 100 
+reduced_sq.mu100 <- reduced100 |> 
+  group_by(replicate) |> 
+  summarise(mu = mean(val), 
+            var = var(val), 
+            cv = sqrt(var)/mu) |> 
+  mutate(type = "Reduced", 
+         effort = "Status Quo")
+```
+
+
+
+### Precluded Effort 
+The mean is calculated for each sample generated using the same size as those tows occurring "outside wind energy areas" according to the respective distribution mean (i.e. 1, 10, 100). This emulates an abundance index calculated under the precluded survey effort scenario. 
+
+```{r}
+# mean 1 
+precl.mu1 <- outside1 |> 
+  group_by(replicate) |> 
+  summarise(mu = mean(val), 
+            var = var(val), 
+            cv = sqrt(var)/mu) |> 
+  mutate(type = "Control", 
+         effort = "Preclusion")
+
+# mean 10 
+precl.mu10 <- outside10 |> 
+  group_by(replicate) |> 
+  summarise(mu = mean(val), 
+            var = var(val), 
+            cv = sqrt(var)/mu) |> 
+  mutate(type = "Control", 
+         effort = "Preclusion")
+
+# mean 100 
+precl.mu100 <- outside100 |> 
+  group_by(replicate) |> 
+  summarise(mu = mean(val), 
+            var = var(val), 
+            cv = sqrt(var)/mu) |> 
+  mutate(type = "Control", 
+         effort = "Preclusion")
+```
+
+
+## Calculate Absolute Percent Difference 
+The absolute percent difference is calculated between the status quo mean and the preclusion mean for each replicate and productivity scenario. The distribution of differences across the productivity scenarios and number-generating means (1, 10, and 100) are plotted for comparison to show the impact productivity scenarios would have.  
+
+### Baseline
+#### Mean 1 
+```{r}
+base1_diff <- left_join(base_sq.mu1, precl.mu1, by = "replicate") |> 
+  janitor::clean_names() |> 
+  group_by(replicate) |> 
+  summarise(abs_diff_mu =( abs(mu_x - mu_y) / mu_x)*100, 
+            abs_diff_cv =( abs(cv_x - cv_y) / cv_x)*100) |> 
+  mutate(type = "Baseline", 
+         mean = "1")
+
+```
+
+#### Mean 10 
+```{r}
+base10_diff <- left_join(base_sq.mu10, precl.mu10, by = "replicate") |> 
+  janitor::clean_names() |> 
+  group_by(replicate) |> 
+  summarise(abs_diff_mu =( abs(mu_x - mu_y) / mu_x)*100, 
+            abs_diff_cv =( abs(cv_x - cv_y) / cv_x)*100) |> 
+  mutate(type = "Baseline", 
+         mean = "10")
+
+```
+
+#### Mean 100 
+```{r}
+base100_diff <- left_join(base_sq.mu100, precl.mu100, by = "replicate") |> 
+  janitor::clean_names() |> 
+  group_by(replicate) |> 
+  summarise(abs_diff_mu =( abs(mu_x - mu_y) / mu_x)*100, 
+            abs_diff_cv =( abs(cv_x - cv_y) / cv_x)*100) |> 
+  mutate(type = "Baseline", 
+         mean = "100")
+
+```
+
+
+### Enhanced
+#### Mean 1 
+```{r}
+# precl.mu1$type <- "Enhanced"
+
+enhanced1_diff <- left_join(enhanced_sq.mu1, precl.mu1, by = "replicate") |> 
+  janitor::clean_names() |> 
+  group_by(replicate) |> 
+  summarise(abs_diff_mu =( abs(mu_x - mu_y) / mu_x)*100, 
+            abs_diff_cv =( abs(cv_x - cv_y) / cv_x)*100) |> 
+  mutate(type = "Enhanced", 
+         mean = "1")
+```
+
+#### Mean 10 
+```{r}
+# precl.mu10$type <- "Enhanced"
+
+enhanced10_diff <- left_join(enhanced_sq.mu10, precl.mu10, by = "replicate") |> 
+  janitor::clean_names() |> 
+  group_by(replicate) |> 
+  summarise(abs_diff_mu =( abs(mu_x - mu_y) / mu_x)*100, 
+            abs_diff_cv =( abs(cv_x - cv_y) / cv_x)*100) |> 
+  mutate(type = "Enhanced", 
+         mean = "10")
+
+```
+
+#### Mean 100 
+```{r}
+# precl.mu100$type <- "Enhanced"
+
+enhanced100_diff <- left_join(enhanced_sq.mu100, precl.mu100, by = "replicate") |> 
+  janitor::clean_names() |> 
+  group_by(replicate) |> 
+  summarise(abs_diff_mu =( abs(mu_x - mu_y) / mu_x)*100, 
+            abs_diff_cv =( abs(cv_x - cv_y) / cv_x)*100) |> 
+  mutate(type = "Enhanced", 
+         mean = "100")
+
+```
+
+### Reduced
+
+#### Mean 1 
+```{r}
+# precl.mu1$type <- "Reduced"
+
+reduced1_diff <- left_join(reduced_sq.mu1, precl.mu1, by = "replicate") |> 
+  janitor::clean_names() |> 
+  group_by(replicate) |> 
+  summarise(abs_diff_mu =( abs(mu_x - mu_y) / mu_x)*100, 
+            abs_diff_cv =( abs(cv_x - cv_y) / cv_x)*100) |> 
+  mutate(type = "Reduced", 
+         mean = "1")
+
+```
+
+#### Mean 10 
+```{r}
+# precl.mu10$type <- "Reduced"
+
+reduced10_diff <- left_join(reduced_sq.mu10, precl.mu10, by = "replicate") |> 
+  janitor::clean_names() |> 
+  group_by(replicate) |> 
+  summarise(abs_diff_mu =( abs(mu_x - mu_y) / mu_x)*100, 
+            abs_diff_cv =( abs(cv_x - cv_y) / cv_x)*100) |> 
+  mutate(type = "Reduced", 
+         mean = "10")
+
+```
+
+#### Mean 100 
+```{r}
+# precl.mu100$type <- "Reduced"
+
+reduced100_diff <- left_join(reduced_sq.mu100, precl.mu100, by = "replicate") |> 
+  janitor::clean_names() |> 
+  group_by(replicate) |> 
+  summarise(abs_diff_mu =( abs(mu_x - mu_y) / mu_x)*100, 
+            abs_diff_cv =( abs(cv_x - cv_y) / cv_x)*100) |> 
+  mutate(type = "Reduced", 
+         mean = "100")
+
+```
+
+
+### Plot Distributions 
+plot distribution of absolute percent differences between scenarios and means 
+```{r}
+# mudiffs <- bind_rows(base1_mudiff, base10_mudiff, base100_mudiff, enhanced1_mudiff, enhanced10_mudiff, enhanced100_mudiff, reduced1_mudiff, reduced10_mudiff, reduced100_mudiff)
+
+bind_rows(base1_diff, enhanced1_diff, reduced1_diff) |>
+  ggplot() + 
+  geom_boxplot(aes(x = as.factor(type), y = abs_diff_mu)) + 
+  labs(x = "Productivity treatment", y = "Absolute percent difference between effort scenarios", 
+       subtitle = "Tweedie distribution of numbers generated around a mean of 1")
+
+bind_rows(base10_diff, enhanced10_diff, reduced10_diff) |>
+  ggplot() + 
+  geom_boxplot(aes(x = as.factor(type), y = abs_diff_mu)) + 
+  labs(x = "Productivity treatment", y = "Absolute percent difference between effort scenarios", 
+       subtitle = "Tweedie distribution of numbers generated around a mean of 10")
+
+bind_rows(base100_diff, enhanced100_diff, reduced100_diff) |>
+  ggplot() + 
+  geom_boxplot(aes(x = as.factor(type), y = abs_diff_mu)) + 
+  labs(x = "Productivity treatment", y = "Absolute percent difference between effort scenarios", 
+       subtitle = "Tweedie distribution of numbers generated around a mean of 100")
+
+```
+
+```{r}
+all_treatments <- bind_rows(base1_diff, base10_diff, base100_diff, enhanced1_diff, enhanced10_diff, enhanced100_diff, reduced1_diff, reduced10_diff, reduced100_diff) 
+
+ggplot(all_treatments) +
+  geom_boxplot(aes(x = as.factor(type), y = abs_diff_mu, color = mean)) + 
+  labs(x = "Productivity treatment", y = "Absolute percent difference\nbetween effort scenario means", color = "Number-generating mean", subtitle = paste0("Tweedie distributions generated from the"," ", season, " ", "Atlantic mackerel model parameters")) + 
+  theme_bw() + 
+  theme(legend.position = "bottom")
+
+# ggsave(str_c(season, "_sim-ran-mudiff-dists.png", sep = ""), device = "png", last_plot(), here(sim.check.plots), width = 8, height = 6)
+```
+
+
+```{r}
+ggplot(all_treatments) +
+  geom_boxplot(aes(x = as.factor(type), y = abs_diff_cv, color = mean)) + 
+  labs(x = "Productivity treatment", y = "Absolute percent difference\nbetween effort scenario CVs", color = "Number-generating mean", subtitle = paste0("Tweedie distributions generated from the"," ", season, " ", "Atlantic mackerel model parameters")) + 
+  theme_bw() + 
+  theme(legend.position = "bottom")
+
+# ggsave(str_c(season, "_sim-ran-cv-diff-dists.png", sep = ""), device = "png", last_plot(), here(sim.check.plots), width = 8, height = 6)
+
+```
+

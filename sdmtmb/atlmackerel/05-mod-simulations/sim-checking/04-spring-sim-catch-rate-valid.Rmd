@@ -6,54 +6,89 @@ output: word_document
 ---
 
 ## Objective 
-* simulate all historical years and 5 replicates of the two treatments and control 
+simulate one year and 500 replicates of the two treatments and control in one wind-overlapped strata
 * plot the distribution of catch rates for each scenario 
 
 ```{r load packages}
 # library(stringr)
 # library(sf)
-# library(patchwork)
+library(patchwork)
 library(here)
 suppressPackageStartupMessages(library(tidyverse))
-library(sdmTMB) 
-source(here("R", "StratMeanFXs_v2.R"))
+library(sdmTMB)
+# source(here("R", "StratMeanFXs_v2.R"))
 
 atlmackerel.dat <- here("sdmtmb", "atlmackerel", "data")
 sim.check <- here("sdmtmb", "atlmackerel", "data", "simulations", "sim-checking")
 sim.check.plots <- here("sdmtmb", "atlmackerel", "plots", "simulations", "sim-checking")
 ```
 
+### Data set up 
+Load in the model fitting data, fitted model, and the model predictions 
 ```{r load data}
 # model fitting data 
-sf_spring <- readRDS(here(atlmackerel.dat, "atlmackerel_spring_rm200.rds")) |> 
-  mutate(EST_YEAR = YEAR)
+atlmackerel_spring <- readRDS(here(atlmackerel.dat, "atlmackerel_spring.rds"))
 
 # model fitting mesh 
 #mesh <- readRDS(here(atlmackerel.dat, "spring_mesh.rds"))
 
-# polynomial coefficients from spring model fit extracted in "02a-check-spring-sim.Rmd"
+# polynomial coefficients from spring model fit extracted in "02-check-spring-sim.Rmd"
 spring_depth_coefs <- readRDS(here(sim.check, "depth_coefs.rds"))
 
 # spring summer flounder model 
 spring_mod <- readRDS(here(atlmackerel.dat, "spring_mod.rds"))
 
 # spring model predictions 
-spring_preds <- readRDS(here(atlmackerel.dat, "atlmackerel_mod_preds.rds")) |>
+spring_preds <- readRDS(here(atlmackerel.dat, "atlmackerel_mod_preds.rds")) |> 
   select(X, Y, STATION, CRUISE6, STRATUM, omega_s) |> 
-  rename(fix_omegas = omega_s) |> 
+  rename(fix_omegas = omega_s)
+
 
 ```
 
+Generate a random set of numbers for the number of iterations that will be produced in the simulation to use as the set seed argument for reproducibility. 
+Then find the number of wind tows in each strata and year and the total proportion those tows make up of the overall tows observed in that year and strata. From here we want to select a strata and year that have ~50% proportion of wind tows, and where the observations of biomass in those tows are of equal magnitude to those observations of biomass that occurred in outside tows. 
+```{r number generation}
+set.seed(72346)
 
+# generate 3000 random numbers and sample for 500 to set seed with each iteration of sdmTMB_simulate for reproducibility
+seed.num.gen <- round(rnorm(3000, mean = 1305700, sd = 10000), 0)
+seed.num <- sample(seed.num.gen, size = 500, replace = FALSE)
+# length(which(duplicated(seed.num) == TRUE))
+
+# identify which year and stratum has the most wind tows
+wind_tows <- atlmackerel_spring |> 
+  filter(AREA == "WIND") |> 
+  group_by(EST_YEAR, STRATUM) |> 
+  summarise(count = length(unique(TOWID))) |> 
+  arrange(desc(count))
+outside_tows <- atlmackerel_spring |> 
+  filter(AREA == "OUTSIDE") |> 
+  group_by(EST_YEAR, STRATUM) |> 
+  summarise(count = length(unique(TOWID))) |> 
+  arrange(desc(count))
+left_join(outside_tows, wind_tows, by = c("EST_YEAR", "STRATUM")) |> janitor::clean_names() |> 
+  mutate(prop = count_y / (count_x + count_y)) |> 
+  arrange(desc(prop))
+
+```
+Set the year and strata to filter the model fitted data and predictions by to create a new dataset of locations that will be used to simulate values of biomass at. 
 ```{r data wrangle}
-sf_spring <- sf_spring |> 
-  left_join(spring_preds, by = c("X", "Y", "STATION", "STRATUM", "CRUISE6"))
+year <- 2009
+strat <- 3230
 
-sf_spring_info <- sf_spring |>
-  select(X, Y, EST_YEAR, STRATUM, CRUISE6, STATION, AREA, AREA_CODE, SEASON)
+# join prediction data to model fitting data to add predicted spatial estimate for data simulation
+atlmackerel_spring <- atlmackerel_spring |> 
+  left_join(spring_preds, by = c("X", "Y", "STATION", "STRATUM", "CRUISE6")) |> 
+  filter(EST_YEAR == year, STRATUM == strat) |> 
+  mutate(EST_YEAR = 1)
+
+
+# atlmackerel_spring_info <- atlmackerel_spring |>
+#   select(X, Y, EST_YEAR, STRATUM, CRUISE6, STATION, AREA, AREA_CODE, SEASON)
 
 # mesh for simulating
-mesh <- make_mesh(sf_spring, xy_cols = c("X", "Y"), cutoff = 10)
+mesh <- make_mesh(atlmackerel_spring, xy_cols = c("X", "Y"), cutoff = 20)
 
 # pull main effect parameters from spring model fit
 spring_coefs <- tidy(spring_mod) 
@@ -61,11 +96,6 @@ spring_coefs <- tidy(spring_mod)
 # pull random effect parameters from spring model fit
 spring_ran_pars <- tidy(spring_mod, "ran_pars")
 
-# generate random numbers as seed argument for simulation
-set.seed(131)
-seed.num <- round(rnorm(5, mean = 1000, sd = 120), 0)
-
-seed.num
 spring_coefs
 spring_ran_pars
 
@@ -73,19 +103,19 @@ spring_ran_pars
 
 
 ## Simulate Scenarios 
+Set the b argument by extracting the coefficients for the depth effects, the selected year, and the area effect with and without the intended treatment effects. Remove the intercept value by setting its coefficient to 0, and fix the predicted spatial effect from the model by setting its coefficient to 1 and removing the `sigma_O` argument from the simulation.
+
 ### Base 
 ```{r sim base}
-b <- c(spring_coefs$estimate, 0, 1)
+b <-  c(0, spring_coefs$estimate[1:4], spring_coefs$estimate[5],
+       0, 1)
 
-# base.sim.num <- vector(mode = "list", length = 5)
-
-#base.sim.seed <- map2(base.sim.num, seed.num, ~as.numeric(paste(.y)))
-spring.base <- map2(1:5, seed.num, ~sdmTMB_simulate(
-    formula = ~poly(AVGDEPTH, 4, coefs = spring_depth_coefs) +
-      as.factor(EST_YEAR) +
+spring.base <- map2(1:500, seed.num, ~sdmTMB_simulate(
+    formula = ~1 + poly(AVGDEPTH, 4, coefs = spring_depth_coefs) +
+      EST_YEAR +
       as.factor(AREA) +
-      fix_omegas - 1,
-    data = sf_spring,
+      fix_omegas,
+    data = atlmackerel_spring,
     mesh = mesh,
     family = tweedie(),
     #spatial = "on",
@@ -101,23 +131,22 @@ spring.base <- map2(1:5, seed.num, ~sdmTMB_simulate(
 )
 
 head(spring.base)
-# saveRDS(spring.base, here(sim.check, "spring_base-5sims.rds"))
+# saveRDS(spring.base, here(sim.check, "spring_base-500sims.rds"))
 
 
 ```
 
 ### Enhanced
 ```{r sim increase}
-b <- c(spring_coefs$estimate, (log(2)), 1)
+b <- c(0, spring_coefs$estimate[1:4], spring_coefs$estimate[5],
+       log(2), 1)
 
-# inc.sim.num <- vector(mode = "list", length = 5)
-
-spring.inc <- map2(1:5, seed.num, ~sdmTMB_simulate(
-    formula = ~poly(AVGDEPTH, 4, coefs = spring_depth_coefs) +
-      as.factor(EST_YEAR) +
+spring.inc <- map2(1:500, seed.num, ~sdmTMB_simulate(
+    formula = ~1 + poly(AVGDEPTH, 4, coefs = spring_depth_coefs) +
+      EST_YEAR +
       as.factor(AREA) +
-      fix_omegas - 1,
-    data = sf_spring,
+      fix_omegas,
+    data = atlmackerel_spring,
     mesh = mesh,
     family = tweedie(),
     #spatial = "on",
@@ -133,21 +162,20 @@ spring.inc <- map2(1:5, seed.num, ~sdmTMB_simulate(
 )
 
 head(spring.inc)
-# saveRDS(spring.inc, here(sim.check, "spring_inc-5sim.rds"))
+# saveRDS(spring.inc, here(sim.check, "spring_inc-500sim.rds"))
 ```
 
 ### Reduced
 ```{r sim decrease}
-b <- c(spring_coefs$estimate, (-log(2)), 1)
+b <- c(0, spring_coefs$estimate[1:4], spring_coefs$estimate[5],
+       (-log(2)), 1)
 
-#dec.sim.num <- vector(mode = "list", length = 5)
-
-spring.dec <- map2(1:5, seed.num, ~sdmTMB_simulate(
-    formula = ~poly(AVGDEPTH, 4, coefs = spring_depth_coefs) +
-      as.factor(EST_YEAR) +
+spring.dec <- map2(1:500, seed.num, ~sdmTMB_simulate(
+    formula = ~1 + poly(AVGDEPTH, 4, coefs = spring_depth_coefs) +
+      EST_YEAR +
       as.factor(AREA) +
-      fix_omegas - 1,
-    data = sf_spring,
+      fix_omegas,
+    data = atlmackerel_spring,
     mesh = mesh,
     family = tweedie(),
     #spatial = "on",
@@ -163,66 +191,176 @@ spring.dec <- map2(1:5, seed.num, ~sdmTMB_simulate(
 )
 
 head(spring.dec)
-# saveRDS(spring.dec, here(sim.check, "spring_dec-5sim.rds"))
-```
-
-## Filter replicates based on wind-impacted strata
-```{r}
-set.seed(151)
-wind_strat <- spring.base[[1]] |> 
-  left_join(sf_spring_info, by = c("X", "Y", "EST_YEAR")) |> 
-  filter(AREA == "WIND") |> 
-  distinct(STRATUM) |> 
-  slice_sample(n = 1)
-
-spring.base.1strat <- map(spring.base, ~left_join(.x, sf_spring_info, by = c("X", "Y", "EST_YEAR")) |> 
-  filter(STRATUM == wind_strat$STRATUM) |> 
-  select(X, Y, EST_YEAR, observed, STRATUM, CRUISE6, STATION, AREA, AREA_CODE, SEASON))
-
-spring.inc.1strat <- map(spring.inc, ~left_join(.x, sf_spring_info, by = c("X", "Y", "EST_YEAR")) |> 
-  filter(STRATUM == wind_strat$STRATUM) |> 
-  select(X, Y, EST_YEAR, observed, STRATUM, CRUISE6, STATION, AREA, AREA_CODE, SEASON))
-
-
-spring.dec.1strat <- map(spring.dec, ~left_join(.x, sf_spring_info, by = c("X", "Y", "EST_YEAR")) |> 
-  filter(STRATUM == wind_strat$STRATUM) |> 
-  select(X, Y, EST_YEAR, observed, STRATUM, CRUISE6, STATION, AREA, AREA_CODE, SEASON))
-
-# saveRDS(spring.base.1strat, here(sim.check, "spring_base-5sim-1strat.rds"))
-# saveRDS(spring.inc.1strat, here(sim.check, "spring_inc-5sim-1strat.rds"))
-# saveRDS(spring.dec.1strat, here(sim.check, "spring_dec-5sim-1strat.rds"))
-```
-
-## Plot simulated catch rates 
-```{r}
-# create one large dataframe
-spring.base.df <- map2_dfr(spring.base.1strat, 1:5, ~mutate(.x, sim = .y)) |> 
-  mutate(SCENARIO = "Control")
-spring.inc.df <- map2_dfr(spring.inc.1strat, 1:5, ~mutate(.x, sim = .y)) |> 
-  mutate(SCENARIO = "Increase")
-spring.dec.df <- map2_dfr(spring.dec.1strat, 1:5, ~mutate(.x, sim = .y)) |> 
-  mutate(SCENARIO = "Decrease")
-
-spring.scenarios <- bind_rows(spring.base.df, spring.inc.df, spring.dec.df)
-
-# saveRDS(spring.scenarios, here(sim.check, "spring_all-scenarios-5sim-1strat.rds"))
-
+# saveRDS(spring.dec, here(sim.check, "spring_dec-500sim.rds"))
 ```
 
 
+
+## Calculate Statistics
+The mean catch rate for each productivity scenario simulation and the absolute percent difference between survey effort reduction scenarios
+
+### Base
 ```{r}
-ggplot(spring.scenarios |> filter(observed >0, AREA == "WIND")) + 
-  geom_histogram(aes(x = observed)) + 
-  facet_grid(cols = vars(AREA), rows = vars(SCENARIO)) +
-  labs(x = "Biomass (kg/tow)", y = "Frequency of biomass observation", 
-       title = "Catch rates of spring Atlantic mackerel biomass in wind energy areas",
-       subtitle = "Biomass catch rates were simulated 5 times for each wind-driven scenario and \nrepresent tows occurring in strata 1050 (a wind-impacted strata)") + 
+# create one large dataframe and add a sim column 
+spring.base.df <- map(spring.base, ~janitor::clean_names(.)) |> 
+  map2_dfr(1:500, ~mutate(.x, sim = .y))
+
+# calculate the "status quo" scenario
+spring_base_ww <- spring.base.df |> 
+  group_by(sim) |> 
+  summarise(mu = mean(observed), 
+            var = var(observed), 
+            cv = sqrt(var)/mu) |> 
+  mutate(scenario = "Baseline")
+
+# calculate the "precluded" scenario
+spring_base_wow <- spring.base.df |> 
+  filter(as_factor_area_wind == 0) |> #outside areas
+  group_by(sim) |> 
+  summarise(mu = mean(observed), 
+            var = var(observed), 
+            cv = sqrt(var)/mu) |> 
+  mutate(scenario = "Baseline")
+
+# bind the scenarios to calculate the absolute percent difference 
+base_diff <- left_join(spring_base_ww, spring_base_wow, by = c("sim", "scenario")) |>
+  janitor::clean_names() |>
+  group_by(sim) |> #, est_year) |>
+  summarise(abs_diff_mu =( abs(mu_x - mu_y) / mu_x)*100, 
+            abs_diff_cv =( abs(cv_x - cv_y) / cv_x)*100) |>
+  mutate(abs_diff_mu = ifelse(is.nan(abs_diff_mu), 0, abs_diff_mu),
+         abs_diff_cv = ifelse(is.nan(abs_diff_cv), 0, abs_diff_cv),
+         scenario = "Baseline", 
+         season = "Spring")
+
+# saveRDS(spring_base_ww, here(sim.check, "spring_base_ww-500sim.rds"))
+# saveRDS(spring_base_wow, here(sim.check, "spring_base_wow-500sim.rds"))
+# saveRDS(base_diff, here(sim.check, "spring_base_diff-500sim.rds"))
+
+```
+
+### Enhanced
+```{r}
+# create one large dataframe and add a sim column 
+spring.inc.df <- map(spring.inc, ~janitor::clean_names(.)) |> 
+  map2_dfr(1:500, ~mutate(.x, sim = .y))
+
+# calculate the "status quo" scenario
+spring_inc_ww <- spring.inc.df |> 
+  group_by(sim) |> 
+  summarise(mu = mean(observed), 
+            var = var(observed), 
+            cv = sqrt(var)/mu) |> 
+  mutate(scenario = "Enhanced", 
+         cv = ifelse(is.nan(cv), 0, cv))
+
+# calculate the "precluded" scenario
+spring_inc_wow <- spring.inc.df |> 
+  filter(as_factor_area_wind == 0) |> #outside areas
+  group_by(sim) |> 
+  summarise(mu = mean(observed), 
+            var = var(observed), 
+            cv = sqrt(var)/mu) |> 
+  mutate(scenario = "Enhanced", 
+         cv = ifelse(is.nan(cv), 0, cv))
+
+# bind the scenarios to calculate the absolute percent difference 
+inc_diff <- left_join(spring_inc_ww, spring_inc_wow, by = c("sim", "scenario")) |>
+  janitor::clean_names() |>
+  group_by(sim) |> #, est_year) |>
+  summarise(abs_diff_mu =( abs(mu_x - mu_y) / mu_x)*100, 
+            abs_diff_cv =( abs(cv_x - cv_y) / cv_x)*100) |>
+  mutate(abs_diff_mu = ifelse(is.nan(abs_diff_mu), 0, abs_diff_mu),
+         abs_diff_cv = ifelse(is.nan(abs_diff_cv), 0, abs_diff_cv),
+         scenario = "Enhanced", 
+         season = "Spring")
+
+# saveRDS(spring_inc_ww, here(sim.check, "spring_inc_ww-500sim.rds"))
+# saveRDS(spring_inc_wow, here(sim.check, "spring_inc_wow-500sim.rds"))
+# saveRDS(inc_diff, here(sim.check, "spring_inc_diff-500sim.rds"))
+
+```
+
+### Reduced
+```{r}
+# create one large dataframe and add a sim column 
+spring.dec.df <- map(spring.dec, ~janitor::clean_names(.)) |> 
+  map2_dfr(1:500, ~mutate(.x, sim = .y))
+
+# calculate the "status quo" scenario
+spring_dec_ww <- spring.dec.df |> 
+  group_by(sim) |> 
+  summarise(mu = mean(observed), 
+            var = var(observed), 
+            cv = sqrt(var)/mu) |> 
+  mutate(scenario = "Reduced", 
+         cv = ifelse(is.nan(cv), 0, cv))
+
+# calculate the "precluded" scenario
+spring_dec_wow <- spring.dec.df |> 
+  filter(as_factor_area_wind == 0) |> #outside areas
+  group_by(sim) |> 
+  summarise(mu = mean(observed), 
+            var = var(observed), 
+            cv = sqrt(var)/mu) |> 
+  mutate(scenario = "Reduced", 
+         cv = ifelse(is.nan(cv), 0, cv))#, 
+         #cv = ifelse(is.nan(cv), 0, cv))
+
+# bind the scenarios to calculate the absolute percent difference 
+dec_diff <- left_join(spring_dec_ww, spring_dec_wow, by = c("sim", "scenario")) |>
+  janitor::clean_names() |>
+  group_by(sim) |> #, est_year) |>
+  summarise(abs_diff_mu =( abs(mu_x - mu_y) / mu_x)*100, 
+            abs_diff_cv =( abs(cv_x - cv_y) / cv_x)*100) |>
+  mutate(abs_diff_mu = ifelse(is.nan(abs_diff_mu), 0, abs_diff_mu),
+         abs_diff_cv = ifelse(is.nan(abs_diff_cv), 0, abs_diff_cv),
+         scenario = "Reduced", 
+         season = "Spring")
+
+# saveRDS(spring_dec_ww, here(sim.check, "spring_dec_ww-500sim.rds"))
+# saveRDS(spring_dec_wow, here(sim.check, "spring_dec_wow-500sim.rds"))
+# saveRDS(dec_diff, here(sim.check, "spring_dec_diff-500sim.rds"))
+
+```
+
+## Plot distribution
+### Differences in the means 
+```{r}
+# bind the absolute percent difference dataframes of all three productivity scenarios and plot the distribution of differences 
+bind_rows(base_diff, inc_diff, dec_diff) |> 
+  ggplot() + 
+  geom_boxplot(aes(x = as.factor(scenario), y = abs_diff_mu)) + 
+  labs(x = "Productivity scenario", y = "Absolute percent difference between survey effort scenarios", subtitle = str_c("Distribution of differences in means between survey effort scenarios for each productivity scenario\nobserved in stratum", strat, "in", year, "and across 500 replicates", sep = " ")) + 
+  facet_wrap(~season) +
   theme_bw()
 
-# ggsave("atlmackerel_spring-5sim-wind-catch-rates.png", device = "png", last_plot(), here(sim.check.plots), width = 8, height = 6)
+# to extract exact median values plotted in the boxplot
+median(base_diff$abs_diff_mu)
+median(inc_diff$abs_diff_mu)
+median(dec_diff$abs_diff_mu)
+
+
+# ggsave("spring_500sim_mudiff-dist.png", device = "png", last_plot(), here(sim.check.plots), width = 8, height = 6)
 
 ```
 
+### Differences in the cvs 
+```{r}
+# bind the absolute percent difference dataframes of all three productivity scenarios and plot the distribution of differences 
+bind_rows(base_diff, inc_diff, dec_diff) |> 
+  ggplot() + 
+  geom_boxplot(aes(x = as.factor(scenario), y = abs_diff_cv)) + 
+  labs(x = "Productivity scenario", y = "Absolute percent difference between survey effort scenarios", subtitle = str_c("Distribution of differences in the CVs between survey effort scenarios for each productivity scenario\nobserved in stratum", strat, "in", year, "and across 500 replicates", sep = " ")) + 
+  facet_wrap(~season) +
+  theme_bw()
+
+# to extract exact median values plotted in the boxplot
+median(base_diff$abs_diff_cv)
+median(inc_diff$abs_diff_cv)
+median(dec_diff$abs_diff_cv)
 
 
+# ggsave("spring_500sim_cv-diff-dist.png", device = "png", last_plot(), here(sim.check.plots), width = 8, height = 6)
 
+```
