@@ -1,5 +1,5 @@
 ---
-title: "Spring summer flounder one rep analysis"
+title: "Atlantic mackerel one rep analysis"
 author: "Angelia Miller"
 date: "2024-01-04"
 output: word_document
@@ -8,7 +8,6 @@ output: word_document
 ## Objective 
 * simulate 1 year and replicate of the two treatments and control 
 * calculate the stratified mean for that year and replicate 
-* calculate the linear regression for that year and replicate 
 
 ```{r load packages}
 # library(stringr)
@@ -19,23 +18,23 @@ suppressPackageStartupMessages(library(tidyverse))
 library(sdmTMB) 
 source(here("R", "StratMeanFXs_v2.R"))
 
-sumflounder.dat <- here("sdmtmb", "sumflounder", "data")
-sim.check <- here("sdmtmb", "sumflounder", "data", "simulations", "sim-checking")
-sim.check.plots <- here("sdmtmb", "sumflounder", "plots", "simulations", "sim-checking")
+atlmackerel.dat <- here("sdmtmb", "atlmackerel", "data")
+sim.check <- here("sdmtmb", "atlmackerel", "data", "simulations", "sim-checking")
+sim.check.plots <- here("sdmtmb", "atlmackerel", "plots", "simulations", "sim-checking")
 ```
 
 ```{r load data}
 # spring summer flounder model 
-spring_mod <- readRDS(here(sumflounder.dat, "spring_mod.rds"))
+spring_mod <- readRDS(here(atlmackerel.dat, "spring_mod.rds"))
 
-# polynomial coefficients from spring model fit extracted in "02a-check-spring-sim.Rmd"
-spring_depth_coefs <- readRDS(here(sim.check, "spring_depth_coefs.rds"))
+# polynomial coefficients from spring model fit extracted in "02-check-spring-sim.Rmd"
+spring_depth_coefs <- readRDS(here(sim.check, "depth_coefs.rds"))
 
 # a small subset of spring data created in "02a-check-spring-sim.Rmd"
-spring_subset <- readRDS(here(sim.check, "spring_subset_data.rds")) 
+spring_subset <- readRDS(here(sim.check, "subset_spring-resampled_data.rds")) 
 
 # the year that was used to subset the data in "02a-check-spring-sim.Rmd"
-year <- readRDS(here(sim.check, "spring_resample_year.rds"))
+year <- readRDS(here(sim.check, "resample_year.rds"))
 
 # mesh for the sampled subsetted dataframe 
 mesh <- make_mesh(spring_subset, xy_cols = c("X", "Y"), cutoff = 10)
@@ -79,8 +78,8 @@ spring_ran_pars
 # extract station info for binding to simulated data later
 spring_towdat <- spring_subset |> #filtered_spring|>
   select(!c(fix_omegas, est, est_non_rf)) |> 
-  mutate(SVSPP = 103, 
-         EST_YEAR = 2016)
+  mutate(#SVSPP = 103, 
+         EST_YEAR = as.integer(year))
 
 # 
 # # create mesh of filtered data locations 
@@ -101,11 +100,11 @@ spring_towdat <- spring_subset |> #filtered_spring|>
 ### Base
 ```{r sim base}
 # spring
-b <- c(0, spring_coefs$estimate[1:2], spring_coefs$estimate[13], spring_coefs$estimate[15], 1)
+b <- c(0, spring_coefs$estimate[1:4], spring_coefs$estimate[15], 0, 1)
 
 spring.base <- sdmTMB_simulate(
     formula = ~1 +
-      poly(AVGDEPTH, 2, coefs = spring_depth_coefs) +
+      poly(AVGDEPTH, 4, coefs = spring_depth_coefs) +
       EST_YEAR +
       as.factor(AREA) +
       fix_omegas,
@@ -128,7 +127,7 @@ head(spring.base)
 ```
 
 ```{r}
-names <- c(names(spring.base[1:7]), "Intercept", "depth_1", "depth_2", "year_covar", "wind_covar",names(spring.base[13]))
+names <- c(names(spring.base[1:7]), "Intercept", "depth_1", "depth_2", "depth_3", "depth_4", "year_covar", "wind_covar",names(spring.base[15]))
 names(spring.base) <- names
 
 spring.base |> filter(wind_covar == 1) |> head(n = 5)
@@ -137,11 +136,12 @@ spring.base |> filter(wind_covar == 1) |> head(n = 5)
 
 ### Enhanced
 ```{r sim enhanced}
-b <- c(0, spring_coefs$estimate[1:2], spring_coefs$estimate[13], (spring_coefs$estimate[15]+log(2)), 1)
+b <- c(0, spring_coefs$estimate[1:4], spring_coefs$estimate[15], log(2), 1)
+
 
 spring.inc <- sdmTMB_simulate(
     formula = ~1 +
-      poly(AVGDEPTH, 2, coefs = spring_depth_coefs) +
+      poly(AVGDEPTH, 4, coefs = spring_depth_coefs) +
       EST_YEAR +
       as.factor(AREA) +
       fix_omegas,
@@ -164,7 +164,7 @@ head(spring.inc)
 ```
 
 ```{r}
-names <- c(names(spring.inc[1:7]), "Intercept", "depth_1", "depth_2", "year_covar", "wind_covar",names(spring.inc[13]))
+names <- c(names(spring.inc[1:7]), "Intercept", "depth_1", "depth_2", "depth_3", "depth_4", "year_covar", "wind_covar",names(spring.inc[15]))
 names(spring.inc) <- names
 
 spring.inc |> filter(wind_covar == 1) |> head(n = 5)
@@ -173,11 +173,11 @@ spring.inc |> filter(wind_covar == 1) |> head(n = 5)
 
 ### Reduced
 ```{r sim reduction}
-b <-c(0, spring_coefs$estimate[1:2], spring_coefs$estimate[13], (spring_coefs$estimate[15]-log(2)), 1)
+b <- c(0, spring_coefs$estimate[1:4], spring_coefs$estimate[15], -log(2), 1)
 
 spring.dec <- sdmTMB_simulate(
     formula = ~1 +
-      poly(AVGDEPTH, 2, coefs = spring_depth_coefs) +
+      poly(AVGDEPTH, 4, coefs = spring_depth_coefs) +
       EST_YEAR +
       as.factor(AREA) +
       fix_omegas,
@@ -200,7 +200,7 @@ head(spring.dec)
 ```
 
 ```{r}
-names <- c(names(spring.dec[1:7]), "Intercept", "depth_1", "depth_2", "year_covar", "wind_covar",names(spring.dec[13]))
+names <- c(names(spring.dec[1:7]), "Intercept", "depth_1", "depth_2", "depth_3", "depth_4", "year_covar", "wind_covar",names(spring.dec[15]))
 names(spring.dec) <- names
 
 spring.dec |> filter(wind_covar == 1) |> head(n = 5)
@@ -227,12 +227,14 @@ BTSArea <- sum(strata_wts$Area_SqNm)
 ```{r base strat}
 # with wind included 
 spring.base.stratmu.ww <- spring.base.join |> 
+  mutate(SVSPP = 121) |>
   stratified.mean() |> 
   mutate(TYPE = "With Wind Included", 
          SCENARIO = "Baseline")
 
 # with wind precluded
 spring.base.stratmu.wow <- spring.base.join |> 
+  mutate(SVSPP = 121) |>
   filter(AREA == "OUTSIDE") |>
   stratified.mean() |> 
   mutate(TYPE = "With Wind Precluded", 
@@ -241,19 +243,23 @@ spring.base.stratmu.wow <- spring.base.join |>
 spring.base.stratmu <- bind_rows(spring.base.stratmu.ww, spring.base.stratmu.wow)
 
 spring.base.stratmu
-# saveRDS(spring.base.stratmu.ww, here(sim.check, "sumflounder_spring_base-one-sim-stratmu-ww.rds"))
-# saveRDS(spring.base.stratmu.wow, here(sim.check, "sumflounder_spring_base-one-sim-stratmu-wow.rds"))
-# saveRDS(spring.base.stratmu, here(sim.check, "sumflounder_spring_base-one-sim-stratmu.rds"))
+# saveRDS(spring.base.stratmu.ww, here(sim.check, "atlmackerel_spring_base-one-sim-stratmu-ww.rds"))
+# saveRDS(spring.base.stratmu.wow, here(sim.check, "atlmackerel_spring_base-one-sim-stratmu-wow.rds"))
+# saveRDS(spring.base.stratmu, here(sim.check, "atlmackerel_spring_base-one-sim-stratmu.rds"))
 
 ```
 
 ```{r enhanced strat}
 spring.inc.stratmu.ww <- spring.inc.join |> 
+  
+  mutate(SVSPP = 121) |>
   stratified.mean() |> 
   mutate(TYPE = "With Wind Included", 
          SCENARIO = "Enhanced")
 
 spring.inc.stratmu.wow <- spring.inc.join |> 
+  
+  mutate(SVSPP = 121)|>
   filter(AREA == "OUTSIDE") |> 
   stratified.mean() |> 
   mutate(TYPE = "With Wind Precluded", 
@@ -263,18 +269,22 @@ spring.inc.stratmu <- bind_rows(spring.inc.stratmu.ww, spring.inc.stratmu.wow)
 
 spring.inc.stratmu
 
-# saveRDS(spring.inc.stratmu.ww, here(sim.check, "sumflounder_spring_inc-one-sim-stratmu-ww.rds"))
-# saveRDS(spring.inc.stratmu.wow, here(sim.check, "sumflounder_spring_inc-one-sim-stratmu-wow.rds"))
-# saveRDS(spring.inc.stratmu, here(sim.check, "sumflounder_spring_inc-one-sim-stratmu.rds"))
+# saveRDS(spring.inc.stratmu.ww, here(sim.check, "atlmackerel_spring_inc-one-sim-stratmu-ww.rds"))
+# saveRDS(spring.inc.stratmu.wow, here(sim.check, "atlmackerel_spring_inc-one-sim-stratmu-wow.rds"))
+# saveRDS(spring.inc.stratmu, here(sim.check, "atlmackerel_spring_inc-one-sim-stratmu.rds"))
 ```
 
 ```{r reduced strat}
 spring.dec.stratmu.ww <- spring.dec.join |> 
+  
+  mutate(SVSPP = 121) |>
   stratified.mean() |> 
   mutate(TYPE = "With Wind Included", 
          SCENARIO = "Reduced")
 
 spring.dec.stratmu.wow <- spring.dec.join |> 
+  
+  mutate(SVSPP = 121) |>
   filter(AREA == "OUTSIDE") |> 
   stratified.mean() |> 
   mutate(TYPE = "With Wind Precluded", 
@@ -283,10 +293,10 @@ spring.dec.stratmu.wow <- spring.dec.join |>
 spring.dec.stratmu <- bind_rows(spring.dec.stratmu.ww, spring.dec.stratmu.wow)
 
 spring.dec.stratmu
-
-# saveRDS(spring.dec.stratmu.ww, here(sim.check, "sumflounder_spring_dec-one-sim-stratmu-ww.rds"))
-# saveRDS(spring.dec.stratmu.wow, here(sim.check, "sumflounder_spring_dec-one-sim-stratmu-wow.rds"))
-# saveRDS(spring.dec.stratmu, here(sim.check, "sumflounder_spring_dec-one-sim-stratmu.rds"))
+# 
+# saveRDS(spring.dec.stratmu.ww, here(sim.check, "atlmackerel_spring_dec-one-sim-stratmu-ww.rds"))
+# saveRDS(spring.dec.stratmu.wow, here(sim.check, "atlmackerel_spring_dec-one-sim-stratmu-wow.rds"))
+# saveRDS(spring.dec.stratmu, here(sim.check, "atlmackerel_spring_dec-one-sim-stratmu.rds"))
 
 ```
 
@@ -311,7 +321,7 @@ mudiff_dat <- all_stratmu |>
   arrange(desc(mudiff)) 
 
 mudiff_dat
-# saveRDS(mudiff_dat, here(sim.check, "sumflounder_spring_one-sim-mudiff.rds"))
+# saveRDS(mudiff_dat, here(sim.check, "atlmackerel_spring_one-sim-mudiff.rds"))
 ```
 
 ## Plot
@@ -323,11 +333,10 @@ all_stratmu <- all_stratmu |>
          upper = qlnorm(0.975, log(stratmu), sdlog)) |> # upper quantile of the logistic normal distribution
   mutate(sdlog = ifelse(is.nan(sdlog), 0, sdlog), # if sdlog is NaN, replace with 0
          lower = ifelse(is.nan(lower), 0, lower), # if the lower quantile is NaN, replace with 0
-         upper = ifelse(is.nan(upper), 0, upper), 
-         season = "Spring")
+         upper = ifelse(is.nan(upper), 0, upper))
 
 all_stratmu
-# saveRDS(all_stratmu, here(sim.check, "sumflounder_spring_one-sim-stratmu.rds"))
+# saveRDS(all_stratmu, here(sim.check, "atlmackerel_spring_one-sim-stratmu.rds"))
 ```
 
 
@@ -338,16 +347,15 @@ ggplot(all_stratmu) +
   geom_pointrange(aes(ymin=lower, ymax = upper), position =  position_dodge2(width=0.4)) +
   #facet_wrap(vars(SEASON), scales = "free_y") +
   #facet_grid(rows = vars(GEO_AREA), cols = vars(SEASON), scales = "free_y") + 
-  labs(x = "Wind-driven productivity scenario", y = "Stratified Mean (kg/tow)", subtitle = "Changes in the 2019 abundance index for summer flounder in response to changes in productivity inside wind energy areas") +
+  labs(x = "Wind-driven productivity scenario", y = "Stratified Mean (kg/tow)", title = "Spring productivity scenarios for Atlantic mackerel", subtitle = "Changes in the 2019 abundance index for Atlantic mackerel in response to changes in productivity inside wind energy areas") +
   ylim(0,NA) +
   theme_bw() + 
-  facet_wrap(~season) +
   theme(legend.position="bottom",
         legend.title = element_blank(), 
         #axis.text.x = element_text(angle = 90, hjust = -1), 
         axis.title.x = element_text(margin = unit(c(5, 0, 0, 0), "mm")), 
         axis.title.y = element_text(margin = unit(c(0, 3, 0, 0), "mm")))
 
-# ggsave("sumflounder_spring-sim-one-rep.png", device = "png", last_plot(), here(sim.check.plots), width = 9, height = 6)
+# ggsave("atlmackerel_spring-sim-one-rep.png", device = "png", last_plot(), here(sim.check.plots), width = 9, height = 6)
 ```
 

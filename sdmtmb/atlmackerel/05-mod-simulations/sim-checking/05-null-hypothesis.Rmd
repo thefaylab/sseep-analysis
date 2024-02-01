@@ -40,7 +40,7 @@ seed.num <- sample(seed.num.gen, size = 500, replace = FALSE)
 
 ```{r spring data}
 # model fitting data 
-am_spring <- readRDS(here(atlmackerel.dat, "atlmackerel_spring.rds"))
+am_spring <- readRDS(here(atlmackerel.dat, "atlmackerel_spring_rm200.rds"))
 
 # polynomial coefficients from spring model fit extracted in "02a-check-spring-sim.Rmd"
 spring_depth_coefs <- readRDS(here(sim.check, "depth_coefs.rds"))
@@ -78,8 +78,8 @@ left_join(spring_outside, spring_wind, by = c("EST_YEAR", "STRATUM")) |> janitor
 
 Set the year and strata to filter the model fitted data and predictions by to create a new dataset of locations that will be used to simulate values of biomass at. 
 ```{r spring wrangle}
-spring_year <- 2016
-spring_strat <- 1690
+spring_year <- 2010
+spring_strat <- 1650
 
 # join prediction data to model fitting data to add predicted spatial estimate for data simulation
 am_spring <-   am_spring |> 
@@ -88,7 +88,7 @@ am_spring <-   am_spring |>
   mutate(EST_YEAR = 1)
 
 # mesh for simulating
-spring_mesh <- make_mesh(sf_spring, xy_cols = c("X", "Y"), cutoff = 10)
+spring_mesh <- make_mesh(am_spring, xy_cols = c("X", "Y"), cutoff = 20)
 
 # pull main effect parameters from fall model fit
 spring_coefs <- tidy(spring_mod) 
@@ -113,7 +113,7 @@ Set the b argument by extracting the coefficients for the depth effects, the sel
 
 ### Spring Baseline
 ```{r spring base}
-b <-  c(0, spring_coefs$estimate[1:4], spring_coefs$estimate[12],
+b <-  c(0, spring_coefs$estimate[1:4], spring_coefs$estimate[6],
        0, 1)
 
 spring.base <- map2(1:500, seed.num, ~sdmTMB_simulate(
@@ -121,7 +121,7 @@ spring.base <- map2(1:500, seed.num, ~sdmTMB_simulate(
       EST_YEAR +
       as.factor(AREA) +
       fix_omegas,
-    data = sf_spring,
+    data = am_spring,
     mesh = spring_mesh,
     family = tweedie(),
     #spatial = "on",

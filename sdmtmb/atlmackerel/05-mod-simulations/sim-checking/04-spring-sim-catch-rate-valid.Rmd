@@ -27,7 +27,7 @@ sim.check.plots <- here("sdmtmb", "atlmackerel", "plots", "simulations", "sim-ch
 Load in the model fitting data, fitted model, and the model predictions 
 ```{r load data}
 # model fitting data 
-atlmackerel_spring <- readRDS(here(atlmackerel.dat, "atlmackerel_spring.rds"))
+atlmackerel_spring <- readRDS(here(atlmackerel.dat, "atlmackerel_spring_rm200.rds"))
 
 # model fitting mesh 
 #mesh <- readRDS(here(atlmackerel.dat, "spring_mesh.rds"))
@@ -74,8 +74,8 @@ left_join(outside_tows, wind_tows, by = c("EST_YEAR", "STRATUM")) |> janitor::cl
 ```
 Set the year and strata to filter the model fitted data and predictions by to create a new dataset of locations that will be used to simulate values of biomass at. 
 ```{r data wrangle}
-year <- 2009
-strat <- 3230
+year <- 2010
+strat <- 1650
 
 # join prediction data to model fitting data to add predicted spatial estimate for data simulation
 atlmackerel_spring <- atlmackerel_spring |> 
@@ -107,7 +107,7 @@ Set the b argument by extracting the coefficients for the depth effects, the sel
 
 ### Base 
 ```{r sim base}
-b <-  c(0, spring_coefs$estimate[1:4], spring_coefs$estimate[5],
+b <-  c(0, spring_coefs$estimate[1:4], spring_coefs$estimate[6],
        0, 1)
 
 spring.base <- map2(1:500, seed.num, ~sdmTMB_simulate(
@@ -138,7 +138,7 @@ head(spring.base)
 
 ### Enhanced
 ```{r sim increase}
-b <- c(0, spring_coefs$estimate[1:4], spring_coefs$estimate[5],
+b <- c(0, spring_coefs$estimate[1:4], spring_coefs$estimate[6],
        log(2), 1)
 
 spring.inc <- map2(1:500, seed.num, ~sdmTMB_simulate(
@@ -167,7 +167,7 @@ head(spring.inc)
 
 ### Reduced
 ```{r sim decrease}
-b <- c(0, spring_coefs$estimate[1:4], spring_coefs$estimate[5],
+b <- c(0, spring_coefs$estimate[1:4], spring_coefs$estimate[6],
        (-log(2)), 1)
 
 spring.dec <- map2(1:500, seed.num, ~sdmTMB_simulate(
