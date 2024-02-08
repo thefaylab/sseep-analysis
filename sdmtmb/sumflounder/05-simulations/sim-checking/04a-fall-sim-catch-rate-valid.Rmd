@@ -16,8 +16,10 @@ output: word_document
 library(here)
 suppressPackageStartupMessages(library(tidyverse))
 library(sdmTMB) 
-source(here("R", "StratMeanFXs_v2.R"))
+library(nationalparkcolors)
+# source(here("R", "StratMeanFXs_v2.R"))
 
+pal <- park_palette("Badlands")
 sumflounder.dat <- here("sdmtmb", "sumflounder", "data")
 sim.check <- here("sdmtmb", "sumflounder", "data", "simulations", "sim-checking")
 sim.check.plots <- here("sdmtmb", "sumflounder", "plots", "simulations", "sim-checking")
@@ -198,42 +200,59 @@ head(fall.dec)
 ```
 
 
-##Calculate Statistics
-The mean catch rate for each productivity scenario simulation and the absolute percent difference between survey effort reduction scenarios
+## Data wrangle 
+Create one large dataframe from each productivity simulation based on simulated iteration. 
 
-### Base
 ```{r}
-# create one large dataframe and add a sim column 
-filtered.base.df <- map(fall.base, ~janitor::clean_names(.)) |> 
-  map2_dfr(1:500, ~mutate(.x, sim = .y))
-
-# calculate the "status quo" scenario
-fall_base_ww <- filtered.base.df |> 
-  group_by(sim) |> 
-  summarise(mu = mean(observed), 
-            var = var(observed), 
-            cv = sqrt(var)/mu) |> 
-  mutate(scenario = "Baseline")
-
-# calculate the "precluded" scenario
-fall_base_wow <- filtered.base.df |> 
-  filter(as_factor_area_wind == 0) |> #outside areas
-  group_by(sim) |> 
-  summarise(mu = mean(observed), 
-            var = var(observed), 
-            cv = sqrt(var)/mu) |> 
-  mutate(scenario = "Baseline")
-
-# bind the scenarios to calculate the absolute percent difference
-base_diff <- left_join(fall_base_ww, fall_base_wow, by = c("sim", "scenario")) |>
-  janitor::clean_names() |>
-  group_by(sim) |> #, est_year) |>
- summarise(abs_diff_mu =( abs(mu_x - mu_y) / mu_x)*100, 
-            abs_diff_cv =( abs(cv_x - cv_y) / cv_x)*100) |>
-  mutate(abs_diff_mu = ifelse(is.nan(abs_diff_mu), 0, abs_diff_mu),
-         abs_diff_cv = ifelse(is.nan(abs_diff_cv), 0, abs_diff_cv),
-         scenario = "Baseline", 
+# Baseline
+fall.base.df <- map(fall.base, ~janitor::clean_names(.)) |> 
+  map2_dfr(1:500, ~mutate(.x, sim = .y)) |> 
+  mutate(scenario = "Baseline", 
          season = "Fall")
+
+# Enhanced 
+fall.inc.df <- map(fall.inc, ~janitor::clean_names(.)) |> 
+  map2_dfr(1:500, ~mutate(.x, sim = .y)) |> 
+  mutate(scenario = "Enhanced", 
+         season = "Fall")
+
+# Reduced
+fall.dec.df <- map(fall.dec, ~janitor::clean_names(.)) |> 
+  map2_dfr(1:500, ~mutate(.x, sim = .y)) |> 
+  mutate(scenario = "Reduced", 
+         season = "Fall")
+
+```
+
+
+```{r}
+# calculate the "status quo" scenario
+# fall_base_ww <- filtered.base.df |> 
+#   group_by(sim) |> 
+#   summarise(mu = mean(observed), 
+#             var = var(observed), 
+#             cv = sqrt(var)/mu) |> 
+#   mutate(scenario = "Baseline")
+# 
+# # calculate the "precluded" scenario
+# fall_base_wow <- filtered.base.df |> 
+#   filter(as_factor_area_wind == 0) |> #outside areas
+#   group_by(sim) |> 
+#   summarise(mu = mean(observed), 
+#             var = var(observed), 
+#             cv = sqrt(var)/mu) |> 
+#   mutate(scenario = "Baseline")
+# 
+# # bind the scenarios to calculate the absolute percent difference
+# base_diff <- left_join(fall_base_ww, fall_base_wow, by = c("sim", "scenario")) |>
+#   janitor::clean_names() |>
+#   group_by(sim) |> #, est_year) |>
+#  summarise(abs_diff_mu =( abs(mu_x - mu_y) / mu_x)*100, 
+#             abs_diff_cv =( abs(cv_x - cv_y) / cv_x)*100) |>
+#   mutate(abs_diff_mu = ifelse(is.nan(abs_diff_mu), 0, abs_diff_mu),
+#          abs_diff_cv = ifelse(is.nan(abs_diff_cv), 0, abs_diff_cv),
+#          scenario = "Baseline", 
+#          season = "Fall")
 
 # saveRDS(fall_base_ww, here(sim.check, "fall_base_ww-500sim.rds"))
 # saveRDS(fall_base_wow, here(sim.check, "fall_base_wow-500sim.rds"))
@@ -241,39 +260,35 @@ base_diff <- left_join(fall_base_ww, fall_base_wow, by = c("sim", "scenario")) |
   
 ```
 
-### Enhanced
+
 ```{r}
-# create one large dataframe and add a sim column 
-filtered.inc.df <- map(fall.inc, ~janitor::clean_names(.)) |> 
-  map2_dfr(1:500, ~mutate(.x, sim = .y))
-
 # calculate the "status quo" scenario
-fall_inc_ww <- filtered.inc.df |> 
-  group_by(sim) |> 
-  summarise(mu = mean(observed), 
-            var = var(observed), 
-            cv = sqrt(var)/mu) |> 
-  mutate(scenario = "Enhanced")
-  
-# calculate the "precluded" scenario
-fall_inc_wow <- filtered.inc.df |> 
-  filter(as_factor_area_wind == 0) |> #outside areas
-  group_by(sim) |> 
-  summarise(mu = mean(observed), 
-            var = var(observed), 
-            cv = sqrt(var)/mu) |> 
-  mutate(scenario = "Enhanced")
-
-# bind the scenarios to calculate the absolute percent difference
-inc_diff <- left_join(fall_inc_ww, fall_inc_wow, by = c("sim", "scenario")) |>
-  janitor::clean_names() |>
-  group_by(sim) |> #, est_year) |>
-  summarise(abs_diff_mu =( abs(mu_x - mu_y) / mu_x)*100, 
-            abs_diff_cv =( abs(cv_x - cv_y) / cv_x)*100) |>
-  mutate(abs_diff_mu = ifelse(is.nan(abs_diff_mu), 0, abs_diff_mu),
-         abs_diff_cv = ifelse(is.nan(abs_diff_cv), 0, abs_diff_cv),
-         scenario = "Enhanced", 
-         season = "Fall")
+# fall_inc_ww <- filtered.inc.df |> 
+#   group_by(sim) |> 
+#   summarise(mu = mean(observed), 
+#             var = var(observed), 
+#             cv = sqrt(var)/mu) |> 
+#   mutate(scenario = "Enhanced")
+#   
+# # calculate the "precluded" scenario
+# fall_inc_wow <- filtered.inc.df |> 
+#   filter(as_factor_area_wind == 0) |> #outside areas
+#   group_by(sim) |> 
+#   summarise(mu = mean(observed), 
+#             var = var(observed), 
+#             cv = sqrt(var)/mu) |> 
+#   mutate(scenario = "Enhanced")
+# 
+# # bind the scenarios to calculate the absolute percent difference
+# inc_diff <- left_join(fall_inc_ww, fall_inc_wow, by = c("sim", "scenario")) |>
+#   janitor::clean_names() |>
+#   group_by(sim) |> #, est_year) |>
+#   summarise(abs_diff_mu =( abs(mu_x - mu_y) / mu_x)*100, 
+#             abs_diff_cv =( abs(cv_x - cv_y) / cv_x)*100) |>
+#   mutate(abs_diff_mu = ifelse(is.nan(abs_diff_mu), 0, abs_diff_mu),
+#          abs_diff_cv = ifelse(is.nan(abs_diff_cv), 0, abs_diff_cv),
+#          scenario = "Enhanced", 
+#          season = "Fall")
 
 # saveRDS(fall_inc_ww, here(sim.check, "fall_inc_ww-500sim.rds"))
 # saveRDS(fall_inc_wow, here(sim.check, "fall_inc_wow-500sim.rds"))
@@ -281,39 +296,36 @@ inc_diff <- left_join(fall_inc_ww, fall_inc_wow, by = c("sim", "scenario")) |>
 
 ```
 
-### Reduced
+
 ```{r}
-# create one large dataframe and add a sim column 
-filtered.dec.df <- map(fall.dec, ~janitor::clean_names(.)) |> 
-  map2_dfr(1:500, ~mutate(.x, sim = .y))
 
 # calculate the "status quo" scenario
-fall_dec_ww <- filtered.dec.df |> 
-  group_by(sim) |> 
-  summarise(mu = mean(observed), 
-            var = var(observed), 
-            cv = sqrt(var)/mu) |> 
-  mutate(scenario = "Reduced")
-  
-# calculate the "precluded" scenario
-fall_dec_wow <- filtered.dec.df |> 
-  filter(as_factor_area_wind == 0) |> #outside areas
-  group_by(sim) |> 
-  summarise(mu = mean(observed), 
-            var = var(observed), 
-            cv = sqrt(var)/mu) |> 
-  mutate(scenario = "Reduced")
-
-# bind the scenarios to calculate the absolute percent difference
-dec_diff <- left_join(fall_dec_ww, fall_dec_wow, by = c("sim", "scenario")) |>
-  janitor::clean_names() |>
-  group_by(sim) |> #, est_year) |>
-  summarise(abs_diff_mu =( abs(mu_x - mu_y) / mu_x)*100, 
-            abs_diff_cv =( abs(cv_x - cv_y) / cv_x)*100) |>
-  mutate(abs_diff_mu = ifelse(is.nan(abs_diff_mu), 0, abs_diff_mu),
-         abs_diff_cv = ifelse(is.nan(abs_diff_cv), 0, abs_diff_cv),
-         scenario = "Reduced", 
-         season = "Fall")
+# fall_dec_ww <- filtered.dec.df |> 
+#   group_by(sim) |> 
+#   summarise(mu = mean(observed), 
+#             var = var(observed), 
+#             cv = sqrt(var)/mu) |> 
+#   mutate(scenario = "Reduced")
+#   
+# # calculate the "precluded" scenario
+# fall_dec_wow <- filtered.dec.df |> 
+#   filter(as_factor_area_wind == 0) |> #outside areas
+#   group_by(sim) |> 
+#   summarise(mu = mean(observed), 
+#             var = var(observed), 
+#             cv = sqrt(var)/mu) |> 
+#   mutate(scenario = "Reduced")
+# 
+# # bind the scenarios to calculate the absolute percent difference
+# dec_diff <- left_join(fall_dec_ww, fall_dec_wow, by = c("sim", "scenario")) |>
+#   janitor::clean_names() |>
+#   group_by(sim) |> #, est_year) |>
+#   summarise(abs_diff_mu =( abs(mu_x - mu_y) / mu_x)*100, 
+#             abs_diff_cv =( abs(cv_x - cv_y) / cv_x)*100) |>
+#   mutate(abs_diff_mu = ifelse(is.nan(abs_diff_mu), 0, abs_diff_mu),
+#          abs_diff_cv = ifelse(is.nan(abs_diff_cv), 0, abs_diff_cv),
+#          scenario = "Reduced", 
+#          season = "Fall")
 
 # saveRDS(fall_dec_ww, here(sim.check, "fall_dec_ww-500sim.rds"))
 # saveRDS(fall_dec_wow, here(sim.check, "fall_dec_wow-500sim.rds"))
@@ -321,39 +333,54 @@ dec_diff <- left_join(fall_dec_ww, fall_dec_wow, by = c("sim", "scenario")) |>
 
 ```
 
-## Plot Distribution
-### Differences in means
+## Plot distribution of catch rates
 ```{r}
-# bind the absolute percent difference dataframes of all three productivity scenarios and plot the distribution of differences 
-bind_rows(base_diff, inc_diff, dec_diff) |> 
-  ggplot() + 
-  geom_boxplot(aes(x = as.factor(scenario), y = abs_diff_mu)) + 
-  labs(x = "Productivity scenario", y = "Absolute percent difference between survey effort scenarios", subtitle = str_c("Distribution of differences in means between survey effort scenarios for each productivity scenario\nobserved in stratum", strat, "in", year, "and across 500 replicates", sep = " ")) + 
-  facet_wrap(~season) +
-  theme_bw()
+bind_rows(fall.base.df, fall.inc.df, fall.dec.df) |> 
+  #filter(observed > 0) |> 
+    ggplot() + 
+    geom_col(aes(x = as.factor(scenario), y = observed, fill = as.factor(as_factor_area_wind)), position = position_dodge(width = 0.3), width = 0.25) + 
+  scale_fill_manual(values = pal, breaks = c(0, 1), labels = c("Outside Wind", "Inside Wind")) +
+  facet_wrap(~season) + 
+  labs(x = "Productivity scenario", y = "Simulated values of biomass (kg)", subtitle = str_c("Distribution of simulated values of summer flounder biomass for each productivity scenario observed in\nstratum", strat, "in", year, sep = " "), fill = "Area of catch\nrate occurrence") + 
+  theme(legend.position = "bottom")
 
-# to extract exact median values plotted in the boxplot
-median(base_diff$abs_diff_mu)
-median(inc_diff$abs_diff_mu)
-median(dec_diff$abs_diff_mu)
+# ggsave("fall_500sim_catchrate-dist.png", device = "png", last_plot(), here(sim.check.plots), width = 8, height = 6)
+```
+
+
+```{r}
+# Differences of Means 
+# bind the absolute percent difference dataframes of all three productivity scenarios and plot the distribution of differences 
+# bind_rows(base_diff, inc_diff, dec_diff) |> 
+#   ggplot() + 
+#   geom_boxplot(aes(x = as.factor(scenario), y = abs_diff_mu)) + 
+#   labs(x = "Productivity scenario", y = "Absolute percent difference between survey effort scenarios", subtitle = str_c("Distribution of differences in means between survey effort scenarios for each productivity scenario\nobserved in stratum", strat, "in", year, "and across 500 replicates", sep = " ")) + 
+#   facet_wrap(~season) +
+#   theme_bw()
+# 
+# # to extract exact median values plotted in the boxplot
+# median(base_diff$abs_diff_mu)
+# median(inc_diff$abs_diff_mu)
+# median(dec_diff$abs_diff_mu)
 
 # ggsave("fall_500sim_mudiff-dist.png", device = "png", last_plot(), here(sim.check.plots), width = 8, height = 6)
 ```
 
-### Differences in the CVs
-```{r}
-# bind the absolute percent difference dataframes of all three productivity scenarios and plot the distribution of differences 
-bind_rows(base_diff, inc_diff, dec_diff) |> 
-  ggplot() + 
-  geom_boxplot(aes(x = as.factor(scenario), y = abs_diff_cv)) + 
-  labs(x = "Productivity scenario", y = "Absolute percent difference between survey effort scenarios", subtitle = str_c("Distribution of differences in CVs between survey effort scenarios for each productivity scenario\nobserved in stratum", strat, "in", year, "and across 500 replicates", sep = " ")) + 
-  facet_wrap(~season) +
-  theme_bw()
 
-# to extract exact median values plotted in the boxplot
-median(base_diff$abs_diff_cv)
-median(inc_diff$abs_diff_cv)
-median(dec_diff$abs_diff_cv)
+```{r}
+# Distribution of CVs
+# bind the absolute percent difference dataframes of all three productivity scenarios and plot the distribution of differences 
+# bind_rows(base_diff, inc_diff, dec_diff) |> 
+#   ggplot() + 
+#   geom_boxplot(aes(x = as.factor(scenario), y = abs_diff_cv)) + 
+#   labs(x = "Productivity scenario", y = "Absolute percent difference between survey effort scenarios", subtitle = str_c("Distribution of differences in CVs between survey effort scenarios for each productivity scenario\nobserved in stratum", strat, "in", year, "and across 500 replicates", sep = " ")) + 
+#   facet_wrap(~season) +
+#   theme_bw()
+# 
+# # to extract exact median values plotted in the boxplot
+# median(base_diff$abs_diff_cv)
+# median(inc_diff$abs_diff_cv)
+# median(dec_diff$abs_diff_cv)
 
 # ggsave("fall_500sim_cv-diff-dist.png", device = "png", last_plot(), here(sim.check.plots), width = 8, height = 6)
 ```

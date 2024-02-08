@@ -34,7 +34,7 @@ sim.check.plots <- here("sdmtmb", "sumflounder", "plots", "simulations", "sim-ch
 
 
 ```{r load data}
-season <- "spring"
+season <- "fall"
 
 # read in fall model 
 mod <- readRDS(here(sumflounder.dat, str_c(season, "mod.rds", sep = "_")))
@@ -496,7 +496,8 @@ The absolute percent difference is calculated between the status quo mean and th
 base1_diff <- left_join(base_sq.mu1, precl.mu1, by = "replicate") |> 
   janitor::clean_names() |> 
   group_by(replicate) |> 
-  summarise(abs_diff =( abs(mu_x - mu_y) / mu_x)*100) |> 
+  summarise(abs_diff_mu =( abs(mu_x - mu_y) / mu_x)*100, 
+            abs_diff_cv =( abs(cv_x - cv_y) / cv_x)*100) |> 
   mutate(type = "Baseline", 
          mean = "1")
 
@@ -507,7 +508,8 @@ base1_diff <- left_join(base_sq.mu1, precl.mu1, by = "replicate") |>
 base10_diff <- left_join(base_sq.mu10, precl.mu10, by = "replicate") |> 
   janitor::clean_names() |> 
   group_by(replicate) |> 
-  summarise(abs_diff =( abs(mu_x - mu_y) / mu_x)*100) |> 
+  summarise(abs_diff_mu =( abs(mu_x - mu_y) / mu_x)*100, 
+            abs_diff_cv =( abs(cv_x - cv_y) / cv_x)*100) |> 
   mutate(type = "Baseline", 
          mean = "10")
 
@@ -518,7 +520,8 @@ base10_diff <- left_join(base_sq.mu10, precl.mu10, by = "replicate") |>
 base100_diff <- left_join(base_sq.mu100, precl.mu100, by = "replicate") |> 
   janitor::clean_names() |> 
   group_by(replicate) |> 
-  summarise(abs_diff =( abs(mu_x - mu_y) / mu_x)*100) |> 
+  summarise(abs_diff_mu =( abs(mu_x - mu_y) / mu_x)*100, 
+            abs_diff_cv =( abs(cv_x - cv_y) / cv_x)*100) |> 
   mutate(type = "Baseline", 
          mean = "100")
 
@@ -533,7 +536,8 @@ base100_diff <- left_join(base_sq.mu100, precl.mu100, by = "replicate") |>
 enhanced1_diff <- left_join(enhanced_sq.mu1, precl.mu1, by = "replicate") |> 
   janitor::clean_names() |> 
   group_by(replicate) |> 
-  summarise(abs_diff =( abs(mu_x - mu_y) / mu_x)*100) |> 
+  summarise(abs_diff_mu =( abs(mu_x - mu_y) / mu_x)*100, 
+            abs_diff_cv =( abs(cv_x - cv_y) / cv_x)*100) |> 
   mutate(type = "Enhanced", 
          mean = "1")
 ```
@@ -545,7 +549,8 @@ enhanced1_diff <- left_join(enhanced_sq.mu1, precl.mu1, by = "replicate") |>
 enhanced10_diff <- left_join(enhanced_sq.mu10, precl.mu10, by = "replicate") |> 
   janitor::clean_names() |> 
   group_by(replicate) |> 
-  summarise(abs_diff =( abs(mu_x - mu_y) / mu_x)*100) |> 
+  summarise(abs_diff_mu =( abs(mu_x - mu_y) / mu_x)*100, 
+            abs_diff_cv =( abs(cv_x - cv_y) / cv_x)*100) |> 
   mutate(type = "Enhanced", 
          mean = "10")
 
@@ -558,7 +563,8 @@ enhanced10_diff <- left_join(enhanced_sq.mu10, precl.mu10, by = "replicate") |>
 enhanced100_diff <- left_join(enhanced_sq.mu100, precl.mu100, by = "replicate") |> 
   janitor::clean_names() |> 
   group_by(replicate) |> 
-  summarise(abs_diff =( abs(mu_x - mu_y) / mu_x)*100) |> 
+  summarise(abs_diff_mu =( abs(mu_x - mu_y) / mu_x)*100, 
+            abs_diff_cv =( abs(cv_x - cv_y) / cv_x)*100) |> 
   mutate(type = "Enhanced", 
          mean = "100")
 
@@ -573,7 +579,8 @@ enhanced100_diff <- left_join(enhanced_sq.mu100, precl.mu100, by = "replicate") 
 reduced1_diff <- left_join(reduced_sq.mu1, precl.mu1, by = "replicate") |> 
   janitor::clean_names() |> 
   group_by(replicate) |> 
-  summarise(abs_diff =( abs(mu_x - mu_y) / mu_x)*100) |> 
+  summarise(abs_diff_mu =( abs(mu_x - mu_y) / mu_x)*100, 
+            abs_diff_cv =( abs(cv_x - cv_y) / cv_x)*100) |> 
   mutate(type = "Reduced", 
          mean = "1")
 
@@ -586,7 +593,8 @@ reduced1_diff <- left_join(reduced_sq.mu1, precl.mu1, by = "replicate") |>
 reduced10_diff <- left_join(reduced_sq.mu10, precl.mu10, by = "replicate") |> 
   janitor::clean_names() |> 
   group_by(replicate) |> 
-  summarise(abs_diff =( abs(mu_x - mu_y) / mu_x)*100) |> 
+  summarise(abs_diff_mu =( abs(mu_x - mu_y) / mu_x)*100, 
+            abs_diff_cv =( abs(cv_x - cv_y) / cv_x)*100) |> 
   mutate(type = "Reduced", 
          mean = "10")
 
@@ -599,7 +607,8 @@ reduced10_diff <- left_join(reduced_sq.mu10, precl.mu10, by = "replicate") |>
 reduced100_diff <- left_join(reduced_sq.mu100, precl.mu100, by = "replicate") |> 
   janitor::clean_names() |> 
   group_by(replicate) |> 
-  summarise(abs_diff =( abs(mu_x - mu_y) / mu_x)*100) |> 
+  summarise(abs_diff_mu =( abs(mu_x - mu_y) / mu_x)*100, 
+            abs_diff_cv =( abs(cv_x - cv_y) / cv_x)*100) |> 
   mutate(type = "Reduced", 
          mean = "100")
 
@@ -632,13 +641,26 @@ bind_rows(base100_diff, enhanced100_diff, reduced100_diff) |>
 ```
 
 ```{r}
-bind_rows(base1_diff, base10_diff, base100_diff, enhanced1_diff, enhanced10_diff, enhanced100_diff, reduced1_diff, reduced10_diff, reduced100_diff) |>
-  ggplot() +
-  geom_boxplot(aes(x = as.factor(type), y = abs_diff, color = mean)) + 
+all_treatments <- bind_rows(base1_diff, base10_diff, base100_diff, enhanced1_diff, enhanced10_diff, enhanced100_diff, reduced1_diff, reduced10_diff, reduced100_diff)
+
+
+ggplot(all_treatments) +
+  geom_boxplot(aes(x = as.factor(type), y = abs_diff_mu, color = mean)) + 
   labs(x = "Productivity treatment", y = "Absolute percent difference\nbetween effort scenarios", color = "Number-generating mean", subtitle = paste0("Tweedie distributions generated from the"," ", season, " ", "summer flounder model parameters")) + 
   theme_bw() + 
   theme(legend.position = "bottom")
 
-ggsave(str_c(season, "_sim-ran-mudiff-dists.png", sep = ""), device = "png", last_plot(), here(sim.check.plots), width = 8, height = 6)
+# ggsave(str_c(season, "_sim-ran-mudiff-dists.png", sep = ""), device = "png", last_plot(), here(sim.check.plots), width = 8, height = 6)
+```
+
+
+```{r}
+ggplot(all_treatments) +
+  geom_boxplot(aes(x = as.factor(type), y = abs_diff_cv, color = mean)) + 
+  labs(x = "Productivity treatment", y = "Absolute percent difference\nbetween effort scenario CVs", color = "Number-generating mean", subtitle = paste0("Tweedie distributions generated from the"," ", season, " ", "summer flounder model parameters")) + 
+  theme_bw() + 
+  theme(legend.position = "bottom")
+
+# ggsave(str_c(season, "_sim-ran-cv-diff-dists.png", sep = ""), device = "png", last_plot(), here(sim.check.plots), width = 8, height = 6)
 ```
 
