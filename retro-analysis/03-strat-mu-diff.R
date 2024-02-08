@@ -37,20 +37,20 @@ specieslookup <- data |>
 ## CALCULATE MEAN SQUARED RELATIVE DIFFERENCES #####  
 mudiff_dat <- data |> 
   #mutate(stratmu = ifelse(stratmu==0, 1, stratmu)) |>
-  filter(EST_YEAR %in% c(2016:2019, 2021)) |> #filter for recent 5 years, skipping 2020
+  #filter(EST_YEAR %in% c(2016:2019, 2021)) |> #filter for recent 5 years, skipping 2020
   #mutate(log_mu = log(stratmu)) |>
-  arrange(desc(stratmu)) |>
+  # arrange(desc(stratmu)) |>
   group_by(SVSPP, EST_YEAR, SEASON) |> #, 
   #summarize(sq_diff = (exp(diff(log(stratmu)))-1)^2, .groups = "drop") |>
-  summarise(diff_mu = diff(stratmu)) |>
-  arrange(desc(diff_mu)) |>
-  mutate(exp_mu = (exp(diff_mu))-1) |>
-  arrange(desc(exp_mu)) |>
-  mutate(sq_diff = exp_mu^2) |>
-  arrange(desc(sq_diff))|>
-  ungroup()|>
+  summarise(diff_mu = diff(stratmu), .groups = "drop") |>
+  # arrange(desc(diff_mu)) |>
+  mutate(exp_mu = (exp(diff_mu))-1,
+         sq_diff = exp_mu^2) |>
+  #arrange(desc(sq_diff))|>
+  #ungroup()|>
   #summarize(sq_diff = (diff(stratmu))^2, .groups = "drop") |> # calculate the relative differences and square them; drop the groups for further analysis
   group_by(SVSPP, SEASON) |>
+  filter(EST_YEAR %in% tail(EST_YEAR, 5)) |> 
   summarize(mudiff = mean(sq_diff), .groups = "drop") |> # calculate the average; drop the grouping factor 
   mutate(mudiff = sqrt(mudiff)*100) |>
   arrange(desc(mudiff)) |> # arrange highest to lowest 
@@ -121,3 +121,12 @@ ggsave(filename ="species_mean-sq-diff.png", plot = last_plot(), device = "png" 
 #ggsave(filename ="sf_mudiff.jpeg", device = "jpeg" , path = here("outputs", "sumflounder"), width = 10, height = 5)
 
 
+1 FALL       2017  0       0      0       
+2 FALL       2018 -0.260  -0.229  0.0524  
+3 FALL       2019 -0.164  -0.151  0.0228  
+4 FALL       2021 -0.294  -0.255  0.0651  
+5 SPRING     2017  0.0226  0.0229 0.000523
+6 SPRING     2018 -0.176  -0.161  0.0259  
+7 SPRING     2019 -0.151  -0.140  0.0197  
+8 SPRING     2020  0.164   0.178  0.0318  
+9 SPRING     2021  0.0214  0.0216 0.000467
