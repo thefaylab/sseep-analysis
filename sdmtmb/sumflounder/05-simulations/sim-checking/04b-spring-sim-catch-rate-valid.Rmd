@@ -55,7 +55,7 @@ set.seed(72346)
 
 # generate 3000 random numbers and sample for 500 to set seed with each iteration of sdmTMB_simulate for reproducibility
 seed.num.gen <- round(rnorm(3000, mean = 1305700, sd = 10000), 0)
-seed.num <- sample(seed.num.gen, size = 500, replace = FALSE)
+seed.num <- sample(seed.num.gen, size = 100, replace = FALSE)
 # length(which(duplicated(seed.num) == TRUE))
 
 # identify which year and stratum has the most wind tows
@@ -76,18 +76,15 @@ left_join(outside_tows, wind_tows, by = c("EST_YEAR", "STRATUM")) |> janitor::cl
 ```
 Set the year and strata to filter the model fitted data and predictions by to create a new dataset of locations that will be used to simulate values of biomass at. 
 ```{r data wrangle}
-year <- 2016
-strat <- 1690
-
 # join prediction data to model fitting data to add predicted spatial estimate for data simulation
 sf_spring <- sf_spring |> 
-  left_join(spring_preds, by = c("X", "Y", "STATION", "STRATUM", "CRUISE6")) |> 
-  filter(EST_YEAR == year, STRATUM == strat) |> 
-  mutate(EST_YEAR = 1)
+  left_join(spring_preds, by = c("X", "Y", "STATION", "STRATUM", "CRUISE6")) 
 
 
-# sf_spring_info <- sf_spring |>
-#   select(X, Y, EST_YEAR, STRATUM, CRUISE6, STATION, AREA, AREA_CODE, SEASON)
+sf_spring_info <- sf_spring |>
+  select(X, Y, EST_YEAR, STRATUM, CRUISE6, STATION, AREA, AREA_CODE, SEASON)|> 
+  mutate(AREA_CODE = ifelse(AREA == "OUTSIDE", 0, AREA_CODE))
+
 
 # mesh for simulating
 mesh <- make_mesh(sf_spring, xy_cols = c("X", "Y"), cutoff = 10)
@@ -109,14 +106,16 @@ Set the b argument by extracting the coefficients for the depth effects, the sel
 
 ### Base 
 ```{r sim base}
-b <-  c(0, spring_coefs$estimate[1:2], spring_coefs$estimate[10],
-       spring_coefs$estimate[15], 1)
+# b <-  c(0, spring_coefs$estimate[1:2], spring_coefs$estimate[10],
+#        spring_coefs$estimate[15], 1)
+b <- c(spring_coefs$estimate, 1)
 
-spring.base <- map2(1:500, seed.num, ~sdmTMB_simulate(
-    formula = ~1 + poly(AVGDEPTH, 2, coefs = spring_depth_coefs) +
-      EST_YEAR +
+spring.base <- map2(1:100, seed.num, ~sdmTMB_simulate(
+    formula = ~#1 + 
+      poly(AVGDEPTH, 2, coefs = spring_depth_coefs) +
+      as.factor(EST_YEAR) +
       as.factor(AREA) +
-      fix_omegas,
+      fix_omegas - 1,
     data = sf_spring,
     mesh = mesh,
     family = tweedie(),
@@ -133,21 +132,24 @@ spring.base <- map2(1:500, seed.num, ~sdmTMB_simulate(
 )
 
 head(spring.base)
-# saveRDS(spring.base, here(sim.check, "spring_base-500sims.rds"))
+# saveRDS(spring.base, here(sim.check, "spring_base-100sims.rds"))
 
 
 ```
 
 ### Enhanced
 ```{r sim increase}
-b <- c(0, spring_coefs$estimate[1:2], spring_coefs$estimate[10],
-       (spring_coefs$estimate[15]+log(2)), 1)
+# b <- c(0, spring_coefs$estimate[1:2], spring_coefs$estimate[10],
+#        (spring_coefs$estimate[15]+log(2)), 1)
+b <- c(spring_coefs$estimate[1:14], (spring_coefs$estimate[15]+log(2)), 1)
 
-spring.inc <- map2(1:500, seed.num, ~sdmTMB_simulate(
-    formula = ~1 + poly(AVGDEPTH, 2, coefs = spring_depth_coefs) +
-      EST_YEAR +
+
+spring.inc <- map2(1:100, seed.num, ~sdmTMB_simulate(
+    formula = ~#1 + 
+      poly(AVGDEPTH, 2, coefs = spring_depth_coefs) +
+      as.factor(EST_YEAR) +
       as.factor(AREA) +
-      fix_omegas,
+      fix_omegas - 1,
     data = sf_spring,
     mesh = mesh,
     family = tweedie(),
@@ -164,19 +166,21 @@ spring.inc <- map2(1:500, seed.num, ~sdmTMB_simulate(
 )
 
 head(spring.inc)
-# saveRDS(spring.inc, here(sim.check, "spring_inc-500sim.rds"))
+# saveRDS(spring.inc, here(sim.check, "spring_inc-100sims.rds"))
 ```
 
 ### Reduced
 ```{r sim decrease}
-b <- c(0, spring_coefs$estimate[1:2], spring_coefs$estimate[10],
-       (spring_coefs$estimate[15]-log(2)), 1)
+# b <- c(0, spring_coefs$estimate[1:2], spring_coefs$estimate[10],
+#        (spring_coefs$estimate[15]-log(2)), 1)
+b <- c(spring_coefs$estimate[1:14], (spring_coefs$estimate[15]-log(2)), 1)
 
-spring.dec <- map2(1:500, seed.num, ~sdmTMB_simulate(
-    formula = ~1 + poly(AVGDEPTH, 2, coefs = spring_depth_coefs) +
-      EST_YEAR +
+spring.dec <- map2(1:100, seed.num, ~sdmTMB_simulate(
+    formula = ~#1 + 
+      poly(AVGDEPTH, 2, coefs = spring_depth_coefs) +
+      as.factor(EST_YEAR) +
       as.factor(AREA) +
-      fix_omegas,
+      fix_omegas - 1,
     data = sf_spring,
     mesh = mesh,
     family = tweedie(),
@@ -193,7 +197,7 @@ spring.dec <- map2(1:500, seed.num, ~sdmTMB_simulate(
 )
 
 head(spring.dec)
-# saveRDS(spring.dec, here(sim.check, "spring_dec-500sim.rds"))
+# saveRDS(spring.dec, here(sim.check, "spring_dec-100sims.rds"))
 ```
 
 
@@ -203,23 +207,36 @@ Create one large dataframe from each productivity simulation based on simulated 
 
 
 ```{r}
+year <- 2016
+strat <- 1690
+
 # Baseline
 spring.base.df <- map(spring.base, ~janitor::clean_names(.)) |> 
-  map2_dfr(1:500, ~mutate(.x, sim = .y)) |> 
+  map2_dfr(1:100, ~mutate(.x, sim = .y)) |> 
   mutate(scenario = "Baseline", 
-         season = "Spring")
+         season = "Spring") |> 
+  left_join(sf_spring_info, by = join_by(x == X, y == Y, est_year == EST_YEAR, as_factor_area_wind == AREA_CODE)) |> 
+  filter(est_year == year, STRATUM == strat) |> 
+  dplyr::select(est_year, x, y, STRATUM, STATION, CRUISE6, observed, sim, scenario, season, AREA, as_factor_area_wind)
+
 
 # Enhanced 
 spring.inc.df <- map(spring.inc, ~janitor::clean_names(.)) |> 
-  map2_dfr(1:500, ~mutate(.x, sim = .y)) |> 
+  map2_dfr(1:100, ~mutate(.x, sim = .y)) |> 
   mutate(scenario = "Enhanced", 
-         season = "Spring")
+         season = "Spring") |> 
+  left_join(sf_spring_info, by = join_by(x == X, y == Y, est_year == EST_YEAR, as_factor_area_wind == AREA_CODE)) |> 
+  filter(est_year == year, STRATUM == strat) |> 
+  dplyr::select(est_year, x, y, STRATUM, STATION, CRUISE6, observed, sim, scenario, season, AREA, as_factor_area_wind)
 
 # Reduced 
 spring.dec.df <- map(spring.dec, ~janitor::clean_names(.)) |> 
-  map2_dfr(1:500, ~mutate(.x, sim = .y)) |> 
+  map2_dfr(1:100, ~mutate(.x, sim = .y)) |> 
   mutate(scenario = "Reduced", 
-         season = "Spring")
+         season = "Spring") |> 
+  left_join(sf_spring_info, by = join_by(x == X, y == Y, est_year == EST_YEAR, as_factor_area_wind == AREA_CODE)) |> 
+  filter(est_year == year, STRATUM == strat) |> 
+  dplyr::select(est_year, x, y, STRATUM, STATION, CRUISE6, observed, sim, scenario, season, AREA, as_factor_area_wind)
 
 
 ```
@@ -335,15 +352,25 @@ spring.dec.df <- map(spring.dec, ~janitor::clean_names(.)) |>
 ## Plot distribution of catch rates 
 ```{r}
 bind_rows(spring.base.df, spring.inc.df, spring.dec.df) |> 
-  #filter(observed > 0) |> 
+  filter(observed > 0) |> 
     ggplot() + 
     geom_col(aes(x = as.factor(scenario), y = observed, fill = as.factor(as_factor_area_wind)), position = position_dodge(width = 0.3), width = 0.25) + 
   scale_fill_manual(values = pal, breaks = c(0, 1), labels = c("Outside Wind", "Inside Wind")) +
   facet_wrap(~season) + 
   labs(x = "Productivity scenario", y = "Simulated values of biomass (kg)", subtitle = str_c("Distribution of simulated values of summer flounder biomass for each productivity scenario observed in\nstratum", strat, "in", year, sep = " "), fill = "Area of catch\nrate occurrence") + 
   theme(legend.position = "bottom")
-  
 # ggsave("spring_500sim_catchrate-dist.png", device = "png", last_plot(), here(sim.check.plots), width = 8, height = 6)
+
+bind_rows(spring.base.df, spring.inc.df, spring.dec.df) |> 
+  #filter(observed > 0) |> 
+    ggplot() + 
+    geom_histogram(aes(x = observed, fill = as.factor(as_factor_area_wind)), position = "dodge") + 
+  scale_fill_manual(values = pal) +
+  facet_grid(cols = vars(scenario), rows = vars(str_to_title(AREA))) + 
+  labs(x = "Catch rate (kg/tow)", y = "Frequency of catch rate occurrence", subtitle = str_c("Distribution of simulated values of spring summer flounder biomass for each productivity scenario observed in\nstratum", strat, "in", year, sep = " "), fill = "Area of catch\nrate occurrence") + 
+  theme(legend.position = "none")
+  
+# ggsave("spring_100sim_catchrate-dist.png", device = "png", last_plot(), here(sim.check.plots), width = 9, height = 6)
 ```
 
 

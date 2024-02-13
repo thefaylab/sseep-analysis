@@ -55,7 +55,7 @@ set.seed(72346)
 
 # generate 3000 random numbers and sample for 500 to set seed with each iteration of sdmTMB_simulate for reproducibility
 seed.num.gen <- round(rnorm(3000, mean = 1305700, sd = 10000), 0)
-seed.num <- sample(seed.num.gen, size = 500, replace = FALSE)
+seed.num <- sample(seed.num.gen, size = 100, replace = FALSE)
 # length(which(duplicated(seed.num) == TRUE))
 
 # identify which year and stratum has the most wind tows
@@ -77,14 +77,18 @@ left_join(outside_tows, wind_tows, by = c("EST_YEAR", "STRATUM")) |> janitor::cl
 
 Set the year and strata to filter the model fitted data and predictions by to create a new dataset of locations that will be used to simulate values of biomass at. 
 ```{r data wrangle}
-year <- 2018
-strat <- 3200
+# year <- 2018
+# strat <- 3200
 
 # join prediction data to model fitting data to add predicted spatial estimate for data simulation
 sf_fall <-   sf_fall |> 
-  left_join(fall_preds, by = c("X", "Y", "STATION", "STRATUM", "CRUISE6")) |> 
-  filter(EST_YEAR == year, STRATUM == strat) |> 
-  mutate(EST_YEAR = 1)
+  left_join(fall_preds, by = c("X", "Y", "STATION", "STRATUM", "CRUISE6")) #|> 
+  #filter(EST_YEAR == year, STRATUM == strat) |> 
+  #mutate(EST_YEAR = 1)
+
+sf_fall_info <- sf_fall |>
+  dplyr::select(X, Y, EST_YEAR, STRATUM, CRUISE6, STATION, AREA, AREA_CODE, SEASON) |> 
+  mutate(AREA_CODE = ifelse(AREA == "OUTSIDE", 0, AREA_CODE))
 
 # mesh for simulating
 mesh <- make_mesh(sf_fall, xy_cols = c("X", "Y"), cutoff = 10)
@@ -112,14 +116,16 @@ Set the b argument by extracting the coefficients for the depth effects, the sel
 
 ### Base 
 ```{r sim base}
-b <- c(0, fall_coefs$estimate[1:2], fall_coefs$estimate[11],
-       fall_coefs$estimate[14], 1)
+# b <- c(0, fall_coefs$estimate[1:2], fall_coefs$estimate[10],
+#        fall_coefs$estimate[14], 1)
+b <- c(fall_coefs$estimate, 1)
 
-fall.base <- map2(1:500, seed.num, ~sdmTMB_simulate(
-    formula = ~1 + poly(AVGDEPTH, 2, coefs = fall_depth_coefs) +
-      EST_YEAR +
+fall.base <- map2(1:100, seed.num, ~sdmTMB_simulate(
+    formula = ~#1 + 
+      poly(AVGDEPTH, 2, coefs = fall_depth_coefs) +
+      as.factor(EST_YEAR) +
       as.factor(AREA) +
-      fix_omegas,
+      fix_omegas - 1,
     data = sf_fall,
     mesh = mesh,
     family = tweedie(),
@@ -136,21 +142,23 @@ fall.base <- map2(1:500, seed.num, ~sdmTMB_simulate(
 )
 
 head(fall.base)
-# saveRDS(fall.base, here(sim.check, "fall_base-500sim.rds"))
+# saveRDS(fall.base, here(sim.check, "fall_base-100sim.rds"))
 
 
 ```
 
 ### Enhanced
 ```{r sim increase}
-b <- c(0, fall_coefs$estimate[1:2], fall_coefs$estimate[11],
-       (fall_coefs$estimate[14]+log(2)), 1)
+# b <- c(0, fall_coefs$estimate[1:2], fall_coefs$estimate[10],
+       # (fall_coefs$estimate[14]+log(2)), 1)
+b <- c(fall_coefs$estimate[1:13], (fall_coefs$estimate[14]+log(2)), 1)
 
-fall.inc <- map2(1:500, seed.num, ~sdmTMB_simulate(
-    formula = ~1 +poly(AVGDEPTH, 2, coefs = fall_depth_coefs) +
-      EST_YEAR +
+fall.inc <- map2(1:100, seed.num, ~sdmTMB_simulate(
+    formula = ~#1 +
+      poly(AVGDEPTH, 2, coefs = fall_depth_coefs) +
+      as.factor(EST_YEAR) +
       as.factor(AREA) +
-      fix_omegas,
+      fix_omegas - 1,
     data = sf_fall,
     mesh = mesh,
     family = tweedie(),
@@ -158,7 +166,7 @@ fall.inc <- map2(1:500, seed.num, ~sdmTMB_simulate(
     time = "EST_YEAR",
     spatiotemporal = "IID",
     B = b,
-    range = fall_ran_pars$estimate[1], # added range parameter
+    range = fall_ran_pars$estimate[1], 
     sigma_O = 0,
     sigma_E = fall_ran_pars$estimate[4],
     phi = fall_ran_pars$estimate[2],
@@ -167,19 +175,22 @@ fall.inc <- map2(1:500, seed.num, ~sdmTMB_simulate(
 )
 
 head(fall.inc)
-# saveRDS(fall.inc, here(sim.check, "fall_inc-500sim.rds"))
+# saveRDS(fall.inc, here(sim.check, "fall_inc-100sim.rds"))
 ```
 
 ### Reduced
 ```{r sim decrease}
-b <- c(0, fall_coefs$estimate[1:2], fall_coefs$estimate[11],
+# b <- c(0, fall_coefs$estimate[1:2], fall_coefs$estimate[10],
+#        (fall_coefs$estimate[14]-log(2)), 1)
+b <- c(fall_coefs$estimate[1:13],
        (fall_coefs$estimate[14]-log(2)), 1)
 
-fall.dec <- map2(1:500, seed.num, ~sdmTMB_simulate(
-    formula = ~1+ poly(AVGDEPTH, 2, coefs = fall_depth_coefs) +
-      EST_YEAR +
+fall.dec <- map2(1:100, seed.num, ~sdmTMB_simulate(
+    formula = ~#1+ 
+      poly(AVGDEPTH, 2, coefs = fall_depth_coefs) +
+      as.factor(EST_YEAR) +
       as.factor(AREA) +
-      fix_omegas,
+      fix_omegas - 1,
     data = sf_fall,
     mesh = mesh,
     family = tweedie(),
@@ -187,7 +198,7 @@ fall.dec <- map2(1:500, seed.num, ~sdmTMB_simulate(
     time = "EST_YEAR",
     spatiotemporal = "IID",
     B = b,
-    range = fall_ran_pars$estimate[1], # added range parameter
+    range = fall_ran_pars$estimate[1], 
     sigma_O = 0,
     sigma_E = fall_ran_pars$estimate[4],
     phi = fall_ran_pars$estimate[2],
@@ -196,7 +207,7 @@ fall.dec <- map2(1:500, seed.num, ~sdmTMB_simulate(
 )
 
 head(fall.dec)
-# saveRDS(fall.dec, here(sim.check, "fall_dec-500sim.rds"))
+# saveRDS(fall.dec, here(sim.check, "fall_dec-100sim.rds"))
 ```
 
 
@@ -204,23 +215,36 @@ head(fall.dec)
 Create one large dataframe from each productivity simulation based on simulated iteration. 
 
 ```{r}
+# year and stratum to filter for 
+year <- 2018
+strat <- 3200
+
 # Baseline
 fall.base.df <- map(fall.base, ~janitor::clean_names(.)) |> 
-  map2_dfr(1:500, ~mutate(.x, sim = .y)) |> 
+  map2_dfr(1:100, ~mutate(.x, sim = .y)) |> 
   mutate(scenario = "Baseline", 
-         season = "Fall")
+         season = "Fall") |> 
+  left_join(sf_fall_info, by = join_by(x == X, y == Y, est_year == EST_YEAR, as_factor_area_wind == AREA_CODE)) |> 
+  filter(est_year == year, STRATUM == strat) |> 
+  dplyr::select(est_year, x, y, STRATUM, STATION, CRUISE6, observed, sim, scenario, season, AREA, as_factor_area_wind)
 
 # Enhanced 
 fall.inc.df <- map(fall.inc, ~janitor::clean_names(.)) |> 
-  map2_dfr(1:500, ~mutate(.x, sim = .y)) |> 
+  map2_dfr(1:100, ~mutate(.x, sim = .y)) |> 
   mutate(scenario = "Enhanced", 
-         season = "Fall")
+         season = "Fall") |> 
+  left_join(sf_fall_info, by = join_by(x == X, y == Y, est_year == EST_YEAR, as_factor_area_wind == AREA_CODE)) |> 
+  filter(est_year == year, STRATUM == strat) |> 
+  dplyr::select(est_year, x, y, STRATUM, STATION, CRUISE6, observed, sim, scenario, season, AREA, as_factor_area_wind)
 
 # Reduced
 fall.dec.df <- map(fall.dec, ~janitor::clean_names(.)) |> 
-  map2_dfr(1:500, ~mutate(.x, sim = .y)) |> 
+  map2_dfr(1:100, ~mutate(.x, sim = .y)) |> 
   mutate(scenario = "Reduced", 
-         season = "Fall")
+         season = "Fall") |> 
+ left_join(sf_fall_info, by = join_by(x == X, y == Y, est_year == EST_YEAR, as_factor_area_wind == AREA_CODE)) |> 
+  filter(est_year == year, STRATUM == strat) |> 
+  dplyr::select(est_year, x, y, STRATUM, STATION, CRUISE6, observed, sim, scenario, season, AREA, as_factor_area_wind)
 
 ```
 
@@ -345,6 +369,18 @@ bind_rows(fall.base.df, fall.inc.df, fall.dec.df) |>
   theme(legend.position = "bottom")
 
 # ggsave("fall_500sim_catchrate-dist.png", device = "png", last_plot(), here(sim.check.plots), width = 8, height = 6)
+
+bind_rows(fall.base.df, fall.inc.df, fall.dec.df) |> 
+  #filter(observed > 0) |> 
+  ggplot() + 
+  geom_histogram(aes(x = observed, fill = AREA)) +
+    #scale_x_log10()+
+  scale_fill_manual(values = pal) +
+  facet_grid(cols = vars(scenario), rows = vars(str_to_title(AREA))) + 
+  labs(x = "Catch Rate (kg/tow)", y = "Frequency of catch rate occurrence", subtitle = str_c("Distribution of simulated values of fall summer flounder biomass for each productivity scenario observed in\nstratum", strat, "in", year, sep = " "), fill = "Area of catch\nrate occurrence") + 
+  theme(legend.position = "none")
+
+# ggsave("fall_100sim_catchrate-dist.png", device = "png", last_plot(), here(sim.check.plots), width = 8, height = 6)
 ```
 
 

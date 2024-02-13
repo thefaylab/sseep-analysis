@@ -30,7 +30,9 @@ sim.check.plots <- here("sdmtmb", "atlmackerel", "plots", "simulations", "sim-ch
 Load in the model fitting data, fitted model, and the model predictions 
 ```{r load data}
 # model fitting data 
-atlmackerel_spring <- readRDS(here(atlmackerel.dat, "atlmackerel_spring_rm200.rds"))
+atlmackerel_spring <- readRDS(here(atlmackerel.dat, "atlmackerel_spring_rm200.rds")) |> 
+  mutate(EST_YEAR = as.integer(as.character(EST_YEAR)), 
+         AREA = as.character(AREA))
 
 # model fitting mesh 
 #mesh <- readRDS(here(atlmackerel.dat, "spring_mesh.rds"))
@@ -56,7 +58,7 @@ set.seed(72346)
 
 # generate 3000 random numbers and sample for 500 to set seed with each iteration of sdmTMB_simulate for reproducibility
 seed.num.gen <- round(rnorm(3000, mean = 1305700, sd = 10000), 0)
-seed.num <- sample(seed.num.gen, size = 500, replace = FALSE)
+seed.num <- sample(seed.num.gen, size = 100, replace = FALSE)
 # length(which(duplicated(seed.num) == TRUE))
 
 # identify which year and stratum has the most wind tows
@@ -77,18 +79,17 @@ left_join(outside_tows, wind_tows, by = c("EST_YEAR", "STRATUM")) |> janitor::cl
 ```
 Set the year and strata to filter the model fitted data and predictions by to create a new dataset of locations that will be used to simulate values of biomass at. 
 ```{r data wrangle}
-year <- 2009
-strat <- 1650
-
 # join prediction data to model fitting data to add predicted spatial estimate for data simulation
 atlmackerel_spring <- atlmackerel_spring |> 
-  left_join(spring_preds, by = c("X", "Y", "STATION", "STRATUM", "CRUISE6")) |> 
-  filter(EST_YEAR == year, STRATUM == strat) |> 
-  mutate(EST_YEAR = 1)
+  left_join(spring_preds, by = c("X", "Y", "STATION", "STRATUM", "CRUISE6")) #|> 
+  # filter(EST_YEAR == year, STRATUM == strat) |> 
+  # mutate(EST_YEAR = 1)
 
 
-# atlmackerel_spring_info <- atlmackerel_spring |>
-#   select(X, Y, EST_YEAR, STRATUM, CRUISE6, STATION, AREA, AREA_CODE, SEASON)
+atlmackerel_spring_info <- atlmackerel_spring |>
+  select(X, Y, EST_YEAR, STRATUM, CRUISE6, STATION, AREA, AREA_CODE, SEASON) |> 
+  mutate(AREA_CODE = ifelse(AREA == "OUTSIDE", 0, AREA_CODE))
+
 
 # mesh for simulating
 mesh <- make_mesh(atlmackerel_spring, xy_cols = c("X", "Y"), cutoff = 20)
@@ -110,14 +111,16 @@ Set the b argument by extracting the coefficients for the depth effects, the sel
 
 ### Base 
 ```{r sim base}
-b <-  c(0, spring_coefs$estimate[1:4], spring_coefs$estimate[5],
-       0, 1)
+# b <-  c(0, spring_coefs$estimate[1:4], spring_coefs$estimate[5],
+#        0, 1)
+b <- c(spring_coefs$estimate, 0, 1)
 
-spring.base <- map2(1:500, seed.num, ~sdmTMB_simulate(
-    formula = ~1 + poly(AVGDEPTH, 4, coefs = spring_depth_coefs) +
-      EST_YEAR +
+spring.base <- map2(1:100, seed.num, ~sdmTMB_simulate(
+    formula = ~#1 + 
+      poly(AVGDEPTH, 4, coefs = spring_depth_coefs) +
+      as.factor(EST_YEAR) +
       as.factor(AREA) +
-      fix_omegas,
+      fix_omegas - 1,
     data = atlmackerel_spring,
     mesh = mesh,
     family = tweedie(),
@@ -141,14 +144,16 @@ head(spring.base)
 
 ### Enhanced
 ```{r sim increase}
-b <- c(0, spring_coefs$estimate[1:4], spring_coefs$estimate[5],
-       log(2), 1)
+# b <- c(0, spring_coefs$estimate[1:4], spring_coefs$estimate[5],
+#        log(2), 1)
+b <- c(spring_coefs$estimate, log(2), 1)
 
-spring.inc <- map2(1:500, seed.num, ~sdmTMB_simulate(
-    formula = ~1 + poly(AVGDEPTH, 4, coefs = spring_depth_coefs) +
-      EST_YEAR +
+spring.inc <- map2(1:100, seed.num, ~sdmTMB_simulate(
+    formula = ~#1 + 
+      poly(AVGDEPTH, 4, coefs = spring_depth_coefs) +
+      as.factor(EST_YEAR) +
       as.factor(AREA) +
-      fix_omegas,
+      fix_omegas - 1,
     data = atlmackerel_spring,
     mesh = mesh,
     family = tweedie(),
@@ -170,14 +175,16 @@ head(spring.inc)
 
 ### Reduced
 ```{r sim decrease}
-b <- c(0, spring_coefs$estimate[1:4], spring_coefs$estimate[5],
-       (-log(2)), 1)
+# b <- c(0, spring_coefs$estimate[1:4], spring_coefs$estimate[5],
+       # (-log(2)), 1)
+b <- c(spring_coefs$estimate, -log(2), 1)
 
-spring.dec <- map2(1:500, seed.num, ~sdmTMB_simulate(
-    formula = ~1 + poly(AVGDEPTH, 4, coefs = spring_depth_coefs) +
-      EST_YEAR +
+spring.dec <- map2(1:100, seed.num, ~sdmTMB_simulate(
+    formula = ~#1 + 
+      poly(AVGDEPTH, 4, coefs = spring_depth_coefs) +
+      as.factor(EST_YEAR) +
       as.factor(AREA) +
-      fix_omegas,
+      fix_omegas - 1,
     data = atlmackerel_spring,
     mesh = mesh,
     family = tweedie(),
@@ -203,23 +210,39 @@ head(spring.dec)
 Create one large dataframe from each productivity simulation based on simulated iteration. 
 
 ```{r}
+# year and strata to focus on 
+year <- 2009
+strat <- 1690
+
 # Baseline
 spring.base.df <- map(spring.base, ~janitor::clean_names(.)) |> 
-  map2_dfr(1:500, ~mutate(.x, sim = .y)) |> 
+  map2_dfr(1:100, ~mutate(.x, sim = .y)) |> 
   mutate(scenario = "Baseline", 
-         season = "Spring")
+         season = "Spring") |> 
+  left_join(atlmackerel_spring_info, by = join_by(x == X, y == Y, est_year == EST_YEAR, as_factor_area_wind == AREA_CODE)) |> 
+  filter(est_year == year, STRATUM == strat) |> 
+  dplyr::select(est_year, x, y, STRATUM, STATION, CRUISE6, observed, sim, scenario, season, AREA, as_factor_area_wind)
+
 
 # Enhanced 
 spring.inc.df <- map(spring.inc, ~janitor::clean_names(.)) |> 
-  map2_dfr(1:500, ~mutate(.x, sim = .y)) |> 
+  map2_dfr(1:100, ~mutate(.x, sim = .y)) |> 
   mutate(scenario = "Enhanced", 
-         season = "Spring")
+         season = "Spring") |> 
+  left_join(atlmackerel_spring_info, by = join_by(x == X, y == Y, est_year == EST_YEAR, as_factor_area_wind == AREA_CODE)) |> 
+  filter(est_year == year, STRATUM == strat) |> 
+  dplyr::select(est_year, x, y, STRATUM, STATION, CRUISE6, observed, sim, scenario, season, AREA, as_factor_area_wind)
+
 
 # Reduced
 spring.dec.df <- map(spring.dec, ~janitor::clean_names(.)) |> 
-  map2_dfr(1:500, ~mutate(.x, sim = .y)) |> 
+  map2_dfr(1:100, ~mutate(.x, sim = .y)) |> 
   mutate(scenario = "Reduced", 
-         season = "Spring")
+         season = "Spring") |> 
+  left_join(atlmackerel_spring_info, by = join_by(x == X, y == Y, est_year == EST_YEAR, as_factor_area_wind == AREA_CODE)) |> 
+  filter(est_year == year, STRATUM == strat) |> 
+  dplyr::select(est_year, x, y, STRATUM, STATION, CRUISE6, observed, sim, scenario, season, AREA, as_factor_area_wind)
+
 
 ```
 
@@ -348,6 +371,17 @@ bind_rows(spring.base.df, spring.inc.df, spring.dec.df) |>
   theme(legend.position = "bottom")
   
 # ggsave("spring_500sim_catchrate-dist.png", device = "png", last_plot(), here(sim.check.plots), width = 8, height = 6)
+
+bind_rows(spring.base.df, spring.inc.df, spring.dec.df) |>
+  #filter(observed > 0) |> 
+     ggplot() + 
+     geom_histogram(aes(x = observed, fill = AREA), bins = 10) + 
+   scale_fill_manual(values = pal) +
+   facet_grid(cols = vars(scenario), rows = vars(AREA)) + 
+   labs(x = "Catch rate (kg/tow)", y = "Frequency of catch rate occurrence", subtitle = str_c("Distribution of simulated values of spring Atlantic mackerel biomass for each productivity scenario observed in\nstratum", strat, "in", year, sep = " "), fill = "Area of catch\nrate occurrence") + 
+  theme(legend.position = "none")
+
+# ggsave("spring_100sim_catchrate-dist.png", device = "png", last_plot(), here(sim.check.plots), width = 9, height = 6)
 ```
 
 
