@@ -364,13 +364,13 @@ bind_rows(spring.base.df, spring.inc.df, spring.dec.df) |>
 bind_rows(spring.base.df, spring.inc.df, spring.dec.df) |> 
   #filter(observed > 0) |> 
     ggplot() + 
-    geom_histogram(aes(x = observed, fill = as.factor(as_factor_area_wind)), position = "dodge") + 
+    geom_histogram(aes(x = observed, fill = as.factor(as_factor_area_wind)), binwidth = 2) + 
   scale_fill_manual(values = pal) +
   facet_grid(cols = vars(scenario), rows = vars(str_to_title(AREA))) + 
   labs(x = "Catch rate (kg/tow)", y = "Frequency of catch rate occurrence", subtitle = str_c("Distribution of simulated values of spring summer flounder biomass for each productivity scenario observed in\nstratum", strat, "in", year, sep = " "), fill = "Area of catch\nrate occurrence") + 
-  theme(legend.position = "none")
+  theme(legend.position = "none") + xlim(NA, 25)
   
-# ggsave("spring_100sim_catchrate-dist.png", device = "png", last_plot(), here(sim.check.plots), width = 9, height = 6)
+# ggsave("spring_100sim_catchrate-dist2.png", device = "png", last_plot(), here(sim.check.plots), width = 9, height = 6)
 ```
 
 

@@ -137,7 +137,7 @@ spring.base <- map2(1:100, seed.num, ~sdmTMB_simulate(
 )
 
 head(spring.base)
-# saveRDS(spring.base, here(sim.check, "spring_base-500sims.rds"))
+# saveRDS(spring.base, here(sim.check, "spring_base-100sims.rds"))
 
 
 ```
@@ -170,7 +170,7 @@ spring.inc <- map2(1:100, seed.num, ~sdmTMB_simulate(
 )
 
 head(spring.inc)
-# saveRDS(spring.inc, here(sim.check, "spring_inc-500sim.rds"))
+# saveRDS(spring.inc, here(sim.check, "spring_inc-100sims.rds"))
 ```
 
 ### Reduced
@@ -201,7 +201,7 @@ spring.dec <- map2(1:100, seed.num, ~sdmTMB_simulate(
 )
 
 head(spring.dec)
-# saveRDS(spring.dec, here(sim.check, "spring_dec-500sim.rds"))
+# saveRDS(spring.dec, here(sim.check, "spring_dec-100sim.rds"))
 ```
 
 
@@ -375,13 +375,16 @@ bind_rows(spring.base.df, spring.inc.df, spring.dec.df) |>
 bind_rows(spring.base.df, spring.inc.df, spring.dec.df) |>
   #filter(observed > 0) |> 
      ggplot() + 
-     geom_histogram(aes(x = observed, fill = AREA), bins = 10) + 
+  aes(x = observed, fill = AREA)+
+     geom_histogram(binwidth = 2) + 
+  # geom_dotplot(binwidth = 0.02)+
+  #geom_bar() + scale_x_binned() + 
    scale_fill_manual(values = pal) +
    facet_grid(cols = vars(scenario), rows = vars(AREA)) + 
    labs(x = "Catch rate (kg/tow)", y = "Frequency of catch rate occurrence", subtitle = str_c("Distribution of simulated values of spring Atlantic mackerel biomass for each productivity scenario observed in\nstratum", strat, "in", year, sep = " "), fill = "Area of catch\nrate occurrence") + 
-  theme(legend.position = "none")
+  theme(legend.position = "none") + xlim(NA, 15)
 
-# ggsave("spring_100sim_catchrate-dist.png", device = "png", last_plot(), here(sim.check.plots), width = 9, height = 6)
+# ggsave("spring_100sim_catchrate-dist3.png", device = "png", last_plot(), here(sim.check.plots), width = 9, height = 6)
 ```
 
 
