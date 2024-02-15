@@ -1,5 +1,5 @@
 ### created: 01/29/2024
-### last updated: 
+### last updated: 02/15/2024
 
 # 01 - ATLANTIC MACKEREL SYSTEMATIC PRECLUSION ####
 
@@ -22,6 +22,9 @@ atlmackerel.dat <- here("data", "atlmackerel")
 ### LOAD DATA ####
 # spring Atlantic mackerel data consisting of observations filtered here("atlmackerel", "02-filter-atlantic-mackerel.R")
 data <- readRDS(here(atlmackerel.dat, "atlmackerel_spring.rds"))
+
+#active bottom trawl survey strata and their relative area weights created here(tidy-data, "02b-filter-current-strata.R")
+strata <- readRDS(here("data", "rds", "active_strata_wts.rds"))
 
 ## WIND INCLUDED LOOP ####
 # create storage vector for years 
@@ -57,7 +60,11 @@ for(i in years){ # count backwards by one starting at 2022
   x <- append(x, i) # add i to the storage vector
   y <- data |> 
     filter(!EST_YEAR %in% x) |> # filter out x value from year
-    stratified.mean() |> # calculate stratified mean
+    group_by(EST_YEAR) |> 
+    nest() |> 
+    mutate(stratmean = map(data, ~stratified.mean(., strata))) |> # calculate stratified mean
+    dplyr::select(!data) |> 
+    unnest(cols = stratmean) |> 
     mutate(STEP = (length(x) - 1), # count each loop starting at -1 to represent the number of years removed
            TYPE = "Included")
   ww.data <- bind_rows(ww.data, y) # add each loop step the stratified means to the with wind dataframe
@@ -80,7 +87,11 @@ for(i in years){ # count backwards by one starting at 2021
   x <- append(x, i) # add i to the storage vector
   y <- data |> 
     filter(EST_YEAR %in% c(x), AREA == "OUTSIDE") |> # filter out x value from year, and wind tows 
-    stratified.mean() |> #calculate stratified means
+    group_by(EST_YEAR) |> 
+    nest() |> 
+    mutate(stratmean = map(data, ~stratified.mean(., strata))) |> # calculate stratified mean
+    dplyr::select(!data) |> 
+    unnest(cols = stratmean) |> 
     mutate(STEP = length(x)-1, # count each loop starting at 1 to represent the number of years removed
            TYPE = "Precluded")
   wo.data <- bind_rows(wo.data, y) # add each loop step the stratified means to the with wind dataframe

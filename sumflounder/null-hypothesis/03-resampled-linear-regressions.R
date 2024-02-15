@@ -1,5 +1,5 @@
 ### created: 07/27/2023
-### last updated: 01/26/2024
+### last updated: 02/14/2024
 
 #  03 - NULL HYPOTHESIS TESTING: LINEAR REGRESSIONS OF STRATIFIED MEANS  ####
 
@@ -31,12 +31,13 @@ windreps_mu <- readRDS(here(null.hyp.data, "wind_resamp_stratmu.rds"))
 ## LINEAR REGRESSIONS OF ABUNDANCE INDICES ####
 ### WITH WIND INCLUDED ####
 fullreps_mod <- fullreps_mu |>
-  group_by(SEASON) |>
-  mutate(model = map(stratmean, ~lm(stratmu ~ EST_YEAR, data = .)),
+  group_by(SEASON, replicate) |>
+  nest() |> 
+  mutate(model = map(data, ~lm(stratmu ~ EST_YEAR, data = .)),
          coef = map(model, broom::tidy, conf.int = TRUE), 
-         TYPE = "With Wind Included") |>
+         effort = "With Wind Included") |>
   unnest(coef) |>
-  select(replicate, term, estimate, conf.low, conf.high, TYPE) |>
+  select(replicate, term, estimate, conf.low, conf.high, effort) |>
   filter(term == "EST_YEAR")
 
 
@@ -44,12 +45,13 @@ fullreps_mod <- fullreps_mu |>
 
 ### WITH WIND PRECLUDED ####
 windreps_mod <- windreps_mu |>
-  group_by(SEASON) |>
-  mutate(model = map(stratmean, ~lm(stratmu ~ EST_YEAR, data = .)),
+  group_by(SEASON, replicate) |>
+  nest() |>
+  mutate(model = map(data, ~lm(stratmu ~ EST_YEAR, data = .)),
          coef = map(model, broom::tidy, conf.int = TRUE), 
-         TYPE = "With Wind Precluded") |>
+         effort = "With Wind Precluded") |>
   unnest(coef) |>
-  select(replicate, term, estimate, conf.low, conf.high, TYPE) |>
+  select(replicate, term, estimate, conf.low, conf.high, effort) |>
   filter(term == "EST_YEAR") 
 
 

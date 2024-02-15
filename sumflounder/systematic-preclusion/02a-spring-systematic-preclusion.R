@@ -1,5 +1,5 @@
 ### created: 03/17/2023
-### last updated: 01/29/2024
+### last updated: 02/14/2024
 
 # 02a - SYSTEMATIC PRECLUSION: SPRING ####
 
@@ -22,6 +22,10 @@ sumflounder.dat <- here("data", "sumflounder")
 ### LOAD DATA ####
 # summer flounder data 
 sf_spring <- readRDS(here(sumflounder.dat, "sumflounder_spring.rds"))
+
+#active bottom trawl survey strata and their relative area weights created here(tidy-data, "02b-filter-current-strata.R")
+strata <- readRDS(here("data", "rds", "active_strata_wts.rds"))
+
 
 # filter for summer flounder data only
 # sf_stratmean <- readRDS(here("data", "sumflounder", "sf_stratmu.rds")) |>  
@@ -71,11 +75,20 @@ for(i in years){ # count backwards by one starting at 2022
   x <- append(x, i) # add i to the storage vector
   y <- sf_spring |> 
     filter(!EST_YEAR %in% x) |> # filter out x value from year
-    stratified.mean() |> # calculate stratified mean
+    group_by(EST_YEAR) |> 
+    nest() |> 
+    mutate(stratmean = map(data, ~stratified.mean(., strata))) |> # calculate stratified mean
+    dplyr::select(!data) |> 
+    unnest(cols = stratmean) |>
     mutate(STEP = (length(x) - 1), # count each loop starting at -1 to represent the number of years removed
-           TYPE = "Included")
-  ww.data <- bind_rows(ww.data, y) # add each loop step the stratified means to the with wind dataframe
+           effort = "With Wind Included")
+  ww.data <- bind_rows(ww.data, y) |> # add each loop step the stratified means to the with wind dataframe
+    arrange(STEP, EST_YEAR)
 }
+
+# remove NA column 
+ww.data <- ww.data |> dplyr::select(!stratmean)
+
 
 # calculate stratified mean with all twelve years with wind included 
 # full.strats <- sf_spring |>
@@ -102,12 +115,19 @@ wo.data <- data.frame()
 for(i in years){ # count backwards by one starting at 2021 
   x <- append(x, i) # add i to the storage vector
   y <- sf_spring |> 
-    filter(EST_YEAR %in% c(x), AREA == "OUTSIDE") |> # filter out x value from year, and wind tows 
-    stratified.mean() |> #calculate stratified means
+    filter(EST_YEAR %in% c(x), AREA == "OUTSIDE") |> # filter out x value from year
+    group_by(EST_YEAR) |> 
+    nest() |> 
+    mutate(stratmean = map(data, ~stratified.mean(., strata))) |> # calculate stratified mean
+    dplyr::select(!data) |> 
+    unnest(cols = stratmean) |>
     mutate(STEP = length(x)-1, # count each loop starting at 1 to represent the number of years removed
-           TYPE = "Precluded")
+           effort = "With Wind Precluded")
   wo.data <- bind_rows(wo.data, y) # add each loop step the stratified means to the with wind dataframe
 }
+
+# remove NA column 
+wo.data <- wo.data |> dplyr::select(!stratmean)
 
 
 ### save data 

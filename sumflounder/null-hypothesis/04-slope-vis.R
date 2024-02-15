@@ -1,5 +1,5 @@
 ### created: 07/27/2023
-### last updated: 01/26/2024
+### last updated: 02/14/2024
 
 #  04 - NULL HYPOTHESIS TESTING: DISTRIBUTION OF SLOPES  ####
 
@@ -39,7 +39,7 @@ obs_slopes <- readRDS(here(sumflounder.dat, "sf_obs_slopes.rds"))
 # select fall slopes only
 fall_incl_dist <- fullreps_mod |>
   ungroup() |>
-  select(SEASON, estimate, replicate, TYPE) |> 
+  select(SEASON, estimate, replicate, effort) |> 
   filter(SEASON == "FALL") 
 
 
@@ -52,7 +52,7 @@ fall_incl_ci <- fall_incl_dist |>
 # select spring slopes only
 spr_incl_dist <- fullreps_mod |>
   ungroup() |>
-  select(SEASON, estimate, replicate, TYPE) |> 
+  select(SEASON, estimate, replicate, effort) |> 
   filter(SEASON == "SPRING") 
 
 # identify 95% confidence intervals of spring slope distribution
@@ -65,7 +65,7 @@ spr_incl_ci <- spr_incl_dist |>
 # select fall slopes only
 fall_precl_dist <- windreps_mod |>
   ungroup() |>
-  select(SEASON, estimate, replicate, TYPE) |> 
+  select(SEASON, estimate, replicate, effort) |> 
   filter(SEASON == "FALL") 
 
 # identify 95% confidence intervals of fall slope distribution
@@ -77,7 +77,7 @@ fall_precl_ci <- fall_precl_dist |>
 # select spring slopes only
 spr_precl_dist <- windreps_mod |>
   ungroup() |>
-  select(SEASON, estimate, replicate, TYPE) |> 
+  select(SEASON, estimate, replicate, effort) |> 
   filter(SEASON == "SPRING") 
 
 # identify 95% confidence intervals of spring slope distribution
@@ -92,12 +92,12 @@ fall_incl_plot <- ggplot(fall_incl_dist) +
   geom_histogram(aes(x = estimate, fill = pal[4])) + 
   scale_fill_manual(values = c(pal[4]), labels = c("With status quo survey effort"), name = NULL) + 
   shade_confidence_interval(endpoints = fall_incl_ci, color = pal[3], fill = pal[3], alpha = 0.45) +
-  # geom_vline(xintercept = as.numeric(obs_slopes[4,4]), linetype = 6, color = pal[6], linewidth = 1.5) +
+  geom_vline(xintercept = as.numeric(obs_slopes[4,4]), linetype = 6, color = pal[6], linewidth = 1.5) +
 ### uncaption/caption below to add/remove legend item for dotted line and caption in/out above 
-  geom_vline(aes(xintercept = as.numeric(obs_slopes[4,4]), linetype = TYPE, color = TYPE), linewidth = 1.5) +
-  scale_color_manual(values = c(pal[6]), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
-  scale_linetype_manual(values = c(6), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
-  scale_linewidth(range = c(1,1), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
+  # geom_vline(aes(xintercept = as.numeric(obs_slopes[4,4]), linetype = effort, color = effort), linewidth = 1.5) +
+  # scale_color_manual(values = c(pal[6]), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
+  # scale_linetype_manual(values = c(6), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
+  # scale_linewidth(range = c(1,1), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
   facet_wrap(~str_to_title(SEASON)) +
   ylim(0,NA)+
 ### caption labels on/of below to add x-axis title and caption on/off above to remove
@@ -109,21 +109,21 @@ fall_incl_plot <- ggplot(fall_incl_dist) +
 
 ### WITH WIND INCLUDED: SPRING ####
 spr_incl_plot <- ggplot(spr_incl_dist) +
-  geom_histogram(aes(x = estimate, fill = pal[4])) + 
-  scale_fill_manual(values = c(pal[4]), labels = c("With status quo survey effort"), name = NULL) + 
+  geom_histogram(aes(x = estimate), fill = pal[4]) + 
+  # scale_fill_manual(values = c(pal[4]), labels = c("With status quo survey effort"), name = NULL) + 
   shade_confidence_interval(endpoints = spr_incl_ci, color = pal[3], fill = pal[3], alpha = 0.45) +
   # geom_vline(xintercept = as.numeric(obs_slopes[3,4]), linetype = 6, color = pal[6], linewidth = 1.5) +
 ### uncaption/caption below to add/remove legend item for dotted line and caption in/out above 
-  geom_vline(aes(xintercept = as.numeric(obs_slopes[3,4]), linetype = TYPE, color = TYPE), linewidth = 1.5) +
+  geom_vline(aes(xintercept = as.numeric(obs_slopes[3,4]), linetype = effort, color = effort), linewidth = 1.5) +
   scale_color_manual(values = c(pal[6]), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
   scale_linetype_manual(values = c(6), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
   scale_linewidth(range = c(1,1), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
   facet_wrap(~str_to_title(SEASON)) +
   ylim(0,NA)+
-  # labs(x = str_wrap("Linear regression slope estimates of abundance index", width = 30, whitespace_only = FALSE), y = str_wrap("Number of linear regression slope estimates", width = 30, whitespace_only = FALSE))+ 
-  labs(x = str_wrap("Linear regression slope estimates of abundance index", width = 30, whitespace_only = FALSE), y = "") +
+  labs(x = str_wrap("Linear regression slope estimates of abundance index", width = 30, whitespace_only = FALSE), y = str_wrap("Number of linear regression slope estimates", width = 30, whitespace_only = FALSE))+
+  # labs(x = str_wrap("Linear regression slope estimates of abundance index", width = 30, whitespace_only = FALSE), y = "") +
   # theme(axis.title = element_text(size = 16), axis.title.x =  element_text(margin = margin(10, 0, 0, 10)), axis.text =  element_text(size = 14), legend.position = "bottom", legend.text = element_text(size = 14), strip.text = element_text(size = 16)) + 
-  theme(axis.title = element_text(size = 16), axis.title.x =  element_text(margin = margin(10, 0, 0, 10)), axis.text =  element_text(size = 14), legend.position = element_blank(), legend.text = element_text(size = 14), strip.text = element_text(size = 16))
+  theme(axis.title = element_text(size = 16), axis.title.x =  element_text(margin = margin(10, 0, 0, 10)), axis.text =  element_text(size = 14), legend.position = "none", legend.text = element_text(size = 14), strip.text = element_text(size = 16))
 
 
 ### WITH WIND PRECLUDED: FALL ####
@@ -131,7 +131,7 @@ fall_precl_plot <- ggplot(fall_precl_dist) +
   geom_histogram(aes(x = estimate, fill = pal[1])) + 
   scale_fill_manual(values = c(pal[1]), labels = c("With survey effort precluded"), name = NULL) + 
   shade_confidence_interval(endpoints = fall_precl_ci, color = pal[3], fill = pal[3], alpha = 0.45) +
-  geom_vline(aes(xintercept = as.numeric(obs_slopes[4,4]), linetype = TYPE, color = TYPE), linewidth = 1.5) +
+  geom_vline(aes(xintercept = as.numeric(obs_slopes[4,4]), linetype = effort, color = effort), linewidth = 1.5) +
   scale_color_manual(values = c(pal[6]), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
   scale_linetype_manual(values = c(6), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) + 
   scale_linewidth(range = c(1,1), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) + 
@@ -139,7 +139,8 @@ fall_precl_plot <- ggplot(fall_precl_dist) +
   ylim(0,150) +
   # labs(x = "", y = "") +
 ### caption labels on/of below to add x-axis title and caption on/off above to remove
-  labs(x = str_wrap("Linear regression slope estimates of abundance index", width = 30, whitespace_only = FALSE), y = "") +
+  # labs(x = str_wrap("Linear regression slope estimates of abundance index", width = 30, whitespace_only = FALSE), y = "") +
+  labs(x = str_wrap("Linear regression slope estimates of abundance index", width = 30, whitespace_only = FALSE), y = str_wrap("Number of linear regression slope estimates", width = 30, whitespace_only = FALSE))+
   theme(title = element_text(size = 16), legend.position = "bottom",axis.title.x =  element_text(margin = margin(10, 0, 0, 10)), axis.text =  element_text(size = 14), legend.text = element_text(size = 14), strip.text = element_text(size = 16))
 
 
@@ -147,20 +148,20 @@ fall_precl_plot <- ggplot(fall_precl_dist) +
 ### WITH WIND PRECLUDED: SPRING ####
 spr_precl_plot <- ggplot(spr_precl_dist) +
 ### move fill in and out of aes if want to use scale_fill_manual
-  geom_histogram(aes(x = estimate, fill = pal[1])) + 
-  scale_fill_manual(values = c(pal[1]), labels = c("With Wind Precluded"), name = NULL) +
+  geom_histogram(aes(x = estimate), fill = pal[1]) + 
+  scale_fill_manual(values = c(pal[1]), labels = c("With survey effort precluded"), name = NULL) +
   shade_confidence_interval(endpoints = spr_precl_dist_ci, color = pal[3], fill = pal[3], alpha = 0.45) +
-  # geom_vline(xintercept = as.numeric(obs_slopes[3,4]), linetype = 6, color = pal[6], linewidth = 1.5) +
+  geom_vline(xintercept = as.numeric(obs_slopes[3,4]), linetype = 6, color = pal[6], linewidth = 1.5) +
 ### uncaption/caption below to add/remove legend item for dotted line and caption in/out above 
-  geom_vline(aes(xintercept = as.numeric(obs_slopes[3,4]), linetype = TYPE, color = TYPE), linewidth = 1.5) +
-  scale_color_manual(values = c(pal[6]), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
-  scale_linetype_manual(values = c(6), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
-  scale_linewidth(range = c(1,1), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
+  # geom_vline(aes(xintercept = as.numeric(obs_slopes[3,4]), linetype = effort, color = effort), linewidth = 1.5) +
+  # scale_color_manual(values = c(pal[6]), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
+  # scale_linetype_manual(values = c(6), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
+  # scale_linewidth(range = c(1,1), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
   facet_wrap(~str_to_title(SEASON)) +
   labs(x = str_wrap("Linear regression slope estimates of abundance index", width = 30, whitespace_only = FALSE), y = "") +
   ylim(0, 150) +
   # theme(title = element_text(size = 16), legend.position = "bottom",axis.title.x =  element_text(margin = margin(10, 0, 0, 10)), axis.text =  element_text(size = 14), legend.text = element_text(size = 14), strip.text = element_text(size = 16))
-theme(axis.title = element_text(size = 16), axis.title.x =  element_text(margin = margin(10, 0, 0, 10)), axis.text =  element_text(size = 14), legend.position = "bottom", legend.text = element_text(size = 14), strip.text = element_text(size = 16))
+theme(axis.title = element_text(size = 16), axis.title.x =  element_text(margin = margin(10, 0, 0, 10)), axis.text =  element_text(size = 14), legend.position = "none", legend.text = element_text(size = 14), strip.text = element_text(size = 16))
 
 
 
@@ -172,7 +173,7 @@ fall_dist_plots <- (fall_incl_plot + fall_precl_plot) + plot_layout(guides = "co
 
 spr_dist_plots <- (spr_incl_plot + spr_precl_plot) + plot_layout(guides = "collect") & theme(legend.position = "bottom")
 
-precl_plots <- (fall_precl_plot + spr_precl_plot) + plot_annotation(title = "Distribution of changes in resampled abundance indices over time") + plot_layout(guides = "collect") & theme(title = element_text(size = 12), axis.title = element_text(size = 10), legend.position = "bottom")
+precl_plots <- (fall_precl_plot + spr_precl_plot) + plot_annotation(title = "Distribution of changes in resampled abundance indices over time") + plot_layout(guides = "collect") & theme(title = element_text(size = 12), axis.title = element_text(size = 14), legend.position = "bottom")
 
 incl_plots <- ((fall_incl_plot + theme(plot.margin = unit(c(5, 2, 5, 5), "pt"))) + (spr_incl_plot + theme(plot.margin = unit(c(5,5,5,2), "pt")))) + plot_annotation(title = "Distribution of changes in resampled abundance indices over time", theme = theme(plot.title = element_text(size = 18, hjust = 0.5, margin = margin(5, 0, 10, 0)))) + plot_layout(guides = "collect") & theme(legend.position = "bottom")
 
