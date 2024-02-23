@@ -15,6 +15,7 @@ library(patchwork)
 library(here)
 library(infer)
 suppressPackageStartupMessages(library(tidyverse))
+source(here("R", "plot_fns.R"))
 
 # sseep.analysis <- "C:/Users/amiller7/Documents/cinar-osse/sseep-analysis"
 post.check.dat <- "C:/Users/amiller7/Documents/cinar-osse/sseep-analysis/sdmtmb/sumflounder/data/post-check"
@@ -22,32 +23,30 @@ post.check.plots <- "C:/Users/amiller7/Documents/cinar-osse/sseep-analysis/sdmtm
 
 ### LOAD DATA ####
 # observed change in abundance index over time for summer flounder created here("sumflounder", "05-calculate-sumflounder-stratmu.R") 
-obs_slopes <- readRDS( here("data", "sumflounder", "sf_obs_slopes.rds"))
+obs_slopes <- readRDS(here("data", "sumflounder", "sf_obs_slopes.rds"))
 
-# simulated changes in fall abundance indices over time for each scenario, created here("sdmtmb", "sumflounder", "04-mod-posterior-check", "01a-fall-mod-ppcheck1.R") 
-## with wind included
-# fall_ww_lms <- readRDS(file = here("sdmtmb", "sumflounder", "data", "post-check", "fall_ww_slopes.rds"))
-# ## without wind (wind precluded)
-# fall_wow_lms <- readRDS(file = here("sdmtmb", "sumflounder", "data", "post-check", "fall_wow_slopes.rds"))
-fall_slopes <- readRDS(file = here(post.check.dat, "fall_slopes.rds"))
+# predicted changes in fall abundance indices over time for each scenario based on the fitted model, created here("sdmtmb", "sumflounder", "04-mod-posterior-check", "01a-fall-mod-ppcheck.R") 
+fall_pred_slopes <- readRDS(here(post.check.dat, "fall_predicted_slopes.rds"))
 
-# simulated changes in spring abundance indices over time for each scenario, created here("sdmtmb", "sumflounder", "04-mod-posterior-check", "01b-spring-mod-ppcheck1.R") 
-## with wind included
-# spr_ww_lms <- readRDS( file = here("sdmtmb", "sumflounder", "data", "post-check", "spring_ww_slopes.rds"))
-# ## without wind (wind precluded)
-# spr_wow_lms <- readRDS(file = here("sdmtmb", "sumflounder", "data", "post-check", "spring_wow_slopes.rds"))
-spring_slopes <- readRDS(file = here(post.check.dat, "spring_slopes.rds"))
+# redicted changes in fall abundance indices over time for each scenario based on the fitted model, created here("sdmtmb", "sumflounder", "04-mod-posterior-check", "01b-spring-mod-ppcheck.R") 
+spr_pred_slopes <- readRDS(here(post.check.dat, "fall_predicted_slopes.rds"))
+
+# simulated changes in fall abundance indices over time for each scenario, created here("sdmtmb", "sumflounder", "04-mod-posterior-check", "01a-fall-mod-ppcheck.R") 
+fall_sim_slopes <- readRDS(file = here(post.check.dat, "fall_slopes.rds"))
+
+# simulated changes in spring abundance indices over time for each scenario, created here("sdmtmb", "sumflounder", "04-mod-posterior-check", "01b-spring-mod-ppcheck.R") 
+spring_sim_slopes <- readRDS(file = here(post.check.dat, "spring_sim_slopes.rds"))
 
 ## CALCULATE CONFIDENCE INTERVALS OF SIMULATED ESTIMATES ####
 # without wind (wind precluded)
-fall.wow.ci <- fall_slopes |>
-  filter(TYPE == "With Wind Precluded") |>
+fall.wow.ci <- fall_sim_slopes |>
+  filter(effort == "With Wind Precluded") |>
   ungroup() |>
   summarise(lower = quantile(estimate, 0.025),
             upper = quantile(estimate, 0.975))
 
-spr.wow.ci <- spring_slopes |>
-  filter(TYPE == "With Wind Precluded") |>
+spr.wow.ci <- spring_sim_slopes |>
+  filter(effort == "With Wind Precluded") |>
   ungroup() |>
   summarise(lower = quantile(estimate, 0.025),
             upper = quantile(estimate, 0.975))
@@ -55,20 +54,16 @@ spr.wow.ci <- spring_slopes |>
 saveRDS(fall.wow.ci, here(post.check.dat, "fall_sim-wow-ci.rds"))
 saveRDS(spr.wow.ci, here(post.check.dat, "spr_sim-wow-ci.rds"))
 
-# fall_ci <- fall_slopes |> 
-#   group_by(SEASON, TYPE) |> 
-#   summarise(lower = quantile(estimate, 0.025),
-#             upper = quantile(estimate, 0.975))
 
 # with wind included
-fall.ww.ci <- fall_slopes |>
-  filter(TYPE == "With Wind Included") |>
+fall.ww.ci <- fall_sim_slopes |>
+  filter(effort == "With Wind Included") |>
   ungroup() |>
   summarise(lower = quantile(estimate, 0.025),
             upper = quantile(estimate, 0.975))
 
-spr.ww.ci <- spring_slopes |>
-  filter(TYPE == "With Wind Included") |>
+spr.ww.ci <- spring_sim_slopes |>
+  filter(effort == "With Wind Included") |>
   ungroup() |>
   summarise(lower = quantile(estimate, 0.025),
             upper = quantile(estimate, 0.975))
@@ -76,107 +71,125 @@ spr.ww.ci <- spring_slopes |>
 saveRDS(fall.ww.ci, here(post.check.dat, "fall_sim-ww-ci.rds"))
 saveRDS(spr.ww.ci, here(post.check.dat, "spr_sim-ww-ci.rds"))
 
-# spring_ci <- spring_slopes |> 
-#   group_by(SEASON, TYPE) |> 
-#   summarise(lower = quantile(estimate, 0.025),
-#             upper = quantile(estimate, 0.975))
-
 
 ## PLOT DISTRIBUTION OF SLOPES ####
-### WITH WIND PRECLUDED: FALL ####
-fall_precl_plot <- ggplot(fall_slopes |> filter(TYPE == "With Wind Precluded")) +
-  geom_histogram(aes(x = estimate), fill = "orange") + 
-  scale_fill_manual(values = c("orange"), labels = c("With Wind Precluded"), name = NULL) +
-  shade_confidence_interval(endpoints = fall.wow.ci, color = "#5dc5e9", fill = "#5dc5e9") +
-  geom_vline(xintercept = as.numeric(obs_slopes[4,4]), linetype = 6, linewidth = 1, color = "#0a4c8a") +
-  annotate("text", x = -0.056, y = 30, label = str_c("Observed Slope", round(obs_slopes[4,4], 2), sep = ": "), angle = 90) +
-  facet_wrap(~SEASON) +
-  labs(x = "Linear regression slope of abundance index", y = "") +
-  theme_bw() +
-  theme(title = element_text(size = 10), legend.position = "bottom")
+pal <- park_palette("SmokyMountains")
 
-saveRDS(fall_precl_plot, here(post.check.dat, "fall_sim-precl-post-check_plot.rds"))
+### SIMULATED VS TRUE ####
+fall.precl_sim.v.true <- plot_distribution(fall_sim_slopes, fall.wow.ci, scenario = "With Wind Precluded") + 
+  geom_vline(aes(xintercept = as.numeric(fall_pred_slopes[2,3]), linetype = effort, color = effort), linewidth = 1) +
+  # annotate("text", x = -0.056, y = 30, label = str_c("Predicted Slope", round(fall_pred_slopes[2,3], 2), sep = ": "), angle = 90) + 
+  scale_color_manual(values = c(pal[6]), labels = c("Model predicted linear regression slope\nof the precluded abundance index"), name = NULL) +
+  scale_linetype_manual(values = c(6), labels = c("Model predicted linear regression slope\nof the precluded abundance index"), name = NULL) +
+  scale_linewidth(range = c(1,1), labels = c("Model predicted linear regression slope\nof the precluded abundance index"), name = NULL) +
+  facet_wrap(~str_to_title(SEASON))
 
-### WITH WIND INCLUDED: FALL ####
-fall_incl_plot <- ggplot(fall_slopes |> filter(TYPE == "With Wind Included")) +
-  geom_histogram(aes(x = estimate), fill = "#3f7f00") + 
-  scale_fill_manual(values = c("#3f7f00"), labels = c("With Wind Included"), name = NULL) + 
-  shade_confidence_interval(endpoints = fall.ww.ci, color = "#5dc5e9", fill = "#5dc5e9") +
-  geom_vline(xintercept = as.numeric(obs_slopes[4,4]), linetype = 6, linewidth = 1, color = "#0a4c8a") +
-  annotate("text", x = -0.056, y = 50, label = str_c("Observed Slope", round(obs_slopes[4,4], 2), sep = ": "), angle = 90) +
-  facet_wrap(~SEASON) +
-  labs(x = "Linear regression slope of abundance index", y = "Number of linear regression slopes") +
-  theme_bw() +
-  theme(title = element_text(size = 10), legend.position = "bottom")
+fall.incl_sim.v.true <- plot_distribution(fall_sim_slopes, fall.ww.ci, scenario = "With Wind Included") + 
+  geom_vline(aes(xintercept = as.numeric(fall_pred_slopes[1,3]), linetype = effort, color = effort), linewidth = 1) +
+  # annotate("text", x = -0.056, y = 30, label = str_c("Predicted Slope", round(fall_pred_slopes[1,3], 2), sep = ": "), angle = 90) + 
+  scale_color_manual(values = c(pal[6]), labels = c("Model predicted linear regression slope\nof the precluded abundance index"), name = NULL) +
+  scale_linetype_manual(values = c(6), labels = c("Model predicted linear regression slope\nof the precluded abundance index"), name = NULL) +
+  scale_linewidth(range = c(1,1), labels = c("Model predicted linear regression slope\nof the precluded abundance index"), name = NULL) +
+  facet_wrap(~str_to_title(SEASON))
 
-saveRDS(fall_incl_plot, here(post.check.dat, "fall_sim-incl-post-check_plot.rds"))
+spr.precl_sim.v.true <- plot_distribution(spring_sim_slopes, spr.wow.ci, scenario = "With Wind Precluded") + 
+  geom_vline(aes(xintercept = as.numeric(spr_pred_slopes[2,3]), linetype = effort, color = effort), linewidth = 1) +
+  # annotate("text", x = -0.056, y = 30, label = str_c("Predicted Slope", round(spr_pred_slopes[2,3], 2), sep = ": "), angle = 90) + 
+  scale_color_manual(values = c(pal[6]), labels = c("Model predicted linear regression slope\nof the precluded abundance index"), name = NULL) +
+  scale_linetype_manual(values = c(6), labels = c("Model predicted linear regression slope\nof the precluded abundance index"), name = NULL) +
+  scale_linewidth(range = c(1,1), labels = c("Model predicted linear regression slope\nof the precluded abundance index"), name = NULL) +
+  facet_wrap(~str_to_title(SEASON))
 
-### WITH WIND PRECLUDED: SPRING ####
-spr_precl_plot <- ggplot(spring_slopes |> filter(TYPE == "With Wind Precluded")) +
-  geom_histogram(aes(x = estimate), fill = "orange") +
-  scale_fill_manual(values = c("orange"), labels = c("With Wind Precluded"), name = NULL) + 
-  shade_confidence_interval(endpoints = spr.wow.ci, color = "#5dc5e9", fill = "#5dc5e9") +
-  geom_vline(xintercept = as.numeric(obs_slopes[3,4]), linetype = 6, linewidth = 1, color = "#0a4c8a") +
-  annotate("text", x = -0.026, y = 45, label = str_c("Observed Slope", round(obs_slopes[3,4], 2), sep = ": "), angle = 90) +
-  facet_wrap(~SEASON) +
-  labs(x = "Linear regression slope of abundance index", y = "") +
-  theme_bw() +
-  theme(title = element_text(size = 10), legend.position = "bottom")
+spr.incl_sim.v.true <- plot_distribution(spring_sim_slopes, spr.ww.ci, scenario = "With Wind Included") + 
+  geom_vline(aes(xintercept = as.numeric(spr_pred_slopes[1,3]), linetype = effort, color = effort), linewidth = 1) +
+  # annotate("text", x = -0.056, y = 30, label = str_c("Predicted Slope", round(spr_pred_slopes[1,3], 2), sep = ": "), angle = 90) + 
+  scale_color_manual(values = c(pal[6]), labels = c("Model predicted linear regression slope\nof the precluded abundance index"), name = NULL) +
+  scale_linetype_manual(values = c(6), labels = c("Model predicted linear regression slope\nof the precluded abundance index"), name = NULL) +
+  scale_linewidth(range = c(1,1), labels = c("Model predicted linear regression slope\nof the precluded abundance index"), name = NULL) +
+  facet_wrap(~str_to_title(SEASON))
 
-saveRDS(spr_precl_plot, here(post.check.dat, "spr_sim-precl-post-check_plot.rds"))
 
-### WITH WIND INCLUDED: SPRING ####
-spr_incl_plot <- ggplot(spring_slopes |> filter(TYPE == "With Wind Included")) +
-  geom_histogram(aes(x = estimate), fill = "#3f7f00") + 
-  scale_fill_manual(values = c("#3f7f00"), labels = c("With Wind Included"), name = NULL) +
-  shade_confidence_interval(endpoints = spr.ww.ci, color = "#5dc5e9", fill = "#5dc5e9") +
-  geom_vline(xintercept = as.numeric(obs_slopes[3,4]), linetype = 6, linewidth = 1, color = "#0a4c8a") +
-  annotate("text", x = -0.0265, y = 45, label = str_c("Observed Slope", round(obs_slopes[3,4], 2), sep = ": "), angle = 90) +
-  facet_wrap(~SEASON) +
-  labs(x = "Linear regression slope of abundance index", y = "Number of linear regression slopes") +
-  theme_bw() +
-  theme(title = element_text(size = 10), legend.position = "bottom")
+### SIMULATED VS OBSERVED ####
+#### WITH WIND PRECLUDED: FALL ####
+fall.precl_sim.v.obs. <- plot_distribution(fall_sim_slopes, fall.wow.ci, scenario = "With Wind Precluded") +
+  geom_vline(aes(xintercept = as.numeric(obs_slopes[4,4]), linetype = effort, color = effort), linewidth = 1) +
+  # annotate("text", x = -0.101, y = 30, label = str_c("Observed Slope", round(obs_slopes[4,4], 2), sep = ": "), angle = 90) +
+  scale_color_manual(values = c(pal[6]), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
+  scale_linetype_manual(values = c(6), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
+  scale_linewidth(range = c(1,1), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
+  facet_wrap(~str_to_title(SEASON))
+  
+# saveRDS(fall_precl_plot, here(post.check.dat, "fall_sim-precl-post-check_plot.rds"))
 
-saveRDS(spr_incl_plot, here(post.check.dat, "fall_sim-incl-post-check_plot.rds"))
+#### WITH WIND INCLUDED: FALL ####
+fall.incl_sim.v.obs <- plot_distribution(fall_sim_slopes, fall.ww.ci, scenario = "With Wind Included") +
+  geom_vline(aes(xintercept = as.numeric(obs_slopes[4,4]), linetype = effort, color = effort), linewidth = 1) +
+  # annotate("text", x = -0.101, y = 50, label = str_c("Observed Slope", round(obs_slopes[4,4], 2), sep = ": "), angle = 90) +
+  scale_color_manual(values = c(pal[6]), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
+  scale_linetype_manual(values = c(6), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
+  scale_linewidth(range = c(1,1), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
+  facet_wrap(~str_to_title(SEASON))
 
-## PATCHWORK ####
-dist_plots <- (fall_incl_plot + fall_precl_plot) / (spr_incl_plot + spr_precl_plot) + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+# saveRDS(fall_incl_plot, here(post.check.dat, "fall_sim-incl-post-check_plot.rds"))
+
+#### WITH WIND PRECLUDED: SPRING ####
+spr.precl_sim.v.obs <- plot_distribution(spring_sim_slopes, spr.wow.ci, scenario = "With Wind Precluded") +
+  geom_vline(aes(xintercept = as.numeric(obs_slopes[3,4]), linetype = effort, color = effort), linewidth = 1) +
+  # annotate("text", x = -0.046, y = 45, label = str_c("Observed Slope", round(obs_slopes[3,4], 2), sep = ": "), angle = 90) +
+  scale_color_manual(values = c(pal[6]), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
+  scale_linetype_manual(values = c(6), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
+  scale_linewidth(range = c(1,1), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
+  facet_wrap(~str_to_title(SEASON)) 
+
+# saveRDS(spr_precl_plot, here(post.check.dat, "spr_sim-precl-post-check_plot.rds"))
+
+#### WITH WIND INCLUDED: SPRING ####
+spr.incl_sim.v.obs <- plot_distribution(spring_sim_slopes, spr.ww.ci, scenario = "With Wind Included") +
+  geom_vline(aes(xintercept = as.numeric(obs_slopes[3,4]), linetype = effort, color = effort), linewidth = 1) +
+  # annotate("text", x = -0.046, y = 45, label = str_c("Observed Slope", round(obs_slopes[3,4], 2), sep = ": "), angle = 90) +
+  scale_color_manual(values = c(pal[6]), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
+  scale_linetype_manual(values = c(6), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
+  scale_linewidth(range = c(1,1), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
+  facet_wrap(~str_to_title(SEASON)) 
+  
+# 
+# saveRDS(spr_incl_plot, here(post.check.dat, "fall_sim-incl-post-check_plot.rds"))
+
+### PATCHWORK ####
+#### SIMULATED VS TRUE ####
+sim.v.true_plots <- (fall.incl_sim.v.true + fall.precl_sim.v.true) / (spr.incl_sim.v.true + spr.precl_sim.v.true) + plot_layout(guides = "collect") & theme(legend.position = "bottom")
 saveRDS(dist_plots, here(post.check.dat, "sim-post-check_plots.rds"))
 
-fall_dist_plots <- (fall_incl_plot + fall_precl_plot) + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+fall_sim.v.true_plots <- (fall.incl_sim.v.true + fall.precl_sim.v.true) + plot_layout(guides = "collect") & theme(legend.position = "bottom")
 saveRDS(fall_dist_plots, here(post.check.dat, "fall_sim-post-check_plots.rds"))
 
-spr_dist_plots <- (spr_incl_plot + spr_precl_plot) + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+spr_sim.v.true_plots <- (spr.incl_sim.v.true + spr.precl_sim.v.true) + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+saveRDS(spr_dist_plots, here(post.check.dat, "spr_sim-post-check_plots.rds"))
+
+#### SIMULATED VS OBSERVED ####
+sim.v.obs_plots <- (fall.incl_sim.v.obs + fall.precl_sim.v.obs.) / (spr.incl_sim.v.obs + spr.precl_sim.v.obs) + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+saveRDS(dist_plots, here(post.check.dat, "sim-post-check_plots.rds"))
+
+fall_sim.v.obs_plots <- (fall.incl_sim.v.obs + fall.precl_sim.v.obs.) + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+saveRDS(fall_dist_plots, here(post.check.dat, "fall_sim-post-check_plots.rds"))
+
+spr_sim.v.obs_plots <- (spr.incl_sim.v.obs + spr.precl_sim.v.obs) + plot_layout(guides = "collect") & theme(legend.position = "bottom")
 saveRDS(spr_dist_plots, here(post.check.dat, "spr_sim-post-check_plots.rds"))
 
 
 ### save plots
-ggsave("post-check-dists.png", plot = dist_plots, device = "png", path = here(post.check.plots), width = 15, height = 10)
+ggsave("sim-v-true_dists.png", plot = sim.v.true_plots, device = "png", path = here(post.check.plots), width = 15, height = 10)
 
-ggsave("fall-post-check-dists.png", plot = fall_dist_plots, device = "png", path = here(post.check.plots), width = 15, height = 10)
+ggsave("fall_sim-v-true_dists.png", plot = fall_sim.v.true_plots, device = "png", path = here(post.check.plots), width = 10, height = 7)
 
-ggsave("spr-post-check-dists.png", plot = spr_dist_plots, device = "png", path = here(post.check.plots), width = 15, height = 10)
+ggsave("spr_sim-v-true_dists.png", plot = spr_sim.v.true_plots, device = "png", path = here(post.check.plots), width = 10, height = 7)
+
+ggsave("sim-v-obs_dists.png", plot = sim.v.obs_plots, device = "png", path = here(post.check.plots), width = 15, height = 10)
+
+ggsave("fall_sim-v-obs_dists.png", plot = fall_sim.v.obs_plots, device = "png", path = here(post.check.plots), width = 10, height = 7)
+
+ggsave("spr_sim-v-obs_dists.png", plot = spr_sim.v.obs_plots, device = "png", path = here(post.check.plots), width = 10, height = 7)
 
 
 
-# slopes <- bind_rows(obs_slopes, fall_wow_slope, spr_wow_slope, fall_ww_slope, spr_ww_slope) |>
-#   mutate(ID = str_c(str_sub(SEASON,1,1), str_sub(TYPE, 11, 11), str_sub(METHOD, 1, 1))) |>
-#   arrange(SEASON)
-# 
-# myLevels <- c("FIO", "FPO", "FIS", "FPS", "SIO", "SPO", "SIS", "SPS")
-# slopes$ID <- factor(slopes$ID, levels = myLevels)
-# 
-# 
-# slope_plot <- ggplot(slopes) + 
-#   aes(x = factor(ID), y = slope, color = TYPE, shape = METHOD) + 
-#   geom_point() + 
-#   geom_errorbar(aes(ymin = lower, ymax = upper, color = TYPE, lty = TYPE), width = 0.2) +
-#   #coord_flip() + 
-#   labs(y = "slope", 
-#        x = "Calculation Type") +
-#   theme_minimal() +
-#   theme(legend.position = "bottom") 
-#   #facet_wrap(~SEASON)
-# 
-# ggsave(slope_plot, device = "png", path = here())
 

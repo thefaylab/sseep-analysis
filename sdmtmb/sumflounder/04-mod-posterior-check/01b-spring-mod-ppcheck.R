@@ -25,11 +25,20 @@ post.check.dat <- "C:/Users/amiller7/Documents/cinar-osse/sseep-analysis/sdmtmb/
 # best fit model , and refit without REML for predictions created here("sdmtmb", "sumflounder", "03-mod-predictions", "01b-spring-forecasts.R")
 spring_mod <- readRDS(here("sdmtmb", "sumflounder", "data", "spring_mod.rds"))
 
-
 # extract fitted data 
 spring_moddat <- spring_mod$data |> 
   mutate(EST_YEAR = YEAR, 
          AREA = as.character(AREA))
+
+# load the active bottom trawl survey strata and their relative area weights created here(tidy-data, "02b-filter-current-strata.R")
+strata <- readRDS(here("data", "rds", "active_strata_wts.rds"))
+
+# load the model predicted estimates of biomass created here("sdmtmb", "sumflounder", "02-mod-diagnostics", "03b-spring-mod-resids.R")
+spring_mod_preds <- readRDS(here("sdmtmb", "sumflounder", "data", "spring_mod_preds.rds")) |> 
+  mutate(EST_YEAR = as.integer(as.character(EST_YEAR)), 
+         AREA = as.character(AREA)) |> 
+  select(CRUISE6, STATION, SEASON, STRATUM, EST_YEAR, AREA, AREA_CODE, TOWID, est)|> 
+  mutate(EXPCATCHWT = exp(est))
 
 
 ## SIMULATE DATASETS ####
@@ -58,12 +67,39 @@ saveRDS(spr_simdat, here(post.check.dat, "spr_simdat.rds"))
 # read in stratified mean functions
 source(here("R", "StratMeanFXs_v2.R")) 
 
+spr_preds_ww <- spring_mod_preds |>
+  group_by(EST_YEAR) |> 
+  nest() |>
+  mutate(stratmu = map(data, ~stratified.mean(., strata)), 
+          effort = "With Wind Included",
+          SEASON = "FALL") |>
+  select(!data) |> 
+  unnest(cols = stratmu) |> 
+  arrange(EST_YEAR)
+
+spr_preds_wow <- spring_mod_preds |>
+  filter(AREA == "OUTSIDE") |> 
+  group_by(EST_YEAR) |> 
+  nest() |>
+  mutate(stratmu = map(data, ~stratified.mean(., strata)), 
+         effort = "With Wind Precluded",
+         SEASON = "FALL") |>
+  select(!data) |> 
+  unnest(cols = stratmu) |> 
+  arrange(EST_YEAR)
+
+saveRDS(spr_preds_ww, here(post.check.dat, "spring_mod-pred_incl-stratmu.rds"))
+
+saveRDS(spr_preds_wow, here(post.check.dat, "spring_mod-pred_precl-stratmu.rds"))
+
 ### WITH WIND INCLUDED ####
 SprMu_ww <- spr_simdat |>
-  mutate(TYPE = "With Wind Included") |> 
-  group_by(nsim, SEASON, TYPE) |> 
+  group_by(nsim, SEASON, EST_YEAR) |> 
   nest() |>
-  mutate(stratmu = map(data, ~stratified.mean(.)))
+  mutate(stratmu = map(data, ~stratified.mean(., strata)), 
+         effort = "With Wind Included") |> 
+  select(!data) |>
+  unnest(cols = stratmu)
 
 ### save the data
 saveRDS(SprMu_ww, here(post.check.dat, "spr_sim-ww-means.rds"))
@@ -71,59 +107,57 @@ saveRDS(SprMu_ww, here(post.check.dat, "spr_sim-ww-means.rds"))
 ### WITHOUT WIND (WIND PRECLUDED) ####
 SprMu_wow <- spr_simdat  |> 
   filter(AREA == "OUTSIDE") |>
-  mutate(TYPE = "With Wind Precluded") |> 
-  group_by(nsim, SEASON, TYPE) |> 
+  group_by(nsim, SEASON, EST_YEAR) |> 
   nest() |>
-  mutate(stratmu = map(data, ~stratified.mean(.)))
+  mutate(stratmu = map(data, ~stratified.mean(., strata)), 
+         effort = "With Wind Precluded") |> 
+  select(!data) |>
+  unnest(cols = stratmu)
 
 ### save the data
 saveRDS(SprMu_wow, here(post.check.dat, "spr_sim-wow-means.rds"))
 
 ## BIND STRATIFIED MEANS ####
+### MODEL PREDICTED MEANS 
+spr_pred_stratmu <- bind_rows(spr_preds_ww, spr_preds_wow)
+
+### SIMULATED MEANS ####
 spring_stratmu <- bind_rows(SprMu_ww, SprMu_wow)
 
 ### save the data
+saveRDS(spr_pred_stratmu, here(post.check.dat, "spring_pred-stratmu.rds"))
 saveRDS(spring_stratmu, here(post.check.dat, "spring_sim-stratmu.rds"))
 
 ## FIT LINEAR REGRESSIONS ####
-# estimate the simulated change in abundance index over time for each scenario
+### MODEL-PREDICTED TREND ####
+# estimate the change in model predicted abundance index over time for each scenario
+spr_pred_lms <- spr_pred_stratmu |> 
+  group_by(effort) |> 
+  nest() |> 
+  mutate(mods = map(data, ~lm(stratmu~EST_YEAR, data = .)), 
+         coefs = map(mods, broom::tidy, conf.int = TRUE), 
+         SEASON = "FALL") |> 
+  unnest(cols = coefs) |> 
+  select(!c(data, mods)) |> 
+  filter(term == "EST_YEAR")
 
+### save the data 
+saveRDS(spr_pred_lms, file = here(post.check.dat, "spring_predicted_slopes.rds"))
+
+### SIMULATED TREND ####
+# estimate the simulated change in abundance index over time for each scenario
 spring_lms <- spring_stratmu |>
-  select(nsim, stratmu, SEASON, TYPE) |> 
-  mutate(model = map(stratmu, ~lm(stratmu ~ EST_YEAR, data = .))) |>  
+  group_by(nsim, SEASON, effort) |> 
+  nest() |> 
+  # select(nsim, stratmu, SEASON, effort) |> 
+  mutate(model = map(data, ~lm(stratmu ~ EST_YEAR, data = .))) |>  
   mutate(coef = map(model, broom::tidy, conf.int = TRUE)) |> 
-  unnest(coef) |>
-  select(nsim, term, estimate, conf.low, conf.high, SEASON, TYPE) %>%
+  unnest(cols = coef) |>
+  select(nsim, term, estimate, conf.low, conf.high, SEASON, effort) |>
   filter(term == "EST_YEAR") 
 
 ### save the data 
-saveRDS(spring_lms, file = here(post.check.dat, "spring_slopes.rds"))
+saveRDS(spring_lms, file = here(post.check.dat, "spring_sim_slopes.rds"))
 
-### WITH WIND  ####
-# spr_ww_lms <- SprMu_ww |>
-#   select(nsim, stratmu, SEASON, TYPE) |> 
-#   mutate(model = map(stratmu, ~lm(stratmu ~ EST_YEAR, data = .))) |>  
-#   mutate(coef = map(model, broom::tidy, conf.int = TRUE)) |> 
-#   unnest(coef) |>
-#   select(nsim, term, estimate, conf.low, conf.high) |>
-#   filter(term == "EST_YEAR") #|> 
-#   # mutate(SEASON = "SPRING", 
-#   #        TYPE = "With Wind Included")
-# 
-# ### save the data 
-# saveRDS(spr_ww_lms, file = here("sdmtmb", "sumflounder", "data", "post-check", "spring_ww_slopes.rds"))
-# 
-# 
-# ### WITHOUT WIND (WIND PRECLUDED) ####
-# spr_wow_lms <- SprMu_wow |>
-#   select(nsim, stratmu, SEASON, TYPE) |> 
-#   mutate(model = map(stratmu, ~lm(stratmu ~ EST_YEAR, data = .))) |>    mutate(coef = map(model, broom::tidy, conf.int = TRUE)) |> 
-#   unnest(coef) |> 
-#   select(nsim, term, estimate, conf.low, conf.high) |>
-#   filter(term == "EST_YEAR") #|> 
-#   # mutate(SEASON = "SPRING", 
-#   #        TYPE = "With Wind Precluded")
-# 
-# ### save the data
-# saveRDS(spr_wow_lms, file = here("sdmtmb", "sumflounder", "data", "post-check", "spring_wow_slopes.rds"))
+
 
