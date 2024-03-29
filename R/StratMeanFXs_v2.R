@@ -4,6 +4,7 @@
 #'
 #' @param dat: survey catch rate data
 #' @param strata: dataframe of survey strata footprint containing per strata area information
+#' @param value: character string denoting calculation of index using biomass or number
 #'
 #' @returns
 #' A dataframe containing annual estimates of abundance and survey coefficients of variation for a given species similar to those used as inputs for species stock assessments.
@@ -21,7 +22,7 @@
 #'
 
 
-stratified.mean <- function(dat, strata){
+stratified.mean <- function(dat, strata, value = "biomass"){
   
   #figure out the strata to use for this calculation, will be the strata from the survey data frame
   strat_use <- unique(dat$STRATUM)
@@ -34,7 +35,7 @@ stratified.mean <- function(dat, strata){
   #total survey area for this calculation
   survey_area <- sum(strata_wts_use$Area_SqNm)
   
-  
+  if (value == "biomass"){
   individual <- dat |> 
     group_by(STRATUM) |>
     summarise(towct = length(unique(STATION)), # calculate unique tows
@@ -44,7 +45,19 @@ stratified.mean <- function(dat, strata){
     left_join(strata_wts_use, by = "STRATUM") |> # add each stratum area and relative weight to the dataset based on STRATUM number
     mutate(wt_mu = Area_SqNm * mu, # part one of the stratified mean formula
            wt_var = ((((RelWt)^2) * var) / towct) * (1 - (towct / Area_SqNm))) # part one of the stratified variance formula
-    
+  } 
+  
+  if (value == "number"){
+    individual <- dat |> 
+      group_by(STRATUM) |>
+      summarise(towct = length(unique(STATION)), # calculate unique tows
+                mu = sum(EXPCATCHNUM)/towct, # find the average biomass based on unique tows rather than observations to avoid potential duplication 
+                var = ifelse(towct == 1, 0, # if the tow count equals 1, then variance about the mean should be 0
+                             sum((EXPCATCHNUM - mu)^2)/(towct - 1))) |> # if tow count does not equal 1, then find the variance of biomass
+      left_join(strata_wts_use, by = "STRATUM") |> # add each stratum area and relative weight to the dataset based on STRATUM number
+      mutate(wt_mu = Area_SqNm * mu, # part one of the stratified mean formula
+             wt_var = ((((RelWt)^2) * var) / towct) * (1 - (towct / Area_SqNm))) # part one of the stratified variance formula
+  }
   # BTSArea <- as.integer(sum(strata_wts$Area_SqNm))
   
   stratified <- individual |> 
@@ -85,7 +98,7 @@ calc.errors <- function(dat, observed, expected){
 
 error.dat <- dat |> 
   mutate(error = {{observed}} - {{expected}},
-         rel.err = error / {{observed}}, 
+         rel.err = error / {{expected}}, 
          abs.err = abs(rel.err)) |> 
   mutate(error = ifelse(is.nan(error), 0, error), 
          rel.err = ifelse(is.nan(rel.err), 0, rel.err), 
