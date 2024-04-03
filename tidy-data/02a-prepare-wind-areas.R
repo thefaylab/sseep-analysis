@@ -1,5 +1,5 @@
 ### created: 04/01/2023
-### last updated: 11/22/2023
+### last updated: 04/03/2024
 
 # 02a - PREPARE WIND AREAS ####
 
@@ -27,9 +27,9 @@ theme_set(theme_bw())
 ### LOAD DATA ####
 strata <- readRDS(here("data", "rds", "active_strata.rds")) 
 
-leases <- sf::st_read(here("gis", "BOEM_WindAreas_2023Feb09.gdb"), layer = "WindLeases_2022Dec06") 
-planning <- sf::st_read(here("gis", "BOEM_WindAreas_2023Feb09.gdb"), layer = "WindPlanningAreas_2023Jan10")
-# ma_array <- sf::st_read(here("gis", "WindAreas_062022", "MaineResearchArray", "Maine Research Array Requested Lease Area.shp"))
+leases <- sf::st_read(here("gis", "WindAreas_062022", "BOEMWindLease06012022", "BOEMWindLeaseOutlines_6_1_2022.shp")) 
+planning <- sf::st_read(here("gis", "WindAreas_062022", "BOEMWindPlanningArea06012022", "BOEMWindPlanningAreaOutlines_6_1_2022.shp"))
+ma_array <- sf::st_read(here("gis", "WindAreas_062022", "MaineResearchArray", "Maine Research Array Requested Lease Area.shp"))
 
 
 ## DATA WRANGLING ####
@@ -37,7 +37,7 @@ planning <- sf::st_read(here("gis", "BOEM_WindAreas_2023Feb09.gdb"), layer = "Wi
 strata_tran <- st_transform(strata, "WGS84")
 
 # transform the Maine Research Array crs to match the crs of the other shapefiles
-# ma_array_tran <- st_transform(ma_array, "WGS84")
+ma_array_tran <- st_transform(ma_array, "WGS84")
 
 #### PLANNING AREAS
 # extract the planning areas that only intersect the survey strata; i.e remove areas on the west coast
@@ -58,8 +58,8 @@ st_write(ne_plan, here("gis", "ne_wind_planning2023.shp"))
 # filter out lease areas occurring on the west coast 
 ne_leases <- leases |>
   filter(STATE != "CA") |>
-#  bind_rows(ma_array_tran) |> 
-#  mutate(Area_Type = "Lease") |> 
+  bind_rows(ma_array_tran) |> 
+  mutate(Area_Type = "Lease") |> 
   st_make_valid() 
 
 # create a single polygon that encompasses all individual lease areas
@@ -87,8 +87,8 @@ ggplot() +
   geom_sf(data = wind_areas2)
 
 ### save the data 
-st_write(wind_areas1, here("gis", "wind_areas_merge2023.shp"), append=FALSE)
-st_write(wind_areas2, here("gis", "all_wind_areas_2023.shp"), append=FALSE)
-saveRDS(wind_areas1, here("data", "rds", "merged_wind_areas_Jan2023.rds"))
-saveRDS(wind_areas2, here("data", "rds", "all_wind_areas_Jan2023.rds"))
+st_write(wind_areas1, here("gis", "wind_areas_merge062022.shp"), append=FALSE)
+st_write(wind_areas2, here("gis", "all_wind_areas_062022.shp"), append=FALSE)
+saveRDS(wind_areas1, here("data", "rds", "wind_areas_062022", "merged_wind_areas_Jun2022.rds"))
+saveRDS(wind_areas2, here("data", "rds", "wind_areas_062022", "all_wind_areas_Jun2022.rds"))
 

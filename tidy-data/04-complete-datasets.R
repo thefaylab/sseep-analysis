@@ -1,10 +1,11 @@
-# COMPLETE DATASETS #####
-
 ### created:      10/24/2022
-### last update:  11/22/2023
-###
+### last update:  04/03/2024
+
+# 04 - COMPLETE DATASETS ####
 
 ## OBJECTIVE ####
+# expand the dataset such that each unique tow has an observation for each species observed throughout the time series
+# effectvely create a presence-absense dataframe 
 
 ### Load Packages ####
 library(ggplot2)
@@ -198,9 +199,9 @@ comp_join <- comp_join |>
 
 # identify number of tows with NA depth values
 na_comp <- comp_join |> filter(is.na(AVGDEPTH))
-length(unique(na_bts$SVSPP))
-length(unique(na_bts$TOWID))
-na_bts  |> group_by(SEASON, YEAR) |> 
+length(unique(na_comp$SVSPP))
+length(unique(na_comp$TOWID))
+na_comp  |> group_by(SEASON, YEAR) |> 
   summarise(uni_tow = length(unique(TOWID)))
 
 # 

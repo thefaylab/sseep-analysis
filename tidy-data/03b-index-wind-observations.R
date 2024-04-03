@@ -1,5 +1,5 @@
 ### created: 11/09/2022
-### last updated: 11/22/2022
+### last updated: 04/03/2024
 
 # 03b - INDEX WIND OBSERVATIONS ####
 
@@ -22,7 +22,7 @@ suppressPackageStartupMessages(library(tidyverse))
 
 ### LOAD DATA ####
 
-# dataset created from `02-complete-dataset.R` here("tidy-data"). Contains complete observations for each species and unique tow. 
+# dataset created from `01-clean-raw-data.R` here("tidy-data"). Contains present observations for each species and unique tow. 
 data <- readRDS(file = here("data", "rds", "tidy-data", "tidy-full-bts.rds"))
 
 # read in the currently sampled BTS strata shapefile, saved as rds here("tidy-data", "02b-filter-current-strata.R")
@@ -33,11 +33,19 @@ wind_areas <- readRDS(here("data", "rds", "wind_areas_062022", "merged_wind_area
 
 
 ### DATA WRANGLE ####
+# turn into UTMs first
+# strata <- sf::st_transform(strata, crs = 32618)
+# wind_areas <- sf::st_transform(wind_areas, crs = 32618)
+
+# check that the crs transformation was agreeable
+sf::st_crs(strata)
+sf::st_crs(wind_areas)
 
 # convert data to simple feature for manipulation and give same coordinate system as wind areas and strata
 data_sf <- st_as_sf(data, coords = c("DECDEG_BEGLON", "DECDEG_BEGLAT"))
 # assign same coordinate system to observation data as strata data 
-st_crs(data_sf) <- st_crs(strata)
+data_sf <- sf::st_transform(data_sf, crs = st_crs(strata))
+# st_crs(data_sf) <- st_crs(strata)
 wind_areas <- st_transform(wind_areas, crs = st_crs(strata))
 st_crs(wind_areas)
 
@@ -48,6 +56,7 @@ ggplot() +
 
 
 # merge both the survey area and wind areas to create one polygon each
+strata <- sf::st_make_valid(strata)
 strat_union <- st_union(strata)
 wind_union <- st_union(wind_areas)
 

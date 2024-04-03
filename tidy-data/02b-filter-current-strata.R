@@ -1,5 +1,5 @@
 ### created:      07/03/2023
-### last update:  07/19/2023
+### last update:  04/03/2024
 ###
 
 # 02b - FILTER FOR CURRENTLY SAMPLED STRATA ####
@@ -31,20 +31,20 @@ saveRDS(strata, here("data", "rds", "active_strata.rds"))
 all_strata <- sf::st_read(dsn = here("gis", "NEFSC_BTS_AllStrata_Jun2022.shp")) |>
   dplyr::rename(STRATUM = "Strata_Num")
 
-# completed tow data created from here("tidy-data", "02-complete-datasets.R")
-merged_data <- readRDS(here("data", "rds", "merged_data_complete.rds"))
+# completed tow data created from here("tidy-data", "01-clean-raw-data.R")
+bts <- readRDS(here("data", "rds", "tidy-data", "tidy-full-bts.rds"))
 
 ### DATA WRANGLE ####
 # identify unique strata sampled from 2009-2021 tow data
-tow_strata <- unique(merged_data$STRATUM)
+tow_strata <- unique(bts$STRATUM)
 
 # filter strata shapefile by unique strata values 
-current <- strata |> 
+current <- all_strata |> 
   filter(STRATUM %in% tow_strata) 
 current_tbl <- as_tibble(current)
 
 # verify unique strata sampled includes all current strata from the strata shapefile 
-anti <- as_tibble(strata) |> anti_join(current, by = "STRATUM") # 177 - 82
+anti <- as_tibble(all_strata) |> anti_join(current, by = "STRATUM") # 177 - 82
 
 # save current strata
 write.csv(current_tbl, here("data", "clean-data", "active_strata.csv"))

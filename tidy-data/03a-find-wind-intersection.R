@@ -1,5 +1,5 @@
 ### created: 11/09/2022
-### last updated: 11/27/2022
+### last updated: 04/03/2024
 
 # 03a - FIND WIND AREA INTERSECTION ####
 
@@ -24,7 +24,7 @@ suppressPackageStartupMessages(library(tidyverse))
 strata <- readRDS(here("data", "rds", "active_strata.rds"))
 
 # read in wind areas where they are one large polygon
-wind_areas <- readRDS(here("data", "rds", "wind_areas_082021", "merged_wind_areas_Aug2021.rds"))
+wind_areas <- readRDS(here("data", "rds", "wind_areas_062022", "merged_wind_areas_Jun2022.rds"))
 
 
 ### DATA WRANGLE ####
@@ -100,10 +100,10 @@ saveRDS(impacted_strata, here("data", "rds", "impacted_strata.rds"))
 
 ## CALCULATE RELATIVE AREA WEIGHTS ####
 # calculate the relative weight of each survey strata compare to the overall survey area with wind areas removed. 
-preclusion_wts <- area_impacted |> 
-  mutate(RelWt = as.numeric(AREA_SqM_remain / sum(AREA_SqM_remain))) |> 
-  select(STRATUM, AREA_SqM_remain, RelWt) |>
-  sf::st_set_geometry(NULL)
-
-saveRDS(impacted_strata, here("data", "rds", "preclusion_wts.rds"))
+# preclusion_wts <- area_impacted |> 
+#   mutate(RelWt = as.numeric(AREA_SqM_remain / sum(AREA_SqM_remain))) |> 
+#   select(STRATUM, AREA_SqM_remain, RelWt) |>
+#   sf::st_set_geometry(NULL)
+# 
+# saveRDS(impacted_strata, here("data", "rds", "preclusion_wts.rds"))
 
