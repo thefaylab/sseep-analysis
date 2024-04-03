@@ -1,5 +1,5 @@
 ### created: 12/28/2023
-### last updated: 01/02/2024
+### last updated: 03/18/2024
 
 # 01 - SPRING POSTERIOR PREDICTIVE CHECK: SIMULATE CHANGES IN ABUNDANCE INDICES OVER TIME ####
 
@@ -21,8 +21,18 @@ post.check.dat <- "C:/Users/amiller7/Documents/cinar-osse/sseep-analysis/sdmtmb/
 
 
 ### LOAD DATA ####
+# active strata weights
+strata <- readRDS(here("data", "rds", "active_strata_wts.rds"))
+
 # spring model for Atlantic mackerel decided here("sdmtmb", "atlmackerel", "02-mod-diagnostics", "04-compare-model-resids.Rmd")
 spring_mod <- readRDS(here("sdmtmb", "atlmackerel", "data", "spring_mod.rds"))
+
+# load the model predicted estimates of biomass created here("sdmtmb", "atlmackerel", "02-mod-diagnostics", "03a-fall-mod-resids.R")
+fall_mod_preds <- readRDS(here("sdmtmb", "sumflounder", "data", "fall_mod_preds.rds")) |> 
+  mutate(EST_YEAR = as.integer(as.character(EST_YEAR)), 
+         AREA = as.character(AREA)) |> 
+  select(CRUISE6, STATION, SEASON, STRATUM, EST_YEAR, AREA, AREA_CODE, TOWID, est)|> 
+  mutate(EXPCATCHWT = exp(est))
 
 # extract fitted data 
 spring_moddat <- spring_mod$data |> 
@@ -61,7 +71,7 @@ SprMu_ww <- spr_simdat |>
   mutate(TYPE = "With Wind Included") |> 
   group_by(nsim, SEASON, TYPE) |> 
   nest() |>
-  mutate(stratmu = map(data, ~stratified.mean(.)))
+  mutate(stratmu = map(data, ~stratified.mean(., strata)))
 
 ### save the data
 saveRDS(SprMu_ww, here(post.check.dat, "atlmackerel_sim-ww-means.rds"))
@@ -72,7 +82,7 @@ SprMu_wow <- spr_simdat |>
   mutate(TYPE = "With Wind Precluded") |> 
   group_by(nsim, SEASON, TYPE) |> 
   nest() |> 
-  mutate(stratmu = map(data, ~stratified.mean(.)))
+  mutate(stratmu = map(data, ~stratified.mean(., strata)))
 
 ### save the data
 saveRDS(SprMu_wow, here(post.check.dat, "atlmackerel_sim-wow-means.rds"))
