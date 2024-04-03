@@ -65,6 +65,22 @@ saveRDS(data, here("sdmtmb", "sumflounder", "data", "sumflounder.rds"))
 saveRDS(sf_fall, here("sdmtmb", "sumflounder", "data", "sumflounder_fall.rds"))
 saveRDS(sf_spring, here("sdmtmb", "sumflounder", "data", "sumflounder_spring.rds"))
 
+## FIT DEPTH RELATIONSHIP ####
+fall_x_mat <- poly(sf_fall$AVGDEPTH, 2)
+fall_depth_coefs <- attr(fall_x_mat,"coefs")
+
+saveRDS(fall_x_mat, here("sdmtmb", "sumflounder", "data", "fall_depth_matrix.rds"))
+saveRDS(fall_depth_coefs, here("sdmtmb", "sumflounder", "data", "fall_depth_coefs.rds"))
+
+
+spring_x_mat <- poly(sf_spring$AVGDEPTH, 2)
+spring_depth_coefs <- attr(spring_x_mat,"coefs")
+
+saveRDS(spring_x_mat, here("sdmtmb", "sumflounder", "data", "spring_depth_matrix.rds"))
+saveRDS(spring_depth_coefs, here("sdmtmb", "sumflounder", "data", "spring_depth_coefs.rds"))
+
+
+
 
 ## CONSTRUCT MESH #### 
 mesh <- make_mesh(data, xy_cols = c("X", "Y"), cutoff = 10) 
