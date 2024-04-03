@@ -1,5 +1,5 @@
 ### created: 08/23/2023
-### last updated: 
+### last updated: 01/10/2024
 
 # 01a -  Simulate Fall Scenarios  ####
 
@@ -15,13 +15,11 @@
 library(here)
 suppressPackageStartupMessages(library(tidyverse))
 library(sdmTMB) 
-library(svMisc)
-library(profvis)
+# library(svMisc)
+# library(profvis)
 
-# sdmtmb.dir <- "../sseep-analysis/sdmtmb"
-# sseep.dir <- "../sseep-analysis"
-#source(here(sseep.dir, "R", "StratMeanFXs_v2.R"))
-set.seed(123)
+sumflounder.dat <- here("sdmtmb", "sumflounder", "data")
+sim.dat <- here("sdmtmb", "sumflounder", "data", "simulations", "01-10-2024")
 
 
 ### LOAD DATA ####
@@ -29,25 +27,48 @@ set.seed(123)
 #sf_fall <- readRDS(here("sdmtmb", "sumflounder", "data", "sumflounder_fall.rds"))
 
 # best fit model 15a, and refit without REML for predictions created here("sdmtmb", "sumflounder", "03-mod-predictions", "01a-fall-forecasts.R")
-fall_mod <- readRDS(here("sdmtmb", "sumflounder", "data", "fall_mod.rds"))
+fall_mod <- readRDS(here(sumflounder.dat, "fall_mod.rds"))
 
 # predictions from the best fit model created here("sdmtmb", "sumflounder", "03-mod-predictions", "01a-fall-forecasts.R")
 #fall_preds <- readRDS(file = here("sdmtmb", "sumflounder", "data", "fall_predictions.rds"))
 
+# grids predictions from the best fit model created here("sdmtmb", "sumflounder", "03-mod-predictions", "01a-fall-grid-predictions.R")
+fall_grid_preds <- readRDS(here(sumflounder.dat, "fall_grid_preds.rds"))
+drop_fct_year <- tibble(EST_YEAR = unique(fall_grid_preds$EST_YEAR), YEAR = as.numeric(levels(fall_grid_preds$EST_YEAR)))
+fall_grid_preds <- fall_grid_preds |> 
+  left_join(drop_fct_year, by = "EST_YEAR") |> 
+  mutate(EST_YEAR = YEAR) |> 
+  rename(fix_omegas = omega_s) |> 
+  select(!c(est, est_non_rf, est_rf, epsilon_st))
+
+# grids predictions from the best fit model created here("sdmtmb", "sumflounder", "02-mod-diagnostics", "03a-fall-mod-resids.R")
+fall_mod_preds <- readRDS(here(sumflounder.dat, "fall_mod_preds.rds")) |> 
+  mutate(EST_YEAR = YEAR, 
+         AREA = as.character(AREA)) |> 
+  rename(fix_omegas = omega_s)
+
+
 # data frame from model fit 
-moddat <- fall_mod$data
+moddat <- fall_mod$data |> 
+  mutate(EST_YEAR = YEAR, 
+         AREA = as.character(AREA))
 
 
 #### DATA SETUP #### 
 # set the future years that will be simulated 
-future_years <- c(2022:2026)
+# future_years <- c(2022:2026)
 
 # get a dataframe containing the values for the random effects fields for the fitted values of the data points
-fit_preds <- predict(fall_mod)
+# fit_preds <- predict(fall_mod)
 
 # pull polynomial coefficients from model fit.
-x_mat <- poly(moddat$AVGDEPTH, 2)
-depth_coefs <- attr(x_mat,"coefs")  
+fall_x_mat <- poly(moddat$AVGDEPTH, 2)
+fall_depth_coefs <- attr(fall_x_mat,"coefs")  
+
+fall_ran_pars <- tidy(fall_mod, "ran_pars")
+
+coefs <- tidy(fall_mod) |> 
+  mutate(term = ifelse(str_detect(term, "EST_YEAR"), str_sub(term, 9, 12), term))
 
 
 # create empty base scenario storage vectors 
@@ -73,20 +94,20 @@ for (i in 1:5){
   #progress(i)
 ### DATA WRANGLE ####
 # randomly select 5 years from the historical time period, 2020 is missing for the original observations and should not be included as an option
-resampled_years <- sample(c(2009:2019,2021), size = 5, replace = TRUE)
+resampled_years <- sample(c(2009:2019,2021), size = 5, replace = FALSE)
 
 # use locations from the resampled years as the observations in future years
 # nested loop to filter each resampled year individually and bind together into empty storage filter for instances where a year is replaced and resampled
-future_preds <- data.frame() # empty storage dataframe for filtered tow locations
+# future_preds <- data.frame() # empty storage dataframe for filtered tow locations
 
-for(t in seq_along(resampled_years)){
+# for(t in seq_along(resampled_years)){
   filtered_yr <- fit_preds |> 
     filter(EST_YEAR %in% resampled_years[t]) |> 
     mutate(EST_YEAR = future_years[t])
   
-  future_preds <- bind_rows(future_preds, filtered_yr) 
+  # future_preds <- bind_rows(future_preds, filtered_yr) 
 
-}
+# }
 
 # extract unique tow information for binding later 
 future_tows <- future_preds|>
