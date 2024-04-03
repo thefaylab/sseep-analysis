@@ -1,5 +1,5 @@
 ### created: 12/05/2023
-### last updated: 02/14/2024
+### last updated: 03/08/2024
 
 # 05 - CALCULATE STRATIFIED MEAN: SUMMER FLOUNDER ####
 
@@ -15,6 +15,7 @@ library(here)
 library(tidyverse)
 library(nationalparkcolors)
 source(here("R", "StratMeanFXs_v2.R"))
+source(here("R", "plot_fns.R"))
 
 pal <- park_palette("Badlands")
 
@@ -46,60 +47,81 @@ sf_stratmu_precl <- sumflounder |>
   select(!data) |> 
   unnest(cols = stratmu)
 
-## CALCULATE STANDARD ERROR #### 
-sf_stratmu <- bind_rows(sf_stratmu_incl, sf_stratmu_precl) |> # bind the data sets 
-  group_by(EST_YEAR, effort, SEASON) |> 
-  mutate(sdlog = sqrt(log(1+(sqrt(stratvar)/stratmu)^2)), #logistic standard deviation
-         lower = qlnorm(0.025, log(stratmu), sdlog), # lower quantile of the logistic normal distribution
-         upper = qlnorm(0.975, log(stratmu), sdlog)) |> # upper quantile of the logistic normal distribution
-  mutate(sdlog = ifelse(is.nan(sdlog), 0, sdlog), # if sdlog is NaN, replace with 0
-         lower = ifelse(is.nan(lower), 0, lower), # if the lower quantile is NaN, replace with 0
-         upper = ifelse(is.nan(upper), 0, upper))
+
+sf_stratmu_rows <- bind_rows(sf_stratmu_incl, sf_stratmu_precl) #|> # bind the data sets 
+  # group_by(EST_YEAR, effort, SEASON) |> 
+  # mutate(sdlog = sqrt(log(1+(sqrt(stratvar)/stratmu)^2)), #logistic standard deviation
+  #        lower = qlnorm(0.025, log(stratmu), sdlog), # lower quantile of the logistic normal distribution
+  #        upper = qlnorm(0.975, log(stratmu), sdlog)) |> # upper quantile of the logistic normal distribution
+  # mutate(sdlog = ifelse(is.nan(sdlog), 0, sdlog), # if sdlog is NaN, replace with 0
+  #        lower = ifelse(is.nan(lower), 0, lower), # if the lower quantile is NaN, replace with 0
+  #        upper = ifelse(is.nan(upper), 0, upper))
 
 
 ## MEAN PERCENT RELATIVE DIFFERENCE ####
-mudiff_dat <- sf_stratmu|> 
-  filter(EST_YEAR %in% c(2015, 2016, 2018, 2019, 2021)) |> #filter for recent 5 years, skipping 2020 and 
-  arrange(desc(stratmu)) |>
-  group_by(EST_YEAR, SEASON) |> #, 
-  summarise(diff_mu = diff(stratmu)) |>
-  arrange(desc(diff_mu)) |>
-  mutate(exp_mu = (exp(diff_mu))-1) |>
-  arrange(desc(exp_mu)) |>
-  mutate(sq_diff = exp_mu^2) |>
-  arrange(desc(sq_diff))|>
-  ungroup()|>
-  group_by(SEASON) |>
-  summarize(mudiff = mean(sq_diff), .groups = "drop") |> # calculate the average; drop the grouping factor 
-  mutate(mudiff = sqrt(mudiff)*100) |>
-  arrange(desc(mudiff))
+# mudiff_dat <- sf_stratmu|> 
+#   filter(EST_YEAR %in% c(2015, 2016, 2018, 2019, 2021)) |> #filter for recent 5 years, skipping 2020 and 
+#   arrange(desc(stratmu)) |>
+#   group_by(EST_YEAR, SEASON) |> #, 
+#   summarise(diff_mu = diff(stratmu)) |>
+#   arrange(desc(diff_mu)) |>
+#   mutate(exp_mu = (exp(diff_mu))-1) |>
+#   arrange(desc(exp_mu)) |>
+#   mutate(sq_diff = exp_mu^2) |>
+#   arrange(desc(sq_diff))|>
+#   ungroup()|>
+#   group_by(SEASON) |>
+#   summarize(mudiff = mean(sq_diff), .groups = "drop") |> # calculate the average; drop the grouping factor 
+#   mutate(mudiff = sqrt(mudiff)*100) |>
+#   arrange(desc(mudiff))
+
+sf_stratmu_cols <- left_join(sf_stratmu_incl, sf_stratmu_precl, by = c("SEASON", "EST_YEAR")) 
+
+mudiff_dat <- sf_stratmu_cols |> 
+  calc.errors(observed = stratmu.y, expected = stratmu.x) |> 
+  group_by(SEASON) |> 
+  mean.diff()
+
+
 
 ## FIT LINEAR REGRESSIONS ####
-sf_stratmu_lms <- sf_stratmu |>
+sf_stratmu_lms <- sf_stratmu_rows |>
   group_by(SEASON, effort) |> 
   nest() |>
   mutate(model = map(data, ~lm(stratmu ~ EST_YEAR, data = .)),  
          coef = map(model, ~broom::tidy(., conf.int = TRUE))) |> 
   unnest(coef) |>
-  select(SEASON, effort, term, estimate, conf.low, conf.high) |>
+  select(SEASON, effort, term, estimate, conf.low, conf.high) 
+
+fall_lms <- sf_stratmu_lms |> 
+  filter(SEASON == "FALL")
+
+spring_lms <- sf_stratmu_lms |> 
+  filter(SEASON == "SPRING")
+
+sf_stratmu_slopes <- sf_stratmu_lms |>
   filter(term == "EST_YEAR")
 
 ## PLOT ####
-ggplot(sf_stratmu) +
-  aes(x = as.factor(EST_YEAR), y = stratmu, color = effort, shape = effort) +
-  #geom_point() +
-  geom_pointrange(aes(ymin=lower, ymax = upper), position =  position_dodge2(width=0.4)) +
-  facet_wrap(vars(SEASON), scales = "free_y") +
-  #facet_grid(rows = vars(GEO_AREA), cols = vars(SEASON), scales = "free_y") + 
-  labs(x = "YEAR", y = "Stratified Mean (kg/tow)", SEASON = "", effort = "") +
-  ylim(0,NA) +
-  theme_bw() + 
-  theme(legend.position="bottom",
-        legend.title = element_blank(), 
-        axis.text.x = element_text(angle = 90, hjust = -1), 
-        axis.title.x = element_text(margin = unit(c(5, 0, 0, 0), "mm")), 
-        axis.title.y = element_text(margin = unit(c(0, 3, 0, 0), "mm"))) + 
-  scale_color_manual(values = pal)
+sf_stratmu |> 
+  plot.stratmu(EST_YEAR, color = effort, shape = effort) + 
+  facet_wrap(~str_to_title(SEASON)) #+ 
+  
+# ggplot(sf_stratmu) +
+#   aes(x = as.factor(EST_YEAR), y = stratmu, color = effort, shape = effort) +
+#   #geom_point() +
+#   geom_pointrange(aes(ymin=lower, ymax = upper), position =  position_dodge2(width=0.4)) + geom_smooth(aes(x = EST_YEAR, y = stratmu), method = lm, se = FALSE) +
+#   facet_wrap(vars(SEASON), scales = "free_y") +
+#   #facet_grid(rows = vars(GEO_AREA), cols = vars(SEASON), scales = "free_y") + 
+#   labs(x = "YEAR", y = "Stratified Mean (kg/tow)", SEASON = "", effort = "") +
+#   ylim(0,NA) +
+#   theme_bw() + 
+#   theme(legend.position="bottom",
+#         legend.title = element_blank(), 
+#         axis.text.x = element_text(angle = 90, hjust = -1), 
+#         axis.title.x = element_text(margin = unit(c(5, 0, 0, 0), "mm")), 
+#         axis.title.y = element_text(margin = unit(c(0, 3, 0, 0), "mm"))) + 
+#   scale_color_manual(values = pal)
 
 ggsave("sf_stratmeans.png", last_plot(), device = "png", here("outputs", "sumflounder"), width = 9, height = 5)
 
@@ -107,5 +129,6 @@ ggsave("sf_stratmeans.png", last_plot(), device = "png", here("outputs", "sumflo
 saveRDS(mudiff_dat, here("data", "sumflounder", "sf_mudiffdat.rds"))
 saveRDS(sf_stratmu_incl, here("data", "sumflounder", "sf_stratmu_included.rds"))
 saveRDS(sf_stratmu_precl, here("data", "sumflounder", "sf_stratmu_precluded.rds"))
-saveRDS(sf_stratmu, here("data", "sumflounder", "sf_stratmu.rds"))
+saveRDS(sf_stratmu_rows, here("data", "sumflounder", "sf_stratmu_rows.rds"))
+saveRDS(sf_stratmu_cols, here("data", "sumflounder", "sf_stratmu_cols.rds"))
 saveRDS(sf_stratmu_lms, here("data", "sumflounder", "sf_obs_slopes.rds"))

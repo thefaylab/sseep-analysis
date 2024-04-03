@@ -1,5 +1,5 @@
 ### created: 01/26/2024
-### last updated: 02/14/2024
+### last updated: 03/10/2024
 
 # 04 - CALCULATE STRATIFIED MEAN: ATLANTIC MACKEREL  ####
 
@@ -46,33 +46,41 @@ stratmu_precl <- atlmackerel |>
   select(!data) |> 
   unnest(cols = stratmu)
 
-## CALCULATE STANDARD ERROR #### 
-stratmu <- bind_rows(stratmu_incl, stratmu_precl) |> # bind the data sets 
-  group_by(EST_YEAR, effort, SEASON) |> 
-  mutate(sdlog = sqrt(log(1+(sqrt(stratvar)/stratmu)^2)), #logistic standard deviation
-         lower = qlnorm(0.025, log(stratmu), sdlog), # lower quantile of the logistic normal distribution
-         upper = qlnorm(0.975, log(stratmu), sdlog)) |> # upper quantile of the logistic normal distribution
-  mutate(sdlog = ifelse(is.nan(sdlog), 0, sdlog), # if sdlog is NaN, replace with 0
-         lower = ifelse(is.nan(lower), 0, lower), # if the lower quantile is NaN, replace with 0
-         upper = ifelse(is.nan(upper), 0, upper))
+
+stratmu_rows <- bind_rows(stratmu_incl, stratmu_precl) #|> # bind the data sets 
+  # group_by(EST_YEAR, effort, SEASON) |> 
+  # mutate(sdlog = sqrt(log(1+(sqrt(stratvar)/stratmu)^2)), #logistic standard deviation
+  #        lower = qlnorm(0.025, log(stratmu), sdlog), # lower quantile of the logistic normal distribution
+  #        upper = qlnorm(0.975, log(stratmu), sdlog)) |> # upper quantile of the logistic normal distribution
+  # mutate(sdlog = ifelse(is.nan(sdlog), 0, sdlog), # if sdlog is NaN, replace with 0
+  #        lower = ifelse(is.nan(lower), 0, lower), # if the lower quantile is NaN, replace with 0
+  #        upper = ifelse(is.nan(upper), 0, upper))
 
 
 ## MEAN PERCENT RELATIVE DIFFERENCE ####
-mudiff_dat <- stratmu |> 
-  # filter(EST_YEAR %in% c(2016, 2017, 2018, 2019, 2021)) |> #filter for recent 5 years, skipping 2020 and 
-  arrange(desc(stratmu)) |>
-  group_by(EST_YEAR, SEASON) |> #, 
-  summarise(diff_mu = diff(stratmu)) |>
-  arrange(desc(diff_mu)) |>
-  mutate(exp_mu = (exp(diff_mu))-1) |>
-  arrange(desc(exp_mu)) |>
-  mutate(sq_diff = exp_mu^2) |>
-  arrange(desc(sq_diff))|>
-  ungroup()|>
-  group_by(SEASON) |>
-  summarize(mudiff = mean(sq_diff), .groups = "drop") |> # calculate the average; drop the grouping factor 
-  mutate(mudiff = sqrt(mudiff)*100) |>
-  arrange(desc(mudiff))
+# mudiff_dat <- stratmu |> 
+#   # filter(EST_YEAR %in% c(2016, 2017, 2018, 2019, 2021)) |> #filter for recent 5 years, skipping 2020 and 
+#   arrange(desc(stratmu)) |>
+#   group_by(EST_YEAR, SEASON) |> #, 
+#   summarise(diff_mu = diff(stratmu)) |>
+#   arrange(desc(diff_mu)) |>
+#   mutate(exp_mu = (exp(diff_mu))-1) |>
+#   arrange(desc(exp_mu)) |>
+#   mutate(sq_diff = exp_mu^2) |>
+#   arrange(desc(sq_diff))|>
+#   ungroup()|>
+#   group_by(SEASON) |>
+#   summarize(mudiff = mean(sq_diff), .groups = "drop") |> # calculate the average; drop the grouping factor 
+#   mutate(mudiff = sqrt(mudiff)*100) |>
+#   arrange(desc(mudiff))
+
+stratmu_cols <- left_join(stratmu_incl, stratmu_precl, by = c("SEASON", "EST_YEAR")) 
+
+mudiff_dat <- stratmu_cols |> 
+  calc.errors(observed = stratmu.y, expected = stratmu.x) |> 
+  group_by(SEASON) |> 
+  mean.diff()
+
 
 ## FIT LINEAR REGRESSIONS ####
 stratmu_lms <- stratmu |>
@@ -108,5 +116,6 @@ ggsave("am_stratmeans.png", last_plot(), device = "png", here("outputs", "atlmac
 saveRDS(mudiff_dat, here("data", "atlmackerel", "am_mudiffdat.rds"))
 saveRDS(stratmu_incl, here("data", "atlmackerel", "am_stratmu_included.rds"))
 saveRDS(stratmu_precl, here("data", "atlmackerel", "am_stratmu_precluded.rds"))
-saveRDS(stratmu, here("data", "atlmackerel", "am_stratmu.rds"))
+saveRDS(stratmu_rows, here("data", "atlmackerel", "am_stratmu_rows.rds"))
+saveRDS(stratmu_cols, here("data", "atlmackerel", "am_stratmu_cols.rds"))
 saveRDS(stratmu_lms, here("data", "atlmackerel", "am_obs_slopes.rds"))

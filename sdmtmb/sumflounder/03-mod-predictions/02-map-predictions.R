@@ -1,5 +1,5 @@
 ### created: 04/18/2023
-### last updated: 12/23/2023
+### last updated: 02/23/2024
 
 # 02 - MAKE PRETTY MAPS ####
 
@@ -76,7 +76,7 @@ ggsave("spring-ST-RE_ests-map.png", device = "png", path = here("sdmtmb", "sumfl
 
 # patchwork
 fall_pred_map + spring_pred_map & theme(legend.position = "bottom")
-ggsave("seasonal-preds-map.png", device = "png", path = here("sdmtmb", "sumflounder", "plots"), width = 6, height = 8)
+ggsave("seasonal-preds-map.png", device = "png", path = here("sdmtmb", "sumflounder", "plots"), width = 9, height = 10)
 
 #### ####
 # ggplot(ne_states_proj) + geom_sf() +
