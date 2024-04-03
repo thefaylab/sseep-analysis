@@ -87,7 +87,7 @@ atlmackerel_spring <- atlmackerel_spring |>
 
 
 atlmackerel_spring_info <- atlmackerel_spring |>
-  select(X, Y, EST_YEAR, STRATUM, CRUISE6, STATION, AREA, AREA_CODE, SEASON) |> 
+  select(X, Y, EST_YEAR, STRATUM, CRUISE6, STATION, AREA, AREA_CODE, SEASON, AVGDEPTH) |> 
   mutate(AREA_CODE = ifelse(AREA == "OUTSIDE", 0, AREA_CODE))
 
 
@@ -246,118 +246,52 @@ spring.dec.df <- map(spring.dec, ~janitor::clean_names(.)) |>
 
 ```
 
-
+Proportion of Zeros 
 ```{r}
-# calculate the "status quo" scenario
-# spring_base_ww <- spring.base.df |> 
-#   # group_by(sim) |> 
-#   summarise(mu = mean(observed), 
-#             var = var(observed), 
-#             cv = sqrt(var)/mu) |> 
-#   mutate(scenario = "Baseline")
-# 
-# # calculate the "precluded" scenario
-# spring_base_wow <- spring.base.df |> 
-#   filter(as_factor_area_wind == 0) |> #outside areas
-#   # group_by(sim) |> 
-#   summarise(mu = mean(observed), 
-#             var = var(observed), 
-#             cv = sqrt(var)/mu) |> 
-#   mutate(scenario = "Baseline")
-# 
-# # bind the scenarios to calculate the absolute percent difference 
-# base_diff <- bind_cols(spring_base_ww, spring_base_wow) |># , by = c("sim", "scenario")) |>
-#   janitor::clean_names() |>
-#   # group_by(sim) |> #, est_year) |>
-#   summarise(abs_diff_mu =( abs(mu_1 - mu_5) / mu_1)*100, 
-#             abs_diff_cv =( abs(cv_3 - cv_7) / cv_3)*100) |>
-#   mutate(#abs_diff_mu = ifelse(is.nan(abs_diff_mu), 0, abs_diff_mu),
-#          #abs_diff_cv = ifelse(is.nan(abs_diff_cv), 0, abs_diff_cv),
-#          scenario = "Baseline", 
-#          season = "Spring")
+# Baseline
+base_zeros <- spring.base.df |>
+  group_by(scenario, sim) |>
+  nest() |>
+  mutate(zero = map(data, ~filter(., observed == 0) |> nrow()),
+         total = map(data, ~nrow(.))) |>
+  select(!data) |>
+  unnest(cols = c(zero, total)) |>
+  summarise(prop = round((zero/total)*100, 0))
 
-# saveRDS(spring_base_ww, here(sim.check, "spring_base_ww-500sim.rds"))
-# saveRDS(spring_base_wow, here(sim.check, "spring_base_wow-500sim.rds"))
-# saveRDS(base_diff, here(sim.check, "spring_base_diff-500sim.rds"))
+# Enhanced 
+inc_zeros <- spring.inc.df |>
+  group_by(scenario, sim) |>
+  nest() |>
+  mutate(zero = map(data, ~filter(., observed == 0) |> nrow()),
+         total = map(data, ~nrow(.))) |>
+  select(!data) |>
+  unnest(cols = c(zero, total)) |>
+  summarise(prop = round((zero/total)*100, 0))
+
+
+# Reduced 
+dec_zeros <- spring.dec.df |>
+  group_by(scenario, sim) |>
+  nest() |>
+  mutate(zero = map(data, ~filter(., observed == 0) |> nrow()),
+         total = map(data, ~nrow(.))) |>
+  select(!data) |>
+  unnest(cols = c(zero, total)) |>
+  summarise(prop = round((zero/total)*100, 0))
+
+
+bind_rows(base_zeros, inc_zeros, dec_zeros) |> 
+  ggplot() + 
+  aes(x = as.factor(scenario), y = prop) + 
+  geom_boxplot() + 
+  labs(x = "Productivity scenario", y = "Proportion of zeros (%)", subtitle = "Distribution of proportion of simulated zeros")
+
+# ggsave("prop_zeros.png", last_plot(), device = "png", here(sim.check.plots), width = 8, height = 6)
+
 
 ```
 
 
-```{r}
-# calculate the "status quo" scenario
-# spring_inc_ww <- spring.inc.df |> 
-#   # group_by(sim) |> 
-#   summarise(mu = mean(observed), 
-#             var = var(observed), 
-#             cv = sqrt(var)/mu) |> 
-#   mutate(scenario = "Enhanced", 
-#          cv = ifelse(is.nan(cv), 0, cv))
-# 
-# # calculate the "precluded" scenario
-# spring_inc_wow <- spring.inc.df |> 
-#   filter(as_factor_area_wind == 0) |> #outside areas
-#   # group_by(sim) |> 
-#   summarise(mu = mean(observed), 
-#             var = var(observed), 
-#             cv = sqrt(var)/mu) |> 
-#   mutate(scenario = "Enhanced", 
-#          cv = ifelse(is.nan(cv), 0, cv))
-# 
-# # bind the scenarios to calculate the absolute percent difference 
-# inc_diff <- bind_cols(spring_inc_ww, spring_inc_wow) |> #, by = c("sim", "scenario")) |>
-#   janitor::clean_names() |>
-#   # group_by(sim) |> #, est_year) |>
-#   summarise(abs_diff_mu =( abs(mu_1 - mu_5) / mu_1)*100, 
-#             abs_diff_cv =( abs(cv_3 - cv_7) / cv_3)*100) |>
-#   mutate(#abs_diff_mu = ifelse(is.nan(abs_diff_mu), 0, abs_diff_mu),
-#          #abs_diff_cv = ifelse(is.nan(abs_diff_cv), 0, abs_diff_cv),
-#          scenario = "Enhanced", 
-#          season = "Spring")
-
-# saveRDS(spring_inc_ww, here(sim.check, "spring_inc_ww-500sim.rds"))
-# saveRDS(spring_inc_wow, here(sim.check, "spring_inc_wow-500sim.rds"))
-# saveRDS(inc_diff, here(sim.check, "spring_inc_diff-500sim.rds"))
-
-```
-
-
-```{r}
-# calculate the "status quo" scenario
-# spring_dec_ww <- spring.dec.df |> 
-#   # group_by(sim) |> 
-#   summarise(mu = mean(observed), 
-#             var = var(observed), 
-#             cv = sqrt(var)/mu) |> 
-#   mutate(scenario = "Reduced", 
-#          cv = ifelse(is.nan(cv), 0, cv))
-# 
-# # calculate the "precluded" scenario
-# spring_dec_wow <- spring.dec.df |> 
-#   filter(as_factor_area_wind == 0) |> #outside areas
-#   # group_by(sim) |> 
-#   summarise(mu = mean(observed), 
-#             var = var(observed), 
-#             cv = sqrt(var)/mu) |> 
-#   mutate(scenario = "Reduced", 
-#          cv = ifelse(is.nan(cv), 0, cv))#, 
-#          #cv = ifelse(is.nan(cv), 0, cv))
-# 
-# # bind the scenarios to calculate the absolute percent difference 
-# dec_diff <- bind_cols(spring_dec_ww, spring_dec_wow) |> #, by = c("sim", "scenario")) |>
-#   janitor::clean_names() |>
-#   # group_by(sim) |> #, est_year) |>
-#   summarise(abs_diff_mu =( abs(mu_1 - mu_5) / mu_1)*100, 
-#             abs_diff_cv =( abs(cv_3 - cv_7) / cv_3)*100) |>
-#   mutate(#abs_diff_mu = ifelse(is.nan(abs_diff_mu), 0, abs_diff_mu),
-#          #abs_diff_cv = ifelse(is.nan(abs_diff_cv), 0, abs_diff_cv),
-#          scenario = "Reduced", 
-#          season = "Spring")
-
-# saveRDS(spring_dec_ww, here(sim.check, "spring_dec_ww-500sim.rds"))
-# saveRDS(spring_dec_wow, here(sim.check, "spring_dec_wow-500sim.rds"))
-# saveRDS(dec_diff, here(sim.check, "spring_dec_diff-500sim.rds"))
-
-```
 
 ## Plot distribution of catch rates 
 ```{r}
@@ -376,13 +310,13 @@ bind_rows(spring.base.df, spring.inc.df, spring.dec.df) |>
   #filter(observed > 0) |> 
      ggplot() + 
   aes(x = observed, fill = AREA)+
-     geom_histogram(binwidth = 2) + 
+     geom_histogram() + 
   # geom_dotplot(binwidth = 0.02)+
   #geom_bar() + scale_x_binned() + 
    scale_fill_manual(values = pal) +
    facet_grid(cols = vars(scenario), rows = vars(AREA)) + 
    labs(x = "Catch rate (kg/tow)", y = "Frequency of catch rate occurrence", subtitle = str_c("Distribution of simulated values of spring Atlantic mackerel biomass for each productivity scenario observed in\nstratum", strat, "in", year, sep = " "), fill = "Area of catch\nrate occurrence") + 
-  theme(legend.position = "none") + xlim(NA, 15)
+  theme(legend.position = "none") + xlim(NA, 0.05) #+ stat_bin(binwidth = 0.0001)
 
 # ggsave("spring_100sim_catchrate-dist3.png", device = "png", last_plot(), here(sim.check.plots), width = 9, height = 6)
 ```
