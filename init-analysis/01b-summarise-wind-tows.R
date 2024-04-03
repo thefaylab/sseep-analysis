@@ -1,5 +1,5 @@
 ### created:      07/11/2023     
-### last update:  01/26/2024
+### last update:  02/25/2024
 ###
 
 # 01b - SUMMARISE ALL WIND OBSERVATIONS ####
@@ -23,8 +23,8 @@ here()
 init.analysis.dat <- here("data", "rds", "init-analysis")
 
 ### LOAD DATA ###
-# presence data only created in `03b-index-wind-observations.R` here("tidy-data")
-data <- readRDS(here("data", "rds", "tidy-data", "full-bts-indexed.rds"))  |>
+# presence/absence data created in `04-complete-datasets.R` here("tidy-data")
+data <- readRDS(here("data", "rds", "completed_bts_data.rds")) |>
   mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT), # fills expcatch wt values with 0 if missing
          EXPCATCHNUM = ifelse(is.na(EXPCATCHNUM), 0, EXPCATCHNUM))
 # #          CODE = str_c(STRATUM, CRUISE6, STATION))  
@@ -37,10 +37,10 @@ wind <- filter(data, AREA == "WIND")
 
 ### By species, year, season, time of day, and strata ###
 wind_sum <- wind |>
-  group_by(SVSPP, EST_YEAR, SEASON, COMNAME, STRATUM, DAYTIME, CODE) |>
+  group_by(SVSPP, EST_YEAR, SEASON, COMNAME, STRATUM, DAYTIME, TOWID) |>
   summarize(WIND_CATCH = sum(EXPCATCHNUM), 
             WIND_BIO = sum(EXPCATCHWT),
-            WIND_TOW = length(unique(CODE))) |>
+            WIND_TOW = length(unique(TOWID))) |>
   mutate(TYPE = "WIND") |>
   arrange(SVSPP, EST_YEAR)
 
@@ -49,15 +49,15 @@ wind_sp <- wind_sum |>
   group_by(SVSPP, COMNAME) |> 
   summarize(WIND_CATCH = sum(WIND_CATCH), 
             WIND_BIO = sum(WIND_BIO),
-            WIND_TOW = length(unique(CODE))) |>
+            WIND_TOW = sum(WIND_TOW)) |>
   mutate(TYPE = "WIND")
 
-### & season, and strata ###
+### & year, season, and strata ###
 wind_sp_strat_ssn_yr <- wind_sum |>
   group_by(SVSPP, COMNAME, EST_YEAR, SEASON, STRATUM) |> 
   summarize(WIND_CATCH = sum(WIND_CATCH), 
             WIND_BIO = sum(WIND_BIO),
-            WIND_TOW = length(unique(CODE))) |>
+            WIND_TOW = sum(WIND_TOW)) |>
   mutate(TYPE = "WIND") |>
   arrange(STRATUM)
 
@@ -66,7 +66,7 @@ wind_sp_ssn_yr <- wind_sum |>
   group_by(SVSPP, COMNAME, EST_YEAR, SEASON) |>
   summarize(WIND_CATCH = sum(WIND_CATCH), 
             WIND_BIO = sum(WIND_BIO),
-            WIND_TOW = length(unique(CODE))) |>
+            WIND_TOW = sum(WIND_TOW)) |>
   mutate(TYPE = "WIND") |>
   arrange(SVSPP, EST_YEAR)
 
@@ -75,7 +75,7 @@ wind_sp_ssn_strat <- wind_sum |>
   group_by(SVSPP, COMNAME, SEASON, STRATUM) |> 
   summarize(WIND_CATCH = sum(WIND_CATCH), 
             WIND_BIO = sum(WIND_BIO),
-            WIND_TOW = length(unique(CODE))) |>
+            WIND_TOW = sum(WIND_TOW)) |>
   mutate(TYPE = "WIND") |>
   arrange(STRATUM)
 
@@ -84,7 +84,7 @@ wind_sp_yr_strat <- wind_sum |>
   group_by(SVSPP, COMNAME, EST_YEAR, STRATUM) |> 
   summarize(WIND_CATCH = sum(WIND_CATCH), 
             WIND_BIO = sum(WIND_BIO),
-            WIND_TOW = length(unique(CODE))) |>
+            WIND_TOW = sum(WIND_TOW)) |>
   mutate(TYPE = "WIND") |>
   arrange(STRATUM)
 
@@ -94,7 +94,7 @@ wind_sp_strat <- wind_sum |>
   group_by(SVSPP, COMNAME, STRATUM) |> 
   summarize(WIND_CATCH = sum(WIND_CATCH), 
             WIND_BIO = sum(WIND_BIO),
-            WIND_TOW = length(unique(CODE))) |>
+            WIND_TOW = sum(WIND_TOW)) |>
   mutate(TYPE = "WIND", 
          CODE = str_c(SVSPP, STRATUM)) |>
   arrange(STRATUM)
@@ -105,7 +105,7 @@ wind_sp_ssn <- wind_sum |>
   group_by(SVSPP, COMNAME, SEASON) |> 
   summarize(WIND_CATCH = sum(WIND_CATCH), 
             WIND_BIO = sum(WIND_BIO),
-            WIND_TOW = length(unique(CODE))) |>
+            WIND_TOW = sum(WIND_TOW)) |>
   mutate(TYPE = "WIND") |>
   arrange(SVSPP)
 
@@ -114,7 +114,7 @@ wind_sp_yr <- wind_sum |>
   group_by(SVSPP, COMNAME, EST_YEAR) |> 
   summarize(WIND_CATCH = sum(WIND_CATCH), 
             WIND_BIO = sum(WIND_BIO),
-            WIND_TOW = length(unique(CODE))) |>
+            WIND_TOW = sum(WIND_TOW)) |>
   mutate(TYPE = "WIND") |>
   arrange(SVSPP)
 
@@ -123,7 +123,7 @@ wind_sp_time <- wind_sum |>
   group_by(SVSPP, COMNAME, DAYTIME) |>
   summarize(WIND_CATCH = sum(WIND_CATCH), 
             WIND_BIO = sum(WIND_BIO),
-            WIND_TOW = length(unique(CODE))) |>
+            WIND_TOW = sum(WIND_TOW)) |>
   mutate(TYPE = "WIND")
 
 
@@ -133,7 +133,7 @@ wind_yr <- wind |>
   group_by(EST_YEAR) |> 
   summarize(WIND_CATCH = sum(EXPCATCHNUM), 
             WIND_BIO = sum(EXPCATCHWT),
-            WIND_TOW = length(unique(CODE))) |>
+            WIND_TOW = length(unique(TOWID))) |>
   mutate(TYPE = "WIND")
 
 
@@ -143,7 +143,7 @@ wind_time <- wind |>
   group_by(DAYTIME) |>
   summarise(WIND_CATCH = sum(EXPCATCHNUM), 
             WIND_BIO = sum(EXPCATCHWT),
-            WIND_TOW = length(unique(CODE))) |>
+            WIND_TOW = length(unique(TOWID))) |>
   mutate(TYPE = "WIND") 
 
 
@@ -152,7 +152,7 @@ wind_strat <- wind |>
   group_by(STRATUM) |> 
   summarize(WIND_CATCH = sum(EXPCATCHNUM), 
             WIND_BIO = sum(EXPCATCHWT),
-            WIND_TOW = length(unique(CODE)))|>
+            WIND_TOW = length(unique(TOWID)))|>
   mutate(TYPE = "WIND") |>
   arrange(STRATUM)
 #bts_sp_strat$CODE <- paste(bts_sp_strat$SVSPP, bts_sp_strat$STRATUM)
@@ -163,7 +163,7 @@ wind_ssn <- wind |>
   group_by(SEASON) |> 
   summarize(WIND_CATCH = sum(EXPCATCHNUM), 
             WIND_BIO = sum(EXPCATCHWT),
-            WIND_TOW = length(unique(CODE))) |>
+            WIND_TOW = length(unique(TOWID))) |>
   mutate(TYPE = "WIND") 
 #bts_sp_ssn$CODE <- paste(bts_sp_ssn$SVSPP, bts_sp_ssn$SEASON)
 

@@ -1,5 +1,5 @@
 ### created:      2/15/2022
-### last update:  01/26/2024
+### last update:  02/25/2024
 ###
 
 # 01a - SUMMARISE ALL BTS OBSERVATIONS ####
@@ -23,8 +23,8 @@ here()
 init.analysis.dat <- here("data", "rds", "init-analysis")
 
 ### LOAD DATA ###
-# presence data only created in `03b-index-wind-observations.R` here("tidy-data")
-data <- readRDS(here("data", "rds", "tidy-data", "full-bts-indexed.rds"))  |>
+# presence/absence data created in `04-complete-datasets.R` here("tidy-data")
+data <- readRDS(here("data", "rds", "completed_bts_data.rds")) |>
   mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT), # fills expcatch wt values with 0 if missing
          EXPCATCHNUM = ifelse(is.na(EXPCATCHNUM), 0, EXPCATCHNUM))
 # #          CODE = str_c(STRATUM, CRUISE6, STATION)) 
@@ -33,10 +33,10 @@ data <- readRDS(here("data", "rds", "tidy-data", "full-bts-indexed.rds"))  |>
 
 ### By species, year, season, time of day, and strata
 bts_sum <- data |>
-  group_by(SVSPP, EST_YEAR, SEASON, COMNAME, STRATUM, DAYTIME, CODE) |> 
+  group_by(SVSPP, EST_YEAR, SEASON, COMNAME, STRATUM, TOWID, DAYTIME) |> 
   summarize(BTS_CATCH = sum(EXPCATCHNUM), 
             BTS_BIO = sum(EXPCATCHWT),
-            BTS_TOW = length(unique(CODE))) |>
+            BTS_TOW = length(unique(TOWID))) |>
   mutate(TYPE = "WHOLE") |>
   arrange(SVSPP, EST_YEAR)
 
@@ -136,7 +136,7 @@ bts_yr <- data |>
   group_by(EST_YEAR) |> 
   summarize(BTS_CATCH = sum(EXPCATCHNUM), 
             BTS_BIO = sum(EXPCATCHWT),
-            BTS_TOW = length(unique(CODE))) |>
+            BTS_TOW = length(unique(TOWID))) |>
   mutate(TYPE = "WHOLE")
 
 
@@ -146,7 +146,7 @@ bts_time <- data |>
   group_by(DAYTIME) |>
   summarise(BTS_CATCH = sum(EXPCATCHNUM), 
             BTS_BIO = sum(EXPCATCHWT),
-            BTS_TOW = length(unique(CODE))) |>
+            BTS_TOW = length(unique(TOWID))) |>
   mutate(TYPE = "WHOLE") 
 
 
@@ -156,7 +156,7 @@ bts_strat <- data |>
   group_by(STRATUM) |> 
   summarize(BTS_CATCH = sum(EXPCATCHNUM), 
             BTS_BIO = sum(EXPCATCHWT),
-            BTS_TOW = length(unique(CODE)))|>
+            BTS_TOW = length(unique(TOWID)))|>
   mutate(TYPE = "WHOLE") |>
   arrange(STRATUM)
 #bts_sp_strat$CODE <- paste(bts_sp_strat$SVSPP, bts_sp_strat$STRATUM)
@@ -168,7 +168,7 @@ bts_ssn <- data |>
   group_by(SEASON) |> 
   summarize(BTS_CATCH = sum(EXPCATCHNUM), 
             BTS_BIO = sum(EXPCATCHWT),
-            BTS_TOW = length(unique(CODE))) |>
+            BTS_TOW = length(unique(TOWID))) |>
   mutate(TYPE = "WHOLE")
 #bts_sp_ssn$CODE <- paste(bts_sp_ssn$SVSPP, bts_sp_ssn$SEASON)
 

@@ -47,10 +47,10 @@ overlap <- data |>
 
 ### By species, year, season, time of day, and strata ###
 overlap_sum <- overlap |>
-  group_by(SVSPP, COMNAME, EST_YEAR, SEASON, STRATUM, DAYTIME, CODE) |>
+  group_by(SVSPP, COMNAME, EST_YEAR, SEASON, STRATUM, DAYTIME, TOWID) |>
   summarize(OVERLAP_CATCH = sum(EXPCATCHNUM),
             OVERLAP_BIO = sum(EXPCATCHWT),
-            OVERLAP_TOW = length(unique(CODE)))|>
+            OVERLAP_TOW = length(unique(TOWID)))|>
   mutate(TYPE = "IMPACTED STRATA") |>
   arrange(STRATUM)
 
@@ -152,7 +152,7 @@ overlap_time <- overlap |>
   group_by(DAYTIME) |>
   summarise(OVERLAP_CATCH = sum(EXPCATCHNUM), 
             OVERLAP_BIO = sum(EXPCATCHWT),
-            OVERLAP_TOW = length(unique(CODE))) |>
+            OVERLAP_TOW = length(unique(TOWID))) |>
   mutate(TYPE = "IMPACTED STRATA") 
 
 
@@ -163,7 +163,7 @@ overlap_yr <- overlap |>
   group_by(EST_YEAR) |>
   summarise(OVERLAP_CATCH = sum(EXPCATCHNUM), 
             OVERLAP_BIO = sum(EXPCATCHWT),
-            OVERLAP_TOW = length(unique(CODE))) |>
+            OVERLAP_TOW = length(unique(TOWID))) |>
   mutate(TYPE = "IMPACTED STRATA") 
 
 
@@ -172,7 +172,7 @@ overlap_ssn <- overlap |>
   group_by(SEASON) |>
   summarise(OVERLAP_CATCH = sum(EXPCATCHNUM), 
             OVERLAP_BIO = sum(EXPCATCHWT),
-            OVERLAP_TOW = length(unique(CODE))) |>
+            OVERLAP_TOW = length(unique(TOWID))) |>
   mutate(TYPE = "IMPACTED STRATA")  
 
 
@@ -181,7 +181,7 @@ overlap_strat <- overlap |>
   group_by(STRATUM) |>
   summarise(OVERLAP_CATCH = sum(EXPCATCHNUM), 
             OVERLAP_BIO = sum(EXPCATCHWT),
-            OVERLAP_TOW = length(unique(CODE))) |>
+            OVERLAP_TOW = length(unique(TOWID))) |>
   mutate(TYPE = "IMPACTED STRATA") 
 
 

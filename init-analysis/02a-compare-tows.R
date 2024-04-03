@@ -1,5 +1,5 @@
 ### created:      07/11/2023
-### last update:  01/26/2024
+### last update:  02/25/2024
 ###
 
 # 02a - COMPARE SUMMARIES ####
@@ -79,9 +79,9 @@ impacted_strata <- unique(wind_sum$STRATUM)
 ### Total Tows ####
 ### Sums ###
 # join full bts summary with summaries of overlapped strata only 
-compare_sum <- full_join(bts_sum, overlap_sum, by = c("SVSPP", "SEASON", "DAYTIME", "CODE", "EST_YEAR", "STRATUM", "COMNAME")) |>
+compare_sum <- full_join(bts_sum, overlap_sum, by = c("SVSPP", "SEASON", "DAYTIME", "TOWID", "EST_YEAR", "STRATUM", "COMNAME")) |>
   select(!c(TYPE.x, TYPE.y)) |>
-  group_by(SVSPP, EST_YEAR, COMNAME, STRATUM, SEASON, DAYTIME, CODE) |>
+  group_by(SVSPP, EST_YEAR, COMNAME, STRATUM, SEASON, DAYTIME, TOWID) |>
   summarise(BTS_CATCH = BTS_CATCH, 
             OVERLAP_CATCH = sum(ifelse(is.na(OVERLAP_CATCH), 0, OVERLAP_CATCH)), 
             BTS_BIO = BTS_BIO, 
@@ -90,8 +90,8 @@ compare_sum <- full_join(bts_sum, overlap_sum, by = c("SVSPP", "SEASON", "DAYTIM
             OVERLAP_TOW = sum(ifelse(is.na(OVERLAP_TOW), 0, OVERLAP_TOW))) #|>
  
 # join compare sum with summaries of wind observations only 
-compare_sum <- full_join(compare_sum, wind_sum, by = c("SVSPP", "SEASON", "DAYTIME", "CODE", "EST_YEAR", "STRATUM", "COMNAME")) |>
-  group_by(SVSPP, EST_YEAR, COMNAME, STRATUM, SEASON, DAYTIME, CODE) |>
+compare_sum <- full_join(compare_sum, wind_sum, by = c("SVSPP", "SEASON", "DAYTIME", "TOWID", "EST_YEAR", "STRATUM", "COMNAME")) |>
+  group_by(SVSPP, EST_YEAR, COMNAME, STRATUM, SEASON, DAYTIME, TOWID) |>
   summarise(BTS_CATCH = BTS_CATCH, 
             OVERLAP_CATCH = OVERLAP_CATCH,
             WIND_CATCH = sum(ifelse(is.na(WIND_CATCH), 0, WIND_CATCH)), 
