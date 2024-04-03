@@ -78,6 +78,29 @@ AIC(m1_spring)
 AIC(m2_spring)
 AIC(m3_spring)
 AIC(m4_spring)
+
+tm_polymods <- list(m1_spring, m2_spring, m3_spring, m4_spring)
+
+# table of AIC values 
+tm_polymods.diag <- data.frame(models = c("m1", "m2", "m3", "m4"),
+                           spatial = "off",
+                           spatiotemporal = "off", 
+                           time = "EST_YEAR",
+                           season = "SPRING",
+                           outliers = "Present",
+                           family = "Tweedie")
+
+tm.mods.form <- map(tm_polymods, ~pluck(., "formula") |> as.character()) |> as.data.frame() |> t()
+tm.mods.conv <- map(tm_polymods, ~pluck(., "sd_report", "pdHess")) |> as.data.frame() |> t()
+tm.mods.aic <- map(tm_polymods, ~AIC(.)) |> as.data.frame() |>  t()
+
+tm.mods.diag <- tm_polymods.diag |> 
+  mutate(formula = tm.mods.form, 
+         converged = tm.mods.conv, 
+         AIC = tm.mods.aic)
+
+kable(tm.mods.diag, align = "lcccc", caption = "Atlantic mackerel spring model with varying depth relationships", format.args = list(big.mark = ","), booktabs = TRUE) |>
+     kable_styling(full_width = F, fixed_thead = T, font_size = 14)
 ```
 
 #### Result
@@ -163,6 +186,9 @@ tweedie.diag <- tweedie.diag |>
   mutate(formula = tm.form, 
          converged = tm.conv, 
          AIC = tm.aic)
+
+kable(tweedie.diag, align = "lcccc", caption = "Atlantic mackerel spring model with varying depth relationships", format.args = list(big.mark = ","), booktabs = TRUE) |>
+     kable_styling(full_width = F, fixed_thead = T, font_size = 14)
                           
 ```
 
@@ -297,6 +323,9 @@ tm_rm200.diag <- tm_rm200.diag |>
   mutate(formula = tm200.form, 
          converged = tm200.conv, 
          AIC = tm200.aic)
+
+kable(tm_rm200.diag, align = "lcccc", caption = "Atlantic mackerel spring model with outliers removed", format.args = list(big.mark = ","), booktabs = TRUE) |>
+     kable_styling(full_width = F, fixed_thead = T, font_size = 14)
 
 ```
 

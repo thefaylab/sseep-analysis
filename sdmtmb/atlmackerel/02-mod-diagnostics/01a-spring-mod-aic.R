@@ -21,15 +21,26 @@ library(kableExtra)
 here()
 
 ## TWEEDIE MODELS ####
+# spr.mods <- str_c("m",seq(1:12), "_spring.rds") |>
+#   #append(str_c("m",c(8, 11, 14:17),"_spring2.rds")) |>
+#   #append(str_c("m",c(15:17),"_spring3.rds")) |>
+#   map(~list(.)) |>
+#   map(~readRDS(here("sdmtmb",  "atlmackerel", "data", "mods", .)))
 spr.mods <- str_c("m",seq(1:12), "_spring.rds") |>
-  #append(str_c("m",c(8, 11, 14:17),"_spring2.rds")) |>
-  #append(str_c("m",c(15:17),"_spring3.rds")) |>
-  map(~list(.)) |>
-  map(~readRDS(here("sdmtmb",  "atlmackerel", "data", "mods", .)))
+append(str_c("m",c(2.2, 2.3), "_spring.rds")) |>
+append(str_c("m",seq(1:12),"_spring_dpg.rds")) |>
+append(str_c("m",seq(1:12),"_spring_no.out.rds")) |>
+append(str_c("m",seq(1:12),"_spring_no.out.dpg.rds")) |>
+append(str_c("m",c(1, 9, 10, 13, 14),"_spring_dpg_rm200.rds")) |>
+append(str_c("m",c(9, 10, 13, 14),"_spring_rm200.rds")) |>
+map(~list(.)) |>
+map(~readRDS(here("sdmtmb",  "atlmackerel", "data", "mods", .)))
 
-mod.names <- str_c("m",seq(1:12)) #|> 
+
+# mod.names <- str_c("m",seq(1:12)) #|> 
   #append(str_c("m",c(8, 11, 14:17),"a")) |>
   #append(str_c("m",c(15:17),"b"))
+mod.names <- str_c("m",seq(length(spr.mods)))
 
 spr.aic <- map(spr.mods, ~AIC(.)) |> 
   as.data.frame() |> 
@@ -71,20 +82,27 @@ convergence <- map(spr.mods, ~pluck(., "sd_report", "pdHess")) |>
   t()
 rownames(convergence) <- mod.names
 
+family <- map(spr.mods, ~pluck(., "family", "family")) |> 
+  as.data.frame() |> 
+  t()
+rownames(family) <- mod.names
+
 
 mods <- spr.form |> 
   bind_cols(spatial, spatiotemporal, time, #spatial_varying_formula, 
-            convergence, spr.aic) |> 
+            convergence, spr.aic, family) |> 
   rename(formula = ...1, 
          time = ...4, 
          converged = ...5, 
-         AIC = ...6) |> 
-  mutate(family = "tweedie", 
+         AIC = ...6, 
+         family1 = ...7,
+         family2 = ...8) |> 
+  mutate(#family = "tweedie",
          time = ifelse(time=="EST_YEAR", time, "NULL"), 
          season = "SPRING") |> 
   relocate(c(converged, AIC), .after = everything()) |> 
-  rownames_to_column(var = "models") |> 
-  arrange(AIC)
+  rownames_to_column(var = "models") #|>
+  # arrange(AIC)
 
 ### save the data ####
 saveRDS(mods, file = here("sdmtmb", "atlmackerel", "data", "spr-mod-configs.rds"))

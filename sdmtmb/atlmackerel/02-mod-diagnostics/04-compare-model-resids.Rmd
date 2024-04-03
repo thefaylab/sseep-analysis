@@ -41,11 +41,11 @@ dpg14_moddat <- m14_dpg$data
 
 ```{r model predictions}
 # tweedie model 
-tweedie_mod_preds <- predict(tweedie_mod)
+tweedie_mod_preds <- predict(m14_tweedie)
 tm14_moddat$preds <- tweedie_mod_preds$est
 
 # delta models
-dpg_mod_preds <- predict(dpg_mod)
+dpg_mod_preds <- predict(m14_dpg)
 dpg14_moddat$preds1 <- dpg_mod_preds$est1
 dpg14_moddat$preds2 <- dpg_mod_preds$est2
 
