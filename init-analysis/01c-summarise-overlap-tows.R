@@ -1,5 +1,5 @@
 ### created:      07/11/2023
-### last update:  01/26/2024
+### last update:  04/04/2024
 ###
 
 # 01c - SUMMARISE OBSERVATIONS IN OVERLAPPING STRATA ####
@@ -23,8 +23,8 @@ here()
 init.analysis.dat <- here("data", "rds", "init-analysis")
 
 ### LOAD DATA ###
-# presence/absence data created in `04-complete-datasets.R` here("tidy-data")
-data <- readRDS(here("data", "rds", "completed_bts_data.rds"))
+# indexed presence data created in `03b-index-wind-observations.R` here("tidy-data")
+data <- readRDS(here("data", "rds", "tidy-data", "full-bts-indexed.rds"))
 # data <- readRDS(here("data", "rds", "merged_data_complete.rds")) |>
 #   mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT),  # fills expcatch wt values with 0 if missing
 #          EXPCATCHNUM = ifelse(is.na(EXPCATCHNUM), 0, EXPCATCHNUM),

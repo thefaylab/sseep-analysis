@@ -1,5 +1,5 @@
 ### created:      07/11/2023
-### last update:  02/25/2024
+### last update:  04/04/2024
 ###
 
 # 02a - COMPARE SUMMARIES ####
@@ -28,8 +28,8 @@ here()
 init.analysis.dat <- here("data", "rds", "init-analysis")
 
 ### LOAD DATA ###
-# presence/absence data created in `04-complete-datasets.R` here("tidy-data")
-data <- readRDS(here("data", "rds", "completed_bts_data.rds"))
+# indexed presence data created in `03b-index-wind-observations.R` here("tidy-data")
+# data <- readRDS(here("data", "rds", "tidy-data", "full-bts-indexed.rds"))
 
 # summarised data for the bottom trawl survey observations, created here("init-analysis", "01a-summarise-all-tows.R")
 bts_sum <- readRDS(here(init.analysis.dat, "bts_summaries.rds"))

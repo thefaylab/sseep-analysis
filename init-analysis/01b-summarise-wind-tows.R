@@ -1,5 +1,5 @@
 ### created:      07/11/2023     
-### last update:  02/25/2024
+### last update:  04/04/2024
 ###
 
 # 01b - SUMMARISE ALL WIND OBSERVATIONS ####
@@ -23,8 +23,8 @@ here()
 init.analysis.dat <- here("data", "rds", "init-analysis")
 
 ### LOAD DATA ###
-# presence/absence data created in `04-complete-datasets.R` here("tidy-data")
-data <- readRDS(here("data", "rds", "completed_bts_data.rds")) |>
+# indexed presence data created in `03b-index-wind-observations.R` here("tidy-data")
+data <- readRDS(here("data", "rds", "tidy-data", "full-bts-indexed.rds")) |>
   mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT), # fills expcatch wt values with 0 if missing
          EXPCATCHNUM = ifelse(is.na(EXPCATCHNUM), 0, EXPCATCHNUM))
 # #          CODE = str_c(STRATUM, CRUISE6, STATION))  

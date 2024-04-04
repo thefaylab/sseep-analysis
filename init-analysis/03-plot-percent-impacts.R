@@ -1,5 +1,5 @@
 ### created:      01/26/2024
-### last update:  02/26/2024
+### last update:  04/04/2024
 ###
 
 # 03 - PLOT PERCENT IMPACTS ####
@@ -30,6 +30,8 @@ svspp <- c(15, 32, 72, 103, 105, 106, 121, 131, 141, 503, 999)
 species_impact <- compare_species |> 
   filter(SVSPP %in% svspp)
 
+saveRDS(species_impact, here(init.analysis.dat, "stakeholder-species-impacts.rds"))
+
 pal <- park_palette("Acadia")
 
 # PLOT ### 
@@ -40,7 +42,7 @@ catch_lost_plot <- species_impact |>
   mutate(COMNAME = str_to_sentence(COMNAME)) |>
   ggplot() + 
   geom_col(aes(x = str_wrap(COMNAME, width = 10, whitespace_only = FALSE), y = WIND_OVERLAP_CATCH), fill = pal[3]) + 
-  labs(x = "Species", y = "Percentage of total number of fish removed", subtitle = "Percent loss of total number of fish caught by the survey in a strata overlapped by wind energy areas") +  
+  labs(x = "Species", y = "Percentage of total number of fish removed", subtitle = "Percent of total number of fish observed by the Bigelow in a strata overlapped by wind energy areas") +  
   ylim(0, 40) +
   coord_flip() + 
   theme_bw()+
@@ -52,7 +54,7 @@ tows_lost_plot <- species_impact |>
   mutate(COMNAME = str_to_sentence(COMNAME)) |>
   ggplot() + 
   geom_col(aes(x = str_wrap(COMNAME, width = 10, whitespace_only = FALSE), y = WIND_OVERLAP_TOW), fill = pal[2]) + 
-  labs(x = "Species", y = "Percentage of tows removed", subtitle = "Percent loss of survey tows that caught a given species in strata overlapped by wind energy areas") + 
+  labs(x = "Species", y = "Percentage of tows removed", subtitle = "Percent of Bigelow tows that observed a particular species in strata overlapped by wind energy areas") + 
   ylim(0, 40)+
   coord_flip() +
   theme_bw()+
