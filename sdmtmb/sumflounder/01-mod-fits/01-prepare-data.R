@@ -1,5 +1,5 @@
 ### created: 12/10/2022
-### last updated: 12/07/2023
+### last updated: 04/16/2024
 
 # 01 - PREPARE SUMMER FLOUNDER DATA ####
 
@@ -90,8 +90,8 @@ spring_mesh <- make_mesh(sf_spring, xy_cols = c("X", "Y"), cutoff = 10)
 
 #mesh$mesh$n 
 plot(mesh)
-plot(fall_mesh)
-plot(spring_mesh)
+plot(fall_mesh) #723 knots 
+plot(spring_mesh) #684 knots
 
 # save mesh
 saveRDS(mesh, here("sdmtmb", "sumflounder", "data", "mesh.rds"))

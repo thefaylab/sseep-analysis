@@ -21,63 +21,76 @@ library(kableExtra)
 
 here()
 
+### Environment Set Up ####
+# season 
+season <- "fall"
 
-# read in models
-fall.cv <- str_c("m",c(1:12), "-fall-cv.rds") |>
+# file names that will be read in 
+cv.files <- str_c("m",seq(1:12), "-cv.rds", sep = "")
+
+# extract only the m# string
+cv.names <- str_extract(cv.files, "[a-z]\\d+") 
+
+### File locations ####
+sumflounder.dat <- here("sdmtmb",  "sumflounder", "data")
+
+# model locations
+cv.locs <- here(sumflounder.dat, "cross-valid", season)
+
+## READ DATA ####
+cv.list <- cv.files |>
   #append(str_c("m",c(8, 11, 15:16), "-fall-cv2.rds")) |>
   map(~list(.)) |>
-  map(~readRDS(here("sdmtmb",  "sumflounder", "data", "cross-valid", .)))
-
-mod.names <- str_c("m",c(1:12)) #|> 
-  #append(str_c("m",c(8, 11, 15:16),"a.cv"))
+  map(~readRDS(here(cv.locs, .)))
 
 
   
-sum_logliks <- map(fall.cv, ~pluck(., "sum_loglik")) |> 
-  as.data.frame() |>
+sum_logliks <- map(cv.list, ~pluck(., "sum_loglik")) |> 
+  as.data.frame(row.names = "Sum log likelihood") |>
   t()
-rownames(sum_logliks) <- mod.names
-colnames(sum_logliks) <- "Sum log likelihood"
+rownames(sum_logliks) <- cv.names
+# colnames(sum_logliks) <- "Sum log likelihood"
 
 
-elpd <- map(fall.cv, ~pluck(., "elpd")) |> 
-  as.data.frame() |> 
-  t() 
-rownames(elpd) <- mod.names
-colnames(elpd) <- "Expected log pointwise predictive density"
+# elpd <- map(fall.cv, ~pluck(., "elpd")) |> 
+#   as.data.frame() |> 
+#   t() 
+# rownames(elpd) <- mod.names
+# colnames(elpd) <- "Expected log pointwise predictive density"
 
 
-convergence <- map(fall.cv, ~pluck(., "converged")) |> 
-  as.data.frame() |> 
+conv <- map(cv.list, ~pluck(., "converged")) |> 
+  as.data.frame(row.names = "convergence") |> 
   t()
-rownames(convergence) <- mod.names
-colnames(convergence) <- "Convergence"
+rownames(conv) <- cv.names
+# colnames(convergence) <- "Convergence"
 
-cvs <- sum_logliks |> 
+cvs_tbl <- sum_logliks |> 
   as.data.frame() |>
   rownames_to_column(var = "models") |>
-  bind_cols(elpd, convergence) |> 
-  mutate(`Sum log likelihood` = round(`Sum log likelihood`,2),
-         `Expected log pointwise predictive density` = round(`Expected log pointwise predictive density`,2)) |>
-  arrange(desc(elpd))
-  
+  bind_cols(conv)# |>
+  # mutate(`Sum log likelihood` = round(`Sum log likelihood`,2),
+  #        `Expected log pointwise predictive density` = round(`Expected log pointwise predictive density`,2)) |>
+  # arrange(desc(elpd))
+  # 
   
 # save the data
-saveRDS(cvs, file = here("sdmtmb", "sumflounder", "data", "fall-cvs.rds"))
+saveRDS(cvs_tbl, file = here(sumflounder.dat, str_c(season, "-sumloglik.rds", sep = "")))
 
 
-kable(cvs, align = "lcccc", caption = "Summer flounder fall cross validations diagnostics", format.args = list(big.mark = ","), booktabs = TRUE) %>%
-  kable_styling(full_width = F, fixed_thead = T, font_size = 14)# %>%
-#row_spec(7, color = "red") 
+kable(cvs_tbl, align = "lcccc", caption = "Summer flounder fall cross validations diagnostics", format.args = list(big.mark = ","), booktabs = TRUE) |>
+  kable_styling(full_width = F, fixed_thead = T, font_size = 14) |>
+row_spec(which(cvs_tbl$`Sum log likelihood` == max(cvs_tbl$`Sum log likelihood`)), color = "red") 
 
 ## COMBINE AIC AND ELPD TABLES ####
-mods <- readRDS(file = here("sdmtmb", "sumflounder", "data", "fall-mod-configs.rds"))
+mods <- readRDS(file = here(sumflounder.dat, str_c(season, "-mod-configs.rds", sep = "")))
 
-diagnostics <- left_join(mods, cvs, by = "models") |> 
-  select(!converged) |> 
-  mutate(AIC = round(AIC, 2))
+diagnostics <- left_join(mods, cvs_tbl, by = "models") |> 
+  select(!convergence.y) |> 
+  rename(convergence = convergence.x) #|>
+  #mutate(AIC = round(AIC, 2))
 
-kable(diagnostics, align = "lcccc", caption = "Summer flounder fall model performance", format.args = list(big.mark = ","), booktabs = TRUE) |>
+kable(diagnostics, align = "lcccc", caption = "Summer flounder seasonal model performance", format.args = list(big.mark = ","), booktabs = TRUE) |>
   kable_styling(full_width = F, fixed_thead = T, font_size = 14) #|>
   #save_kable(file = here("sdmtmb", "atlmackerel", "plots", "mod-diagnostics-tbl.png"))
 

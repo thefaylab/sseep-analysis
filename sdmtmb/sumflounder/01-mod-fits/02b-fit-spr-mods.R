@@ -1,5 +1,5 @@
 ### created: 12/10/2022
-### last updated: 11/02/2023
+### last updated: 04/16/2024
 
 # 02b - FIT SPRING MODELS ####
 
@@ -20,16 +20,18 @@ library(sdmTMB)
 library(kableExtra)
 
 here()
-
+sumflounder.dat <- here("sdmtmb", "sumflounder", "data")
+mods.dat <- here("sdmtmb", "sumflounder", "data", "mods")
+season <- "spring"
 
 ## LOAD DATA ####
 # summer flounder data 
-sf_spring <- readRDS(here("sdmtmb", "sumflounder", "data", "sumflounder_spring.rds")) |> 
+sf_spring <- readRDS(here(sumflounder.dat, "sumflounder_spring.rds")) |> 
   mutate(AREA = as.factor(AREA), 
          EST_YEAR = as.factor(EST_YEAR))
 
 # mesh 
-spring_mesh <- readRDS(here("sdmtmb", "sumflounder", "data", "spring_mesh.rds"))
+spring_mesh <- readRDS(here(sumflounder.dat, "spring_mesh.rds"))
 
 ## MODEL FITS ####
 
@@ -46,7 +48,7 @@ m1_spring <- sdmTMB(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1,
 sanity(m1_spring)
 
 # save the data
-saveRDS(m1_spring, file = here("sdmtmb", "sumflounder", "data", "mods", "m1_spring.rds"))
+saveRDS(m1_spring, file = here(mods.dat, season, "m1_spring.rds"))
 
 #### M2 ####
 m2_spring <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR - 1,
@@ -60,7 +62,7 @@ m2_spring <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR - 1,
 sanity(m2_spring)
 
 # save the data
-saveRDS(m2_spring, file = here("sdmtmb", "sumflounder", "data", "mods", "m2_spring.rds"))
+saveRDS(m2_spring, file = here(mods.dat, season, "m2_spring.rds"))
 
 #### M3 ####
 m3_spring <- sdmTMB(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR + AREA - 1,
@@ -74,7 +76,7 @@ m3_spring <- sdmTMB(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR + AREA - 1,
 sanity(m3_spring)
 
 # save the data
-saveRDS(m3_spring, file = here("sdmtmb", "sumflounder", "data", "mods", "m3_spring.rds"))
+saveRDS(m3_spring, file = here(mods.dat, season,"m3_spring.rds"))
 
 #### M4 ####
 m4_spring <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH,2) + EST_YEAR + AREA - 1,
@@ -88,7 +90,7 @@ m4_spring <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH,2) + EST_YEAR + AREA - 1,
 sanity(m4_spring)
 
 # save the data
-saveRDS(m4_spring, file = here("sdmtmb", "sumflounder", "data", "mods", "m4_spring.rds"))
+saveRDS(m4_spring, file = here(mods.dat, season, "m4_spring.rds"))
 
 ### Spatial Only Models ####
 #### M5 ####
@@ -104,7 +106,7 @@ m5_spring <- sdmTMB(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1,
 sanity(m5_spring) 
 
 # save the data
-saveRDS(m5_spring, file = here("sdmtmb", "sumflounder", "data", "mods", "m5_spring.rds"))
+saveRDS(m5_spring, file = here(mods.dat, season, "m5_spring.rds"))
 
 #### M6 ####
 m6_spring <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR - 1,
@@ -118,7 +120,7 @@ m6_spring <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR - 1,
 sanity(m6_spring) 
 
 # save the data
-saveRDS(m6_spring, file = here("sdmtmb", "sumflounder", "data", "mods", "m6_spring.rds"))
+saveRDS(m6_spring, file = here(mods.dat, season, "m6_spring.rds"))
 
 #### M7 ####
 m7_spring <- sdmTMB(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR + AREA - 1,
@@ -132,7 +134,7 @@ m7_spring <- sdmTMB(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR + AREA - 1,
 sanity(m7_spring) 
 
 # save the data
-saveRDS(m7_spring, file = here("sdmtmb", "sumflounder", "data", "mods", "m7_spring.rds"))
+saveRDS(m7_spring, file = here(mods.dat, season, "m7_spring.rds"))
 
 #### M8 ####
 m8_spring <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR + AREA - 1,
@@ -146,7 +148,7 @@ m8_spring <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR + AREA - 1,
 sanity(m8_spring) 
 
 # save the data
-saveRDS(m8_spring, file = here("sdmtmb", "sumflounder", "data", "mods", "m8_spring.rds"))
+saveRDS(m8_spring, file = here(mods.dat, season, "m8_spring.rds"))
 
 
 ### Spatiotemporal Models - IID Structure ####
@@ -167,7 +169,7 @@ sanity(m9_spring)
 
 
 ### save the data
-saveRDS(m9_spring, file = here("sdmtmb", "sumflounder", "data", "mods", "m9_spring.rds"))
+saveRDS(m9_spring, file = here(mods.dat, season, "m9_spring.rds"))
 
 #### M10 ####
 #logistic regression of summer flounder biomass in tows as a function of AVGDEPTH with spatial random effects and spatiotemporal random fields estimated by EST_YEAR and with a separate intercept for each. 
@@ -184,7 +186,7 @@ m10_spring <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR-1,
 sanity(m10_spring)
 
 ### save the data
-saveRDS(m10_spring, file = here("sdmtmb", "sumflounder", "data", "mods", "m10_spring.rds"))
+saveRDS(m10_spring, file = here(mods.dat, season, "m10_spring.rds"))
 
 
 #### M11 ####
@@ -204,7 +206,7 @@ m11_spring <- sdmTMB(EXPCATCHWT ~ s(AVGDEPTH) +
 sanity(m11_spring)
 
 ### save the data
-saveRDS(m11_spring, file = here("sdmtmb", "sumflounder", "data", "mods", "m11_spring.rds"))
+saveRDS(m11_spring, file = here(mods.dat, season, "m11_spring.rds"))
 
 #### M12 ####
 #  logistic regression of summer flounder biomass catch rate as a function of depth, year, and inside or outside wind area. 
@@ -224,4 +226,4 @@ sanity(m12_spring)
 
 
 ### save the data
-saveRDS(m12_spring, file = here("sdmtmb", "sumflounder", "data", "mods", "m12_spring.rds"))
+saveRDS(m12_spring, file = here(mods.dat, season, "m12_spring.rds"))
