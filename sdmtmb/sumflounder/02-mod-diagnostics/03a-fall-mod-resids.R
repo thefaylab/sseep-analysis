@@ -23,7 +23,7 @@ fall.resids.plots <- "C:/Users/amiller7/Documents/cinar-osse/sseep-analysis/sdmt
 strata_utm <- readRDS(here("data", "rds", "active_strata_utm.rds")) 
 
 # best fit model created here("sdmtmb", "sumflounder", "01-mod-fits", "01a-fit-fall-mods.R")
-fall_mod <- readRDS(here(sumflounder.dat, "mods", "m12_fall.rds"))
+fall_mod <- readRDS(here(sumflounder.dat, "mods", "fall", "m10_fall.rds"))
 
 ### Model Predictions ####
 fall_mod_preds <- predict(fall_mod)
@@ -38,23 +38,31 @@ fall_moddat <- fall_mod$data
 
 ## CALCULATE AND PLOT RANDOMIZED QUANTILE RESIDUALS ####
 # pull residuals from best fit model
-fall_moddat$resids <- residuals(fall_mod, type = "mle-laplace") 
+fall_moddat$resids_eb <- residuals(fall_mod, type = "mle-eb") # Fixed effects are held at their MLEs and random effects are taken as their EB estimates. 
+
+fall_moddat$resids_mvn <- residuals(fall_mod, type = "mle-mvn") # Fixed effects are held at their MLEs and random effects are taken from a single approximate posterior sample. The "approximate" part refers to the sample being taken from the random effects' assumed MVN distribution
 
 # plot frequency of residuals to find distribution
-hist(fall_moddat$resids, main = "Histogram of Summer flounder fall model residuals", xlab = "Residuals")
+hist(fall_moddat$resids_eb, main = "Histogram of summer flounder fall model residuals", xlab = "Residuals")
+
+hist(fall_moddat$resids_mvn, main = "Histogram of summer flounder fall model residuals", xlab = "Residuals")
+
 
 # qplot of residuals 
-qqnorm(fall_moddat$resids, main = "Normal Q-Q Plot for fall summer flounder model")
-qqline(fall_moddat$resids) # add trend line
+qqnorm(fall_moddat$resids_eb, main = "Normal Q-Q Plot for fall summer flounder model")
+qqline(fall_moddat$resids_eb) # add trend line
+
+qqnorm(fall_moddat$resids_mvn, main = "Normal Q-Q Plot for fall summer flounder model")
+qqline(fall_moddat$resids_mvn) # add trend line
 
 # map 
-ggplot() +
-  geom_sf(data = strata_utm, fill = NA, color = "gray")+
-  geom_point(data = fall_moddat, aes(X*1000, Y*1000, color = resids)) + scale_colour_gradient2() +
-  facet_wrap(~EST_YEAR) +
-  labs(x = "Longitude", y = "Latitude", color = "Residuals")
-
-ggsave("sf_fall_residual_map.png", last_plot(), device = "png", here(fall.resids.plots), width = 7, height = 8)
+# ggplot() +
+#   geom_sf(data = strata_utm, fill = NA, color = "gray")+
+#   geom_point(data = fall_moddat, aes(X*1000, Y*1000, color = resids)) + scale_colour_gradient2() +
+#   facet_wrap(~EST_YEAR) +
+#   labs(x = "Longitude", y = "Latitude", color = "Residuals")
+# 
+# ggsave("sf_fall_residual_map.png", last_plot(), device = "png", here(fall.resids.plots), width = 7, height = 8)
 
 ## CALCULATE DHARMa RESIDUALS ####
 #simulations with the parameters fixed at their Maximum Likelihood Estimate (MLE) and predictions conditional on the fitted random effects.
@@ -76,7 +84,7 @@ r_fall_mod <- DHARMa::createDHARMa(
   fittedPredictedResponse = pred_fixed
 )
 
-saveRDS(r_fall_mod, here(fall.resids.dat, "fall_dharma_obj.rds"))
+saveRDS(r_fall_mod, here(fall.resids.dat, "sf_fall_dharma_obj.rds"))
 # plot(r_fall_mod)
 
 # fits a quantile regression or residuals against a predictor (default predicted value), and tests of this conforms to the expected quantile

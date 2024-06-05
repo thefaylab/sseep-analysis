@@ -1,5 +1,5 @@
 ### created: 12/10/2022
-### last updated: 02/22/2024
+### last updated: 04/05/2024
 
 # 01a - FALL POSTERIOR PREDICTIVE CHECK: SIMULATE CHANGES IN ABUNDANCE INDICES OVER TIME ####
 
@@ -47,7 +47,7 @@ colnames(sim_fall) <- paste0("sim", seq(1:1000))
 
 
 ### BIND DATASETS FOR CALCULATIONS ####
-# bind summer flounder data with simulated data from m15a model
+# bind summer flounder data with simulated data 
 fall_simdat <- fall_moddat |> 
   select(SVSPP, STRATUM, CRUISE6, STATION, AVGDEPTH, EST_YEAR, AREA, X, Y, SEASON) |>
   bind_cols(sim_fall) |>
@@ -66,7 +66,7 @@ saveRDS(fall_simdat, here(post.check.dat, "fall_simdat.rds"))
 source(here("R", "StratMeanFXs_v2.R")) 
 
 ### MODEL PREDICTED ESTIMATES ####
-preds_ww <- mod_preds |>
+preds_ww <- fall_mod_preds |>
   group_by(EST_YEAR) |> 
   nest() |>
   mutate(stratmu = map(data, ~stratified.mean(., strata)), 
@@ -76,7 +76,7 @@ preds_ww <- mod_preds |>
   unnest(cols = stratmu) |> 
   arrange(EST_YEAR)
 
-preds_wow <- mod_preds |>
+preds_wow <- fall_mod_preds |>
   filter(AREA == "OUTSIDE") |> 
   group_by(EST_YEAR) |> 
   nest() |>
@@ -161,7 +161,7 @@ fall_lms <- fall_stratmu |>
   filter(term == "EST_YEAR") 
 
 ### save the data 
-saveRDS(fall_lms, file = here(post.check.dat, "fall_slopes.rds"))
+saveRDS(fall_lms, file = here(post.check.dat, "fall_sim-slopes.rds"))
 
 
 

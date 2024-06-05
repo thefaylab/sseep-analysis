@@ -1,11 +1,11 @@
 ### created: 12/10/2022
-### last updated: 04/16/2024
+### last updated: 04/23/2024
 
 # 03a - CROSS VALIDATE FALL MODELS ####
 
 ## OBJECTIVE ####
 # cross validate models fit to historical summer flounder data 
-# approx 2 hour run time
+# approx 3.5 hour run time
 
 ### LOAD PACKAGES ####
 # install.packages("remotes")
@@ -28,7 +28,7 @@ here()
 # folder location based on season: c("fall", "spring")
 season <- "fall"
 # folder location based on data set used: c("all-dat", "no-bio-out")
-dat <- "no-bio-out"
+# dat <- "no-bio-out"
 
 ### File Locations ####
 # species folder 
@@ -48,6 +48,8 @@ fall_mesh <- readRDS(here(sumflounder.dat, "fall_mesh.rds"))
 
 # clust <- sample(1:2, size = nrow(sf_fall), replace = T, prob = c(0.1, 0.9))
 # saveRDS(clust, here("sdmtmb", "sumflounder", "data", "cross-valid", "sumflounder-fall-clust.rds"))
+# clust <- kmeans(sf_fall[, c("X", "Y")], 10)$cluster
+# saveRDS(clust, here(cv.dat, "sumflounder-fall-spatial-clust.rds"))
 
 ## MODEL CROSS VALIDATIONS ####
 # library(future)
@@ -62,12 +64,12 @@ m1.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1,
              family = tweedie(link = "log"), # useful for positive continuous data, biomass 
              spatial = "off", 
              control = sdmTMBcontrol(newton_loops = 1), 
-             # # fold_ids = clust,
-             k_folds = 5)
+             # fold_ids = clust)
+             k_folds = 10)
              # reml = TRUE)
 
 ### save the data
-saveRDS(m1.cv, file = here(cv.dat, season, dat, "m1-cv.rds"))
+saveRDS(m1.cv, file = here(cv.dat, season,  "m1-cv.rds"))
 
 
 #### M2 ####
@@ -77,11 +79,11 @@ m2.cv <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR - 1,
                        family = tweedie(link = "log"), 
                        spatial = "off", 
                        control = sdmTMBcontrol(newton_loops = 1), #extra optimization to help with convergence
-                       # # fold_ids = clust,
-                       k_folds = 5) 
+                       # fold_ids = clust)
+                       k_folds = 10) 
 
 ### save the data
-saveRDS(m2.cv, file = here(cv.dat, season, dat, "m2-cv.rds"))
+saveRDS(m2.cv, file = here(cv.dat, season,  "m2-cv.rds"))
 
 
 
@@ -93,11 +95,11 @@ m3.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR + AREA - 1,
                        spatial = "off", 
                        control = sdmTMBcontrol(newton_loops = 1), #extra optimization to help with convergence
                        silent = FALSE,   #extra optimization to help with convergence 
-                       # # fold_ids = clust,
-                       k_folds = 5)
+                       # fold_ids = clust)
+                       k_folds = 10)
 
 ### save the data
-saveRDS(m3.cv, file = here(cv.dat, season, dat, "m3-cv.rds"))
+saveRDS(m3.cv, file = here(cv.dat, season,  "m3-cv.rds"))
 
 
 #### M4 ####
@@ -108,11 +110,11 @@ m4.cv <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH,2) + EST_YEAR + AREA - 1,
                        spatial = "off", 
                        control = sdmTMBcontrol(newton_loops = 1), #extra optimization to help with convergence
                        silent = FALSE, 
-                       # # fold_ids = clust,
-                       k_folds = 5) 
+                       # fold_ids = clust)
+                       k_folds = 10) 
 
 # save the data
-saveRDS(m4.cv, file = here(cv.dat, season, dat, "m4-cv.rds"))
+saveRDS(m4.cv, file = here(cv.dat, season,  "m4-cv.rds"))
 
 ### SPATIAL RANDOM EFFECTS ONLY ####
 ##### M5 ####
@@ -123,11 +125,11 @@ m5.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1,
                        spatial = "on", # spatial covariance with depth
                        control = sdmTMBcontrol(newton_loops = 1), 
                        silent = FALSE, 
-                       # fold_ids = clust,
-                       k_folds = 5) 
+                       # fold_ids = clust)
+                       k_folds = 10) 
 
 ### save the data
-saveRDS(m5.cv, file = here(cv.dat, season, dat, "m5-cv.rds"))
+saveRDS(m5.cv, file = here(cv.dat, season,  "m5-cv.rds"))
 
 
 
@@ -139,11 +141,11 @@ m6.cv <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR - 1,
                        spatial = "on", 
                        control = sdmTMBcontrol(newton_loops = 1), 
                        silent = FALSE, 
-                       # fold_ids = clust,
-                       k_folds = 5)
+                       # fold_ids = clust)
+                       k_folds = 10)
 
 ### save the data
-saveRDS(m6.cv, file = here(cv.dat, season, dat, "m6-cv.rds"))
+saveRDS(m6.cv, file = here(cv.dat, season,  "m6-cv.rds"))
 
 
 #### M7 ####
@@ -154,11 +156,11 @@ m7.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR + AREA - 1,
                        spatial = "on", 
                        control = sdmTMBcontrol(newton_loops = 1), 
                        silent = FALSE, 
-                       # fold_ids = clust,
-                       k_folds = 5) 
+                       # fold_ids = clust)
+                       k_folds = 10) 
 
 ### save the data
-saveRDS(m7.cv, file = here(cv.dat, season, dat, "m7-cv.rds"))
+saveRDS(m7.cv, file = here(cv.dat, season,  "m7-cv.rds"))
 
 
 #### M8 ####
@@ -169,8 +171,8 @@ m8.cv <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR + AREA - 1,
                        spatial = "on", 
                        control = sdmTMBcontrol(newton_loops = 1), 
                        silent = FALSE, 
-                       # fold_ids = clust,
-                       k_folds = 5) 
+                       # fold_ids = clust)
+                       k_folds = 10) 
 
 
 
@@ -186,8 +188,8 @@ m8.cv <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR + AREA - 1,
 #                    extra_time = 2020L,
 #                    #spatial_varying = ~0 + AREA, 
 #                    control = sdmTMBcontrol(newton_loops = 1), 
-#                    # fold_ids = clust,
-#                    k_folds = 5,
+#                    # # fold_ids = clust)
+#                    # k_folds = 5,
 #                    reml = TRUE) 
 
 #sanity(m8a_fall)
@@ -195,7 +197,7 @@ m8.cv <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR + AREA - 1,
 #Consider omitting this part of the model
 
 ### save the data
-saveRDS(m8.cv, file = here(cv.dat, season, dat, "m8-cv.rds"))
+saveRDS(m8.cv, file = here(cv.dat, season,  "m8-cv.rds"))
 #saveRDS(m8a.cv, file = here("sdmtmb", "sumflounder", "data", "cross-valid", "m8-fall-cv2.rds"))
 
 ### SPATIOTEMPORAL MODELS: IID ####
@@ -208,11 +210,11 @@ m9.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1,
                        time = "EST_YEAR",
                        spatiotemporal = "IID", 
                        silent = FALSE,
-                       # fold_ids = clust,
-                       k_folds = 5) 
+                       # fold_ids = clust)
+                       k_folds = 10) 
 
 ### save the data
-saveRDS(m9.cv, file = here(cv.dat, season, dat, "m9-cv.rds"))
+saveRDS(m9.cv, file = here(cv.dat, season,  "m9-cv.rds"))
 
 #### M10 ####
 m10.cv <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR-1, 
@@ -223,11 +225,11 @@ m10.cv <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR-1,
                         time = "EST_YEAR",
                         spatiotemporal = "IID", 
                         silent = FALSE, 
-                        # fold_ids = clust,
-                        k_folds = 5) 
+                        # fold_ids = clust)
+                        k_folds = 10) 
 
 ### save the data
-saveRDS(m10.cv, file = here(cv.dat, season, dat, "m10-cv.rds"))
+saveRDS(m10.cv, file = here(cv.dat, season,  "m10-cv.rds"))
 
 #### M11 ####
 m11.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + 
@@ -241,8 +243,8 @@ m11.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) +
                         spatiotemporal = "IID",
                         control = sdmTMBcontrol(newton_loops = 1), 
                         silent = FALSE, 
-                        # fold_ids = clust,
-                        k_folds = 5) 
+                        # fold_ids = clust)
+                        k_folds = 10) 
 
 
 # m11a.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + 
@@ -257,14 +259,14 @@ m11.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) +
 #                     extra_time = 2020L,
 #                     #spatial_varying = ~0 + AREA, 
 #                     control = sdmTMBcontrol(newton_loops = 1), 
-#                     # fold_ids = clust,
-#                     k_folds = 5,
+                    # # fold_ids = clust)
+#                     # k_folds = 5,
 #                     reml = TRUE) 
 
 
 
 ### save the data
-saveRDS(m11.cv, file = here(cv.dat, season, dat, "m11-cv.rds"))
+saveRDS(m11.cv, file = here(cv.dat, season,  "m11-cv.rds"))
 #saveRDS(m11a.cv, file = here("sdmtmb", "sumflounder", "data", "cross-valid", "m11-fall-cv2.rds"))
 
 
@@ -280,12 +282,12 @@ m12.cv <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 2) +
                         spatiotemporal = "IID",
                         control = sdmTMBcontrol(newton_loops = 1), 
                         silent = FALSE, 
-                        # fold_ids = clust,
-                        k_folds = 5) 
+                        # fold_ids = clust)
+                        k_folds = 10) 
 
 
 
 ### save the data
-saveRDS(m12.cv, file = here(cv.dat, season, dat, "m12-cv.rds"))
+saveRDS(m12.cv, file = here(cv.dat, season,  "m12-cv.rds"))
 
 toc()

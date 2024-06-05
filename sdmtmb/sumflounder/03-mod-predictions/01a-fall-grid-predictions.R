@@ -1,5 +1,5 @@
 ### created: 04/01/2023
-### last updated: 12/22/2023
+### last updated: 04/05/2024
 
 # 01a - GRID PREDICTIONS: FALL ####
 
@@ -31,8 +31,8 @@ sf_fall <- readRDS(here("sdmtmb", "sumflounder", "data", "sumflounder_fall.rds")
 # # define extra years to forecast 
 # fall_extra_years <- c(2020, 2022:2026)
 
-# read in the best fitting spring model created here("sdmtmb", "sumflounder", "01-mod-fits", "02a-fit-fall-mods.R")
-fall_mod <- readRDS(here("sdmtmb", "sumflounder", "data", "fall_mod.rds"))
+# read in the best fitting fall model created here("sdmtmb", "sumflounder", "01-mod-fits", "02a-fit-fall-mods.R")
+fall_mod <- readRDS(here("sdmtmb", "sumflounder", "data", "mods", "m10_fall.rds"))
 
 # read in the grid with the area predictor created here("sdmtmb", "R", "make-survey-grid.R")
 grid <- readRDS(here("sdmtmb", "survey_grid_Jun2022.rds")) 
@@ -115,7 +115,7 @@ saveRDS(fall_preds, file = here("sdmtmb", "sumflounder", "data", "fall_grid_pred
 
 # #### ###
 # call the plotting functions
-# source(file = here("sdmtmb", "R", "plot_fns.R"))
+source(file = here("sdmtmb", "R", "plot_fns.R"))
 # 
 # # biomass estimates (main + random effects)
 plot_preds(fall_preds |> filter(EST_YEAR %in% c(2018:2021)), exp(est)) + scale_fill_viridis_c(trans = "sqrt", option = "H") +

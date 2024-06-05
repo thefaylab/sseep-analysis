@@ -59,7 +59,7 @@ m1_fall <- sdmTMB(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1,
 sanity(m1_fall)
 
 # save the data
-saveRDS(m1_fall, file = here(mods.dat, season, dat, "m1_fall.rds"))
+saveRDS(m1_fall, file = here(mods.dat, season, "m1_fall.rds"))
 
 #### M2 ####
 m2_fall <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR - 1,
@@ -73,7 +73,7 @@ m2_fall <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR - 1,
 sanity(m2_fall)
 
 # save the data
-saveRDS(m2_fall, file = here(mods.dat, season, dat, "m2_fall.rds"))
+saveRDS(m2_fall, file = here(mods.dat, season, "m2_fall.rds"))
 
 #### M3 ####
 m3_fall <- sdmTMB(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR + AREA - 1,
@@ -87,7 +87,7 @@ m3_fall <- sdmTMB(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR + AREA - 1,
 sanity(m3_fall)
 
 # save the data
-saveRDS(m3_fall, file = here(mods.dat, season, dat, "m3_fall.rds"))
+saveRDS(m3_fall, file = here(mods.dat, season, "m3_fall.rds"))
 
 #### M4 ####
 m4_fall <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH,2) + EST_YEAR + AREA - 1,
@@ -101,7 +101,7 @@ m4_fall <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH,2) + EST_YEAR + AREA - 1,
 sanity(m4_fall)
 
 # save the data
-saveRDS(m4_fall, file = here(mods.dat, season, dat, "m4_fall.rds"))
+saveRDS(m4_fall, file = here(mods.dat, season, "m4_fall.rds"))
 
 ### Spatial Only Models ####
 #### M5 ####
@@ -117,7 +117,7 @@ m5_fall <- sdmTMB(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1,
 sanity(m5_fall) 
 
 # save the data
-saveRDS(m5_fall, file = here(mods.dat, season, dat, "m5_fall.rds"))
+saveRDS(m5_fall, file = here(mods.dat, season, "m5_fall.rds"))
 
 #### M6 ####
 m6_fall <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR - 1,
@@ -131,7 +131,7 @@ m6_fall <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR - 1,
 sanity(m6_fall) 
 
 # save the data
-saveRDS(m6_fall, file = here(mods.dat, season, dat, "m6_fall.rds"))
+saveRDS(m6_fall, file = here(mods.dat, season, "m6_fall.rds"))
 
 #### M7 ####
 m7_fall <- sdmTMB(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR + AREA - 1,
@@ -145,7 +145,7 @@ m7_fall <- sdmTMB(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR + AREA - 1,
 sanity(m7_fall) 
 
 # save the data
-saveRDS(m7_fall, file = here(mods.dat, season, dat, "m7_fall.rds"))
+saveRDS(m7_fall, file = here(mods.dat, season, "m7_fall.rds"))
 
 #### M8 ####
 m8_fall <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR + AREA - 1,
@@ -159,7 +159,7 @@ m8_fall <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR + AREA - 1,
 sanity(m8_fall) 
 
 # save the data
-saveRDS(m8_fall, file = here(mods.dat, season, dat, "m8_fall.rds"))
+saveRDS(m8_fall, file = here(mods.dat, season, "m8_fall.rds"))
 
 
 ### Spatiotemporal Models - IID Structure ####
@@ -179,7 +179,7 @@ sanity(m9_fall)
 
 
 ### save the data
-saveRDS(m9_fall, file = here(mods.dat, season, dat, "m9_fall.rds"))
+saveRDS(m9_fall, file = here(mods.dat, season, "m9_fall.rds"))
 
 #### M10 ####
 #logistic regression of summer flounder biomass in tows as a function of AVGDEPTH with spatial random effects and spatiotemporal random fields estimated by EST_YEAR and with a separate intercept for each. 
@@ -195,7 +195,7 @@ m10_fall <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR-1,
 sanity(m10_fall)
 
 ### save the data
-saveRDS(m10_fall, file = here(mods.dat, season, dat, "m10_fall.rds"))
+saveRDS(m10_fall, file = here(mods.dat, season, "m10_fall.rds"))
 
 
 #### M11 ####
@@ -215,7 +215,7 @@ m11_fall <- sdmTMB(EXPCATCHWT ~ s(AVGDEPTH) +
 sanity(m11_fall)
 
 ### save the data
-saveRDS(m11_fall, file = here(mods.dat, season, dat, "m11_fall.rds"))
+saveRDS(m11_fall, file = here(mods.dat, season, "m11_fall.rds"))
 
 #### M12 ####
 #  logistic regression of summer flounder biomass catch rate as a function of depth, year, and inside or outside wind area. 
@@ -235,200 +235,5 @@ sanity(m12_fall)
 
 
 ### save the data
-saveRDS(m12_fall, file = here(mods.dat, season, dat, "m12_fall.rds"))
-
-## MODEL FITS: WITH > 150 kg REMOVED ####
-sf_fall <- sf_fall |> filter(EXPCATCHWT < 150)
-fall_mesh <- make_mesh(sf_fall, xy_cols = c("X", "Y"), cutoff = 10)
-
-### No random effect models ####
-#### M1 ####
-m1.1_fall <- sdmTMB(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1,
-                  data = sf_fall1, 
-                  mesh = fall_mesh1,
-                  family = tweedie(link = "log"), 
-                  spatial = "off", 
-                  control = sdmTMBcontrol(newton_loops = 1), #extra optimization to help with convergence
-                  silent = FALSE)
-
-sanity(m1.1_fall)
-
-# save the data
-saveRDS(m1.1_fall, file = here(mods.dat, season, dat, "m1_fall.rds"))
-
-#### M2 ####
-m2.1_fall <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR - 1,
-                  data = sf_fall1, 
-                  mesh = fall_mesh1,
-                  family = tweedie(link = "log"), 
-                  spatial = "off", 
-                  control = sdmTMBcontrol(newton_loops = 1), #extra optimization to help with convergence
-                  silent = FALSE)
-
-sanity(m2.1_fall)
-
-# save the data
-saveRDS(m2.1_fall, file = here(mods.dat, season, dat, "m2_fall.rds"))
-
-#### M3 ####
-m3.1_fall <- sdmTMB(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR + AREA - 1,
-                  data = sf_fall1, 
-                  mesh = fall_mesh1,
-                  family = tweedie(link = "log"), 
-                  spatial = "off", 
-                  control = sdmTMBcontrol(newton_loops = 1), #extra optimization to help with convergence
-                  silent = FALSE)
-
-sanity(m3.1_fall)
-
-# save the data
-saveRDS(m3.1_fall, file = here(mods.dat, season, dat, "m3_fall.rds"))
-
-#### M4 ####
-m4.1_fall <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH,2) + EST_YEAR + AREA - 1,
-                  data = sf_fall1, 
-                  mesh = fall_mesh1,
-                  family = tweedie(link = "log"), 
-                  spatial = "off", 
-                  control = sdmTMBcontrol(newton_loops = 1), #extra optimization to help with convergence
-                  silent = FALSE)
-
-sanity(m4.1_fall)
-
-# save the data
-saveRDS(m4.1_fall, file = here(mods.dat, season, dat, "m4_fall.rds"))
-
-### Spatial Only Models ####
-#### M5 ####
-# logistic regression of summer flounder biomass in tows as a function of AVGDEPTH with spatial random effects and index standardization to estimate a separate intercept for each EST_YEAR
-m5.1_fall <- sdmTMB(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1,
-                  data = sf_fall1, 
-                  mesh = fall_mesh1,
-                  family = tweedie(link = "log"),  
-                  spatial = "on", # spatial covariance with depth
-                  control = sdmTMBcontrol(newton_loops = 1), 
-                  silent = FALSE)
-
-sanity(m5.1_fall) 
-
-# save the data
-saveRDS(m5.1_fall, file = here(mods.dat, season, dat, "m5_fall.rds"))
-
-#### M6 ####
-m6.1_fall <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR - 1,
-                  data = sf_fall1, 
-                  mesh = fall_mesh1,
-                  family = tweedie(link = "log"),  
-                  spatial = "on", 
-                  control = sdmTMBcontrol(newton_loops = 1), 
-                  silent = FALSE)
-
-sanity(m6.1_fall) 
-
-# save the data
-saveRDS(m6.1_fall, file = here(mods.dat, season, dat, "m6_fall.rds"))
-
-#### M7 ####
-m7.1_fall <- sdmTMB(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR + AREA - 1,
-                  data = sf_fall1, 
-                  mesh = fall_mesh1,
-                  family = tweedie(link = "log"),  
-                  spatial = "on", 
-                  control = sdmTMBcontrol(newton_loops = 1), 
-                  silent = FALSE)
-
-sanity(m7.1_fall) 
-
-# save the data
-saveRDS(m7.1_fall, file = here(mods.dat, season, dat, "m7_fall.rds"))
-
-#### M8 ####
-m8.1_fall <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR + AREA - 1,
-                  data = sf_fall1, 
-                  mesh = fall_mesh1,
-                  family = tweedie(link = "log"),  
-                  spatial = "on", 
-                  control = sdmTMBcontrol(newton_loops = 1), 
-                  silent = FALSE)
-
-sanity(m8.1_fall) 
-
-# save the data
-saveRDS(m8.1_fall, file = here(mods.dat, season, dat, "m8_fall.rds"))
-
-
-### Spatiotemporal Models - IID Structure ####
-
-#### M9 ####
-#logistic regression of summer flounder biomass in tows as a function of AVGDEPTH with spatial random effects and spatiotemporal random fields estimated by EST_YEAR and with a separate intercept for each. 
-m9.1_fall <- sdmTMB(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1, 
-                  data = sf_fall1,
-                  mesh = fall_mesh1,
-                  family = tweedie(link = "log"), 
-                  spatial = "on", 
-                  time = "EST_YEAR",
-                  spatiotemporal = "IID", 
-                  silent = FALSE)
-
-sanity(m9.1_fall)
-
-
-### save the data
-saveRDS(m9.1_fall, file = here(mods.dat, season, dat, "m9_fall.rds"))
-
-#### M10 ####
-#logistic regression of summer flounder biomass in tows as a function of AVGDEPTH with spatial random effects and spatiotemporal random fields estimated by EST_YEAR and with a separate intercept for each. 
-m10.1_fall <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR-1, 
-                   data = sf_fall1,
-                   mesh = fall_mesh1,
-                   family = tweedie(link = "log"), 
-                   spatial = "on", 
-                   time = "EST_YEAR",
-                   spatiotemporal = "IID", 
-                   silent = FALSE)
-
-sanity(m10.1_fall)
-
-### save the data
-saveRDS(m10.1_fall, file = here(mods.dat, season, dat, "m10_fall.rds"))
-
-
-#### M11 ####
-# logistic regression of summer flounder biomass catch rate as a function of depth, year, and inside or outside wind area. 
-m11.1_fall <- sdmTMB(EXPCATCHWT ~ s(AVGDEPTH) + 
-                     EST_YEAR + 
-                     AREA-1,
-                   data = sf_fall1,
-                   mesh = fall_mesh1,
-                   family = tweedie(link = "log"), 
-                   spatial = "on", 
-                   time = "EST_YEAR",
-                   spatiotemporal = "IID",
-                   control = sdmTMBcontrol(newton_loops = 1), 
-                   silent = FALSE) 
-
-sanity(m11.1_fall)
-
-### save the data
-saveRDS(m11.1_fall, file = here(mods.dat, season, dat, "m11_fall.rds"))
-
-#### M12 ####
-#  logistic regression of summer flounder biomass catch rate as a function of depth, year, and inside or outside wind area. 
-m12.1_fall <- sdmTMB(EXPCATCHWT ~ poly(AVGDEPTH, 2) + 
-                     EST_YEAR + 
-                     AREA-1,
-                   data = sf_fall1,
-                   mesh = fall_mesh1,
-                   family = tweedie(link = "log"), 
-                   spatial = "on", 
-                   time = "EST_YEAR",
-                   spatiotemporal = "IID",
-                   control = sdmTMBcontrol(newton_loops = 1), 
-                   silent = FALSE) 
-
-sanity(m12.1_fall)
-
-
-### save the data
-saveRDS(m12.1_fall, file = here(mods.dat, season, dat, "m12_fall.rds"))
+saveRDS(m12_fall, file = here(mods.dat, season, "m12_fall.rds"))
 

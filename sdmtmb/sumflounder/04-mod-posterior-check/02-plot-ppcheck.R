@@ -29,7 +29,7 @@ obs_slopes <- readRDS(here("data", "sumflounder", "sf_obs_slopes.rds"))
 fall_pred_slopes <- readRDS(here(post.check.dat, "fall_predicted_slopes.rds"))
 
 # redicted changes in fall abundance indices over time for each scenario based on the fitted model, created here("sdmtmb", "sumflounder", "04-mod-posterior-check", "01b-spring-mod-ppcheck.R") 
-spr_pred_slopes <- readRDS(here(post.check.dat, "fall_predicted_slopes.rds"))
+spr_pred_slopes <- readRDS(here(post.check.dat, "spring_predicted_slopes.rds"))
 
 # simulated changes in fall abundance indices over time for each scenario, created here("sdmtmb", "sumflounder", "04-mod-posterior-check", "01a-fall-mod-ppcheck.R") 
 fall_sim_slopes <- readRDS(file = here(post.check.dat, "fall_slopes.rds"))
