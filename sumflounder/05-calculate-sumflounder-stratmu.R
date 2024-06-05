@@ -103,7 +103,7 @@ sf_stratmu_slopes <- sf_stratmu_lms |>
   filter(term == "EST_YEAR")
 
 ## PLOT ####
-sf_stratmu |> 
+sf_stratmu_rows |> 
   plot.stratmu(EST_YEAR, color = effort, shape = effort) + 
   facet_wrap(~str_to_title(SEASON)) #+ 
   
@@ -126,9 +126,9 @@ sf_stratmu |>
 ggsave("sf_stratmeans.png", last_plot(), device = "png", here("outputs", "sumflounder"), width = 9, height = 5)
 
 # save data 
-saveRDS(mudiff_dat, here("data", "sumflounder", "sf_mudiffdat.rds"))
-saveRDS(sf_stratmu_incl, here("data", "sumflounder", "sf_stratmu_included.rds"))
-saveRDS(sf_stratmu_precl, here("data", "sumflounder", "sf_stratmu_precluded.rds"))
-saveRDS(sf_stratmu_rows, here("data", "sumflounder", "sf_stratmu_rows.rds"))
-saveRDS(sf_stratmu_cols, here("data", "sumflounder", "sf_stratmu_cols.rds"))
-saveRDS(sf_stratmu_lms, here("data", "sumflounder", "sf_obs_slopes.rds"))
+saveRDS(mudiff_dat, here("data", "sumflounder", "mudiffdat.rds"))
+saveRDS(sf_stratmu_incl, here("data", "sumflounder", "stratmu_included.rds"))
+saveRDS(sf_stratmu_precl, here("data", "sumflounder", "stratmu_precluded.rds"))
+saveRDS(sf_stratmu_rows, here("data", "sumflounder", "stratmu_rows.rds"))
+saveRDS(sf_stratmu_cols, here("data", "sumflounder", "stratmu_cols.rds"))
+saveRDS(sf_stratmu_lms, here("data", "sumflounder", "obs_slopes.rds"))

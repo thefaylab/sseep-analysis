@@ -37,7 +37,7 @@ spring_strata <- unique(spring_footprint$STRATUM)
 ## FILTER DATA ####
 # fall data 
 sf_fall <- sumflounder_complete |> 
-  filter(SEASON == "FALL", STRATUM %in% fall_strata, YEAR != 2017)
+  filter(SEASON == "FALL", STRATUM %in% fall_strata, YEAR != 2017, !AVGDEPTH > 150)
 
 #spring data
 sf_spring <- sumflounder_complete |> 

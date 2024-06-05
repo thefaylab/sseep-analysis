@@ -123,6 +123,13 @@ sumflounder_complete |>
 ```
 By removing the years, this does not effect the quantile distribution of biomass 
 
+```{r}
+sumflounder_filtered |> filter(SEASON == "FALL") |> ggplot() + aes(x = AVGDEPTH, y = EXPCATCHWT) + geom_point() + geom_smooth() + facet_wrap(~SEASON)
+
+sumflounder_filtered |> filter(SEASON == "SPRING") |> ggplot() + aes(x = AVGDEPTH, y = EXPCATCHWT) + geom_point() + geom_smooth() + facet_wrap(~SEASON)
+```
+
+
 ## Cumulative Distribution 
 ### Spatial filter result
 95% distribution result from 05a-spatial-filter.R

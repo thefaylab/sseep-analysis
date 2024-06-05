@@ -25,7 +25,7 @@ library(patchwork)
 
 ### LOAD DATA ####
 # dataset created from `03-strat-mu-diff.R` here("retro-analysis"). 
-mudiff_all <- readRDS(here("data", "rds", "retro-analysis", "species_mean-sq-diff.rds"))
+mudiff_all <- readRDS(here("data", "rds", "retro-analysis", "species_stratmu-diff.rds"))
 
 # dataset created from `05-calculate-sumflounder-stratmu.R` here("sumflounder"). 
 mudiff_dat <- readRDS(here("data", "sumflounder", "sf_mudiffdat.rds"))
@@ -111,17 +111,17 @@ mudiff_dat <- readRDS(here("data", "sumflounder", "sf_mudiffdat.rds"))
 # mudiff_dat <- mudiff_dat |>
 #   mutate(across(mudiff, round, 3))
 
-# mudiff_plot <- ggplot() +  
-#   geom_histogram(data = mudiff_all, aes(mudiff, after_stat(count)), color = "white", fill = "#5dc5e9") +
-#   facet_wrap(~SEASON) +
-#   labs(x = "Relative percent differences between preclusion and status quo annual stratified mean abundance indices", y = "Number of species") +
-#   theme_bw()
+mudiff_plot <- ggplot() +
+  geom_histogram(data = mudiff_all, aes(MARE_perc, after_stat(count)), color = "white", fill = "#5dc5e9") +
+  facet_wrap(~SEASON) +
+  labs(x = "Relative percent differences between preclusion and status quo annual stratified mean abundance indices", y = "Number of species") +
+  theme_bw()
 
 
 # presentation plots
 sf_mudiff_fall_plot <- ggplot() +  
-  geom_histogram(data = mudiff_all |> filter(SEASON == "FALL"), aes(mudiff, after_stat(count)), color = "white", fill = "#5dc5e9") +
-  geom_vline(xintercept = as.numeric(mudiff_dat[1,3]), linetype = 6, color = "#0a4c8a", linewidth = 1) + 
+  geom_histogram(data = mudiff_all |> filter(SEASON == "FALL"), aes(MARE_perc, after_stat(count)), color = "white", fill = "#5dc5e9") +
+  geom_vline(xintercept = as.numeric(mudiff_dat[1,4]), linetype = 6, color = "#0a4c8a", linewidth = 1) + 
   facet_wrap(~str_to_title(SEASON)) +
   labs(x = "Relative percent differences", y = "Number of species") +
   ylim(0, 125)+
@@ -129,23 +129,23 @@ sf_mudiff_fall_plot <- ggplot() +
   theme(axis.title = element_text(size = 16), axis.title.x = element_text(margin = margin(5, 5, 5, 5)), axis.title.y = element_text(margin = margin(5, 5, 5, 5)), axis.text = element_text(size = 14), strip.text = element_text(size = 14))
 
 sf_mudiff_spr_plot <- ggplot() +  
-  geom_histogram(data = mudiff_all |> filter(SEASON == "SPRING"), aes(mudiff, after_stat(count)), color = "white", fill = "#5dc5e9") +
-  geom_vline(xintercept = as.numeric(mudiff_dat[2,3]), linetype = 6, color = "#0a4c8a", linewidth = 1) + 
+  geom_histogram(data = mudiff_all |> filter(SEASON == "SPRING"), aes(MARE_perc, after_stat(count)), color = "white", fill = "#5dc5e9") +
+  geom_vline(xintercept = as.numeric(mudiff_dat[2,4]), linetype = 6, color = "#0a4c8a", linewidth = 1) + 
   facet_wrap(~str_to_title(SEASON)) +
   labs(x = "Relative percent differences", y = "") +
   ylim(0,120) +
   theme_bw() + 
   theme(axis.title = element_text(size = 16), axis.title.x = element_text(margin = margin(5, 5, 5, 5)), axis.text.x = element_text(size = 16), axis.title.y = element_text(margin = margin(5, 5, 5, 5)), axis.text.y =  element_blank(), axis.ticks.y = element_blank(), strip.text = element_text(size = 14))
 
-sf_mudiff_present <- ((sf_mudiff_fall_plot + theme(plot.margin = unit(c(5, 2, 5, 5), "pt"))) + (sf_mudiff_spr_plot + theme(plot.margin = unit(c(5,5,5,2), "pt")))) + plot_annotation(title = "Average squared relative differences of annual stratified mean abundance indices between survey effort scenarios", theme = theme(plot.title = element_text(size = 16, hjust = 0.5)))
+sf_mudiff_present <- ((sf_mudiff_fall_plot + theme(plot.margin = unit(c(5, 2, 5, 5), "pt"))) + (sf_mudiff_spr_plot + theme(plot.margin = unit(c(5,5,5,2), "pt")))) + plot_annotation(title = "Average absolute relative differences of annual stratified mean abundance indices between survey effort scenarios", theme = theme(plot.title = element_text(size = 16, hjust = 0.5)))
 
 
 
 ### save the plot
-# ggsave(filename ="species_mean-sq-diff.png", plot = mudiff_plot, device = "png" , path = here("outputs", "plots"), width = 10, height = 8)
+ggsave(filename ="species_mean-sq-diff.png", plot = mudiff_plot, device = "png" , path = here("outputs", "plots"), width = 10, height = 6)
 
-ggsave(filename ="sf_mudiff.png", device = "png", plot = sf_mudiff_plot, path = here("outputs", "sumflounder"), width = 10, height = 5)
+# ggsave(filename ="sf_mudiff.png", device = "png", plot = sf_mudiff_plot, path = here("outputs", "sumflounder"), width = 10, height = 5)
 
-ggsave(filename ="sf_mudiff_present.png", device = "png", plot = sf_mudiff_present, path = here("outputs", "sumflounder"), width = 12, height = 5)
+ggsave(filename ="sf_mudiff_present.png", device = "png", plot = sf_mudiff_present, path = here("outputs", "sumflounder"), width = 15, height = 7)
 
 
