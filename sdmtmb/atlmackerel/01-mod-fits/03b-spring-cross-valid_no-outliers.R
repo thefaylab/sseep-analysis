@@ -1,5 +1,5 @@
 ### created: 11/06/2023
-### last updated: 04/09/2024
+### last updated: 05/28/2024
 
 # 03b - CROSS VALIDATE SPRING MODELS: NO BIOMASS OUTLIERS ####
 
@@ -32,17 +32,12 @@ atlmack <-  readRDS(here(atlmack.dat, "atlmackerel_spring_no-outliers.rds")) |>
 spring_mesh <- readRDS(here(atlmack.dat, "spring_mesh_no-outliers.rds"))
 
 
-clust <- sample(1:2, size = nrow(atlmack), replace = T, prob = c(0.1, 0.9))
-saveRDS(clust, here(atlmack.dat, "cross-valid", "atlmack-no.out-clust.rds"))
-
-
-## TWEEDIE MODELS ####
+## TWEEDIE CROSS VALIDATIONS ####
 # library(future)
 # plan(multisession)
 tic()
-### No Random Effects Models ####
+### No Random Effects ####
 #### M1 ####
-#
 m1.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1,
                    data = atlmack, 
                    mesh = spring_mesh,
@@ -50,15 +45,13 @@ m1.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1,
                    spatial = "off", 
                    control = sdmTMBcontrol(newton_loops = 1), #extra optimization to help with convergence
                    silent = FALSE, 
-                   fold_ids = clust,
-                   k_folds = length(unique(clust)))
+                   k_folds = 10)
 
 # save the data
 saveRDS(m1.cv, file = here(tweedie.cvs, "m1-cv.rds"))
 
 
 #### M2 ####
-#
 m2.cv <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR - 1,
                    data = atlmack, 
                    mesh = spring_mesh,
@@ -66,8 +59,7 @@ m2.cv <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR - 1,
                    spatial = "off", 
                    control = sdmTMBcontrol(newton_loops = 1), #extra optimization to help with convergence
                    silent = FALSE, 
-                   fold_ids = clust,
-                   k_folds = length(unique(clust))) 
+                   k_folds = 10) 
 
 # save the data
 saveRDS(m2.cv, file = here(tweedie.cvs, "m2-cv.rds"))
@@ -75,16 +67,14 @@ saveRDS(m2.cv, file = here(tweedie.cvs, "m2-cv.rds"))
 
 
 #### M3 ####
-#
 m3.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR + AREA - 1,
-                      data = atlmack, 
-                      mesh = spring_mesh,
-                      family = tweedie(link = "log"), 
-                      spatial = "off", 
-                      control = sdmTMBcontrol(newton_loops = 1), #extra optimization to help with convergence
-                      silent = FALSE, 
-                      fold_ids = clust,
-                      k_folds = length(unique(clust)))
+                   data = atlmack, 
+                   mesh = spring_mesh,
+                   family = tweedie(link = "log"), 
+                   spatial = "off", 
+                   control = sdmTMBcontrol(newton_loops = 1), #extra optimization to help with convergence
+                   silent = FALSE, 
+                   k_folds = 10)
 
 
 # save the data
@@ -92,33 +82,29 @@ saveRDS(m3.cv, file = here(tweedie.cvs, "m3-cv.rds"))
 
 
 #### M4 ####
-#
 m4.cv <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH,2) + EST_YEAR + AREA - 1,
-                      data = atlmack, 
-                      mesh = spring_mesh,
-                      family = tweedie(link = "log"), 
-                      spatial = "off", 
-                      control = sdmTMBcontrol(newton_loops = 1), #extra optimization to help with convergence
-                      silent = FALSE, 
-                      fold_ids = clust,
-                      k_folds = length(unique(clust))) 
+                   data = atlmack, 
+                   mesh = spring_mesh,
+                   family = tweedie(link = "log"), 
+                   spatial = "off", 
+                   control = sdmTMBcontrol(newton_loops = 1), #extra optimization to help with convergence
+                   silent = FALSE, 
+                   k_folds = 10) 
 
 # save the data
 saveRDS(m4.cv, file = here(tweedie.cvs, "m4-cv.rds"))
 
 
-### Spatial Only Models ####
+### Spatial Random Effects Only ####
 #### M5 ####
-#
 m5.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1,
-                      data = atlmack, 
-                      mesh = spring_mesh,
-                      family = tweedie(link = "log"),  
-                      spatial = "on", # spatial covariance with depth
-                      control = sdmTMBcontrol(newton_loops = 1), 
-                      silent = FALSE, 
-                      fold_ids = clust,
-                      k_folds = length(unique(clust))) 
+                   data = atlmack, 
+                   mesh = spring_mesh,
+                   family = tweedie(link = "log"),  
+                   spatial = "on", # spatial covariance with depth
+                   control = sdmTMBcontrol(newton_loops = 1), 
+                   silent = FALSE, 
+                   k_folds = 10) 
 
 # save the data
 saveRDS(m5.cv, file = here(tweedie.cvs, "m5-cv.rds"))
@@ -126,120 +112,104 @@ saveRDS(m5.cv, file = here(tweedie.cvs, "m5-cv.rds"))
 
 
 #### M6 ####
-#
 m6.cv <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR - 1,
-                      data = atlmack, 
-                      mesh = spring_mesh,
-                      family = tweedie(link = "log"),  
-                      spatial = "on", 
-                      control = sdmTMBcontrol(newton_loops = 1), 
-                      silent = FALSE, 
-                      fold_ids = clust,
-                      k_folds = length(unique(clust))) 
+                   data = atlmack, 
+                   mesh = spring_mesh,
+                   family = tweedie(link = "log"),  
+                   spatial = "on", 
+                   control = sdmTMBcontrol(newton_loops = 1), 
+                   silent = FALSE, 
+                   k_folds = 10) 
 
 # save the data
 saveRDS(m6.cv, file = here(tweedie.cvs, "m6-cv.rds"))
 
 
 #### M7 ####
-#
 m7.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR + AREA - 1,
-                      data = atlmack, 
-                      mesh = spring_mesh,
-                      family = tweedie(link = "log"),  
-                      spatial = "on", 
-                      control = sdmTMBcontrol(newton_loops = 1), 
-                      silent = FALSE,
-                      fold_ids = clust,
-                      k_folds = length(unique(clust))) 
+                   data = atlmack, 
+                   mesh = spring_mesh,
+                   family = tweedie(link = "log"),  
+                   spatial = "on", 
+                   control = sdmTMBcontrol(newton_loops = 1), 
+                   silent = FALSE,
+                   k_folds = 10) 
 
 # save the data
 saveRDS(m7.cv, file = here(tweedie.cvs, "m7-cv.rds"))
 
 #### M8 ####
-# 
 m8.cv <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR + AREA - 1,
-                      data = atlmack, 
-                      mesh = spring_mesh,
-                      family = tweedie(link = "log"),  
-                      spatial = "on", 
-                      control = sdmTMBcontrol(newton_loops = 1), 
-                      silent = FALSE, 
-                      fold_ids = clust,
-                      k_folds = length(unique(clust))) 
+                   data = atlmack, 
+                   mesh = spring_mesh,
+                   family = tweedie(link = "log"),  
+                   spatial = "on", 
+                   control = sdmTMBcontrol(newton_loops = 1), 
+                   silent = FALSE, 
+                   k_folds = 10) 
 
 ### save the data 
 saveRDS(m8.cv, file = here(tweedie.cvs, "m8-cv.rds"))
 
 
-### Spatiotemporal Models - IID Structure ####
+### Spatiotemporal Random Effects - IID Structure ####
 #### M9 ####
-# 
 m9.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1, 
-                      data = atlmack,
-                      mesh = spring_mesh,
-                      family = tweedie(link = "log"), 
-                      spatial = "on", 
-                      time = "EST_YEAR",
-                      spatiotemporal = "IID", 
-                      silent = FALSE, 
-                      fold_ids = clust,
-                      k_folds = length(unique(clust))) 
+                   data = atlmack,
+                   mesh = spring_mesh,
+                   family = tweedie(link = "log"), 
+                   spatial = "on", 
+                   time = "EST_YEAR",
+                   spatiotemporal = "IID", 
+                   silent = FALSE, 
+                   k_folds = 10) 
 
 
 ### save the data 
 saveRDS(m9.cv, file = here(tweedie.cvs, "m9-cv.rds"))
 
 #### M10 ####
-# 
 m10.cv<- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR-1, 
-                      data = atlmack,
-                      mesh = spring_mesh,
-                      family = tweedie(link = "log"), 
-                      spatial = "on", 
-                      time = "EST_YEAR",
-                      spatiotemporal = "IID", 
-                      silent = FALSE, 
-                      fold_ids = clust,
-                      k_folds = length(unique(clust)))
+                   data = atlmack,
+                   mesh = spring_mesh,
+                   family = tweedie(link = "log"), 
+                   spatial = "on", 
+                   time = "EST_YEAR",
+                   spatiotemporal = "IID", 
+                   silent = FALSE, 
+                   k_folds = 10)
 
 
 ### save the data 
 saveRDS(m10.cv, file = here(tweedie.cvs, "m10-cv.rds"))
 
 #### M11 ####
-# 
 m11.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR + AREA-1,
-                       data = atlmack,
-                       mesh = spring_mesh,
-                       family = tweedie(link = "log"), 
-                       spatial = "on", 
-                       time = "EST_YEAR",
-                       spatiotemporal = "IID",
-                       control = sdmTMBcontrol(newton_loops = 1), 
-                       silent = FALSE, 
-                       fold_ids = clust,
-                       k_folds = length(unique(clust))) 
+                    data = atlmack,
+                    mesh = spring_mesh,
+                    family = tweedie(link = "log"), 
+                    spatial = "on", 
+                    time = "EST_YEAR",
+                    spatiotemporal = "IID",
+                    control = sdmTMBcontrol(newton_loops = 1), 
+                    silent = FALSE, 
+                    k_folds = 10) 
 
 
 ### save the data 
 saveRDS(m11.cv, file = here(tweedie.cvs, "m11-cv.rds"))
 
 #### M12 ####
-# 
-m12.cv <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 2) + 
-                         EST_YEAR + 
-                         AREA-1,
-                       data = atlmack,
-                       mesh = spring_mesh,
-                       family = tweedie(link = "log"), 
-                       spatial = "on", 
-                       time = "EST_YEAR",
-                       spatiotemporal = "IID",
-                       control = sdmTMBcontrol(newton_loops = 1), 
-                       silent = FALSE,
-                       fold_ids = clust,
-                       k_folds = length(unique(clust))) 
+m12.cv <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR + AREA-1,
+                    data = atlmack,
+                    mesh = spring_mesh,
+                    family = tweedie(link = "log"), 
+                    spatial = "on", 
+                    time = "EST_YEAR",
+                    spatiotemporal = "IID",
+                    control = sdmTMBcontrol(newton_loops = 1), 
+                    silent = FALSE,
+                    k_folds = 10) 
 
 
 ### save the data 
@@ -255,8 +225,7 @@ m13.cv <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 3) + EST_YEAR - 1,
                     spatiotemporal = "IID",
                     control = sdmTMBcontrol(newton_loops = 1), 
                     silent = FALSE,
-                    fold_ids = clust,
-                    k_folds = length(unique(clust))) 
+                    k_folds = 10) 
 
 ### save the data
 saveRDS(m13.cv, file = here(tweedie.cvs, "m13-cv.rds"))
@@ -271,17 +240,16 @@ m14.cv <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 4) + EST_YEAR - 1,
                     spatiotemporal = "IID",
                     control = sdmTMBcontrol(newton_loops = 1), 
                     silent = FALSE,
-                    fold_ids = clust,
-                    k_folds = length(unique(clust))) 
+                    k_folds = 10) 
 
 
 ### save the data
 saveRDS(m14.cv, file = here(tweedie.cvs, "m14-cv.rds"))
+toc()#2.85 hours here
 
-
-## DELTA/POISSON/GAMMA MODEL FITS ####
-
-### No random effect models ####
+## DELTA/POISSON/GAMMA CROSS VALIDATIONS ####
+tic()
+### No random effects ####
 #### M1 ####
 m1.cv.dpg <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1,
                        data = atlmack,
@@ -290,8 +258,7 @@ m1.cv.dpg <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1,
                        spatial = "off",
                        control = sdmTMBcontrol(newton_loops = 1), #extra optimization to help with convergence
                        silent = FALSE,
-                       fold_ids = clust,
-                       k_folds = length(unique(clust)))
+                       k_folds = 10)
 
 
 # save the data
@@ -305,8 +272,7 @@ m2.cv.dpg <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR - 1,
                        spatial = "off",
                        control = sdmTMBcontrol(newton_loops = 1), #extra optimization to help with convergence
                        silent = FALSE,
-                       fold_ids = clust,
-                       k_folds = length(unique(clust)))
+                       k_folds = 10)
 
 
 # save the data
@@ -320,8 +286,7 @@ m3.cv.dpg <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR + AREA - 1,
                        spatial = "off",
                        control = sdmTMBcontrol(newton_loops = 1), #extra optimization to help with convergence
                        silent = FALSE,
-                       fold_ids = clust,
-                       k_folds = length(unique(clust)))
+                       k_folds = 10)
 
 
 # save the data
@@ -335,16 +300,15 @@ m4.cv.dpg <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH,2) + EST_YEAR + AREA - 1,
                        spatial = "off",
                        control = sdmTMBcontrol(newton_loops = 1), #extra optimization to help with convergence
                        silent = FALSE,
-                       fold_ids = clust,
-                       k_folds = length(unique(clust)))
+                       k_folds = 10)
 
 
 # save the data
 saveRDS(m4.cv.dpg, file = here(dpg.cvs, "m4-cv.rds"))
 
-### Spatial Only Models ####
+### Spatial Only Random Effects ####
 #### M5 ####
-# logistic regression of summer flounder biomass in tows as a function of AVGDEPTH with spatial random effects and index standardization to estimate a separate intercept for each EST_YEAR
+# logistic regression of biomass in tows as a function of AVGDEPTH with spatial random effects and index standardization to estimate a separate intercept for each EST_YEAR
 m5.cv.dpg <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1,
                        data = atlmack,
                        mesh = spring_mesh,
@@ -352,8 +316,7 @@ m5.cv.dpg <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1,
                        spatial = "on",
                        control = sdmTMBcontrol(newton_loops = 1), #extra optimization to help with convergence
                        silent = FALSE,
-                       fold_ids = clust,
-                       k_folds = length(unique(clust)))
+                       k_folds = 10)
 
 
 
@@ -368,8 +331,7 @@ m6.cv.dpg <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR - 1,
                        spatial = "on",
                        control = sdmTMBcontrol(newton_loops = 1), #extra optimization to help with convergence
                        silent = FALSE,
-                       fold_ids = clust,
-                       k_folds = length(unique(clust)))
+                       k_folds = 10)
 
 
 
@@ -384,8 +346,7 @@ m7.cv.dpg <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR + AREA - 1,
                        spatial = "on",
                        control = sdmTMBcontrol(newton_loops = 1),
                        silent = FALSE,
-                       fold_ids = clust,
-                       k_folds = length(unique(clust)))
+                       k_folds = 10)
 
 
 
@@ -400,18 +361,17 @@ m8.cv.dpg <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR + AREA - 1,
                        spatial = "on",
                        control = sdmTMBcontrol(newton_loops = 1),
                        silent = FALSE,
-                       fold_ids = clust,
-                       k_folds = length(unique(clust)))
+                       k_folds = 10)
 
 
 # save the data
 saveRDS(m8.cv.dpg, file = here(dpg.cvs, "m8-cv.rds"))
 
 
-### Spatiotemporal Models - IID Structure ####
+### Spatiotemporal Random Effects - IID Structure ####
 
 #### M9 ####
-#logistic regression of summer flounder biomass in tows as a function of AVGDEPTH with spatial random effects and spatiotemporal random fields estimated by EST_YEAR and with a separate intercept for each. 
+#logistic regression of biomass in tows as a function of AVGDEPTH with spatial random effects and spatiotemporal random fields estimated by EST_YEAR and with a separate intercept for each. 
 m9.cv.dpg <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1, 
                        data = atlmack,
                        mesh = spring_mesh,
@@ -421,15 +381,14 @@ m9.cv.dpg <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1,
                        spatiotemporal = "IID",
                        control = sdmTMBcontrol(newton_loops = 1),
                        silent = FALSE,
-                       fold_ids = clust,
-                       k_folds = length(unique(clust)))
+                       k_folds = 10)
 
 
 ### save the data
 saveRDS(m9.cv.dpg, file = here(dpg.cvs, "m9-cv.rds"))
 
 #### M10 ####
-#logistic regression of summer flounder biomass in tows as a function of AVGDEPTH with spatial random effects and spatiotemporal random fields estimated by EST_YEAR and with a separate intercept for each. 
+#logistic regression of biomass in tows as a function of AVGDEPTH with spatial random effects and spatiotemporal random fields estimated by EST_YEAR and with a separate intercept for each. 
 m10.cv.dpg <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR-1, 
                         data = atlmack,
                         mesh = spring_mesh,
@@ -439,15 +398,14 @@ m10.cv.dpg <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR-1,
                         spatiotemporal = "IID",
                         control = sdmTMBcontrol(newton_loops = 1),
                         silent = FALSE,
-                        fold_ids = clust,
-                        k_folds = length(unique(clust)))
+                        k_folds = 10)
 
 ### save the data
 saveRDS(m10.cv.dpg, file = here(dpg.cvs, "m10-cv.rds"))
 
 
 #### M11 ####
-# logistic regression of summer flounder biomass catch rate as a function of depth, year, and inside or outside wind area. 
+# logistic regression of biomass catch rate as a function of depth, year, and inside or outside wind area. 
 m11.cv.dpg <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR + AREA-1, 
                         data = atlmack,
                         mesh = spring_mesh,
@@ -457,15 +415,14 @@ m11.cv.dpg <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR + AREA-1,
                         spatiotemporal = "IID",
                         control = sdmTMBcontrol(newton_loops = 1),
                         silent = FALSE,
-                        fold_ids = clust,
-                        k_folds = length(unique(clust)))
+                        k_folds = 10)
 
 
 ### save the data
 saveRDS(m11.cv.dpg, file = here(dpg.cvs, "m11-cv.rds"))
 
 #### M12 ####
-#  logistic regression of summer flounder biomass catch rate as a function of depth, year, and inside or outside wind area. 
+#  logistic regression of biomass catch rate as a function of depth, year, and inside or outside wind area. 
 m12.cv.dpg <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR + AREA-1, 
                         data = atlmack,
                         mesh = spring_mesh,
@@ -475,8 +432,7 @@ m12.cv.dpg <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR + AREA-1,
                         spatiotemporal = "IID",
                         control = sdmTMBcontrol(nlminb_loops = 2),
                         silent = FALSE,
-                        fold_ids = clust,
-                        k_folds = length(unique(clust)))
+                        k_folds = 10)
 
 # attempting to improve convergence with optimHessError in solve.default(h, g) : 
 #   Lapack routine dgesv: system is exactly singular: U[32,32] = 0
@@ -485,9 +441,7 @@ m12.cv.dpg <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 2) + EST_YEAR + AREA-1,
 saveRDS(m12.cv.dpg, file = here(dpg.cvs, "m12-cv.rds"))
 
 #### M13 ####
-# 
-m13.cv.dpg <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 3) +
-                        EST_YEAR -1,
+m13.cv.dpg <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 3) + EST_YEAR -1,
                         data = atlmack,
                         mesh = spring_mesh,
                         family = delta_gamma(link1 = "log", link2 = "log", type = "poisson-link"),
@@ -496,8 +450,7 @@ m13.cv.dpg <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 3) +
                         spatiotemporal = "IID",
                         control = sdmTMBcontrol(newton_loops = 1),
                         silent = FALSE,
-                        fold_ids = clust,
-                        k_folds = length(unique(clust)))
+                        k_folds = 10)
 
 
 
@@ -506,9 +459,7 @@ m13.cv.dpg <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 3) +
 saveRDS(m13.cv.dpg, file = here(dpg.cvs, "m13-cv.rds"))
 
 #### M14 ####
-# 
-m14.cv.dpg <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 4) +
-                        EST_YEAR -1,
+m14.cv.dpg <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 4) + EST_YEAR -1,
                         data = atlmack,
                         mesh = spring_mesh,
                         family = delta_gamma(link1 = "log", link2 = "log", type = "poisson-link"),
@@ -517,8 +468,7 @@ m14.cv.dpg <- sdmTMB_cv(EXPCATCHWT ~ poly(AVGDEPTH, 4) +
                         spatiotemporal = "IID",
                         control = sdmTMBcontrol(newton_loops = 1),
                         silent = FALSE,
-                        fold_ids = clust,
-                        k_folds = length(unique(clust)))
+                        k_folds = 10)
 
 ### save the data
 saveRDS(m14.cv.dpg, file = here(dpg.cvs, "m14-cv.rds"))

@@ -6,12 +6,14 @@ output: word_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, message = FALSE)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, fig.width = 10, fig.height = 10)
 library(tidyverse)
 library(here)
 library(sf)
 library(patchwork)
 library(nationalparkcolors)
+# library(kableExtra)
+library(gt)
 source(here("R", "StratMeanFXs_v2.R")) #removed SEASON group for the purposes of the resampling
 
 pal <- park_palette("Badlands")
@@ -58,16 +60,19 @@ coastline <- sf::st_read(dsn = here("gis", "eastern_coast_UTM.shp"))
 
 ### Tows
 ```{r}
+# number of tows per year 
 atlmack_complete |> 
   filter(!is.na(AVGDEPTH), SEASON == "SPRING") |> 
   group_by(YEAR) |> 
   summarise(length(unique(TOWID)))
 
+# remove 2020 
 full_years <- c(2009:2019, 2021)
 ```
 
-### Biomass catch rates 
-```{r}
+### Biomass catch rate summaries
+```{r, echo=TRUE}
+# find quick summary of biomass catch rates in each year 
 atlmack_summary <- atlmack_complete |> 
   filter(!is.na(AVGDEPTH), SEASON == "SPRING", YEAR %in% full_years) |> 
   group_by(EST_YEAR) |>
@@ -81,6 +86,7 @@ atlmack_summary <- atlmack_complete |>
             tow_ct = length(unique(TOWID)))
 atlmack_summary
 
+# find quantile of biomass 
 atlmack_complete |> 
   filter(SEASON == "SPRING", YEAR %in% full_years) |>
   summarise(quantile(EXPCATCHWT, 0.95), 
@@ -89,22 +95,38 @@ atlmack_complete |>
 
 ```
 
-### Catch rates by Depth
-```{r depth histogram}
+### Catch rates by depth plots
+#### Presence 
+```{r depth histogram, echo=TRUE}
+# save spring tows only 
 am_spring <- atlmack_complete |> filter(SEASON == "SPRING", !is.na(AVGDEPTH))
 
+# relationship of depth with biomass (presence only)
 ggplot(am_spring |> filter(EXPCATCHWT > 0)) + 
   aes(x = AVGDEPTH, y = EXPCATCHWT)+
   geom_point() + 
   geom_smooth() +
-  facet_wrap(~EST_YEAR, scales = "free_y")
+  facet_wrap(~EST_YEAR, scales = "free_y") + 
+  labs(x = "Depth (m)", y = "Biomass (kg)", subtitle = "Relationship between depth and biomass observed (presence only)")
 
+# relationship of depth with biomass (presence only) - removing depth outliers
+ggplot(am_spring |> filter(EXPCATCHWT > 0, AVGDEPTH <= 200)) + 
+  aes(x = AVGDEPTH, y = EXPCATCHWT)+
+  geom_point() + 
+  geom_smooth() +
+  facet_wrap(~EST_YEAR, scales = "free_y") + 
+  labs(x = "Depth (m)", y = "Biomass (kg)", subtitle = "Relationship between depth and biomass observed (presence only) with observations\nat depths greater than 200m removed")
+
+# number of observations at each depth
 ggplot(am_spring) +
-  geom_histogram(aes(x = AVGDEPTH), color = "white") 
+  geom_histogram(aes(x = AVGDEPTH), color = "white") + 
+  labs(x = "Depth (m)", y = "Fequency", subtitle = "Number of observations at each depth")
+
 
 ggplot(am_spring, aes(x = AVGDEPTH)) + 
   geom_histogram(aes(y = after_stat(count / max(count)*100)), color = "white") + 
-  geom_hline(yintercept = 5, color = "red")
+  geom_hline(yintercept = 5, color = "red") + # catch at 5% 
+  labs(x = "Depth (m)", y = "Proportion of catch", subtitle = "Proportion of tows at each depth")
 
 # Making a proportional density plot
 ggplot(am_spring, aes(AVGDEPTH)) + 
@@ -116,149 +138,52 @@ ggplot(am_spring, aes(AVGDEPTH)) +
   geom_hline(yintercept = 5, color = "red")
 
 
-
 ```
 
-```{r cumulative biomass by depth}
-summary(am_spring$AVGDEPTH)
+#### Presence/Absence
+```{r, echo=TRUE}
+# frequency of absence 
+ggplot(am_spring |> filter(EXPCATCHWT == 0)) + 
+  aes(x = AVGDEPTH)+
+  geom_histogram() +
+  labs(x = "Depth (m)", y = "Frequency", subtitle = "Number of tows by depth that did not catch Atlantic mackerel")
 
-am_spring$depth_bin <- case_when(am_spring$AVGDEPTH <= 24 ~ 24, 
-                                 am_spring$AVGDEPTH > 24 & am_spring$AVGDEPTH <= 36 ~ 36,
-                                 am_spring$AVGDEPTH > 36 & am_spring$AVGDEPTH <= 48 ~ 48,
-                                 am_spring$AVGDEPTH > 48 & am_spring$AVGDEPTH <= 60 ~ 60,
-                                 am_spring$AVGDEPTH > 60 & am_spring$AVGDEPTH <= 72 ~ 72,
-                                 am_spring$AVGDEPTH > 72 & am_spring$AVGDEPTH <= 84 ~ 84,
-                                 am_spring$AVGDEPTH > 84 & am_spring$AVGDEPTH <= 96 ~ 96,
-                                 am_spring$AVGDEPTH > 96 & am_spring$AVGDEPTH <= 108 ~ 108,
-                                 am_spring$AVGDEPTH > 108 & am_spring$AVGDEPTH <= 120 ~ 120,
-                                 am_spring$AVGDEPTH > 120 & am_spring$AVGDEPTH <= 132 ~ 132,
-                                 am_spring$AVGDEPTH > 132 & am_spring$AVGDEPTH <= 144 ~ 144,
-                                 am_spring$AVGDEPTH > 144 & am_spring$AVGDEPTH <= 156 ~ 156,
-                                 am_spring$AVGDEPTH > 156 & am_spring$AVGDEPTH <= 168 ~ 168,
-                                 am_spring$AVGDEPTH > 168 & am_spring$AVGDEPTH <= 180 ~ 180,
-                                 am_spring$AVGDEPTH > 180 & am_spring$AVGDEPTH <= 192 ~ 192,
-                                 am_spring$AVGDEPTH > 192 & am_spring$AVGDEPTH <= 204 ~ 204,
-                                 am_spring$AVGDEPTH > 204 & am_spring$AVGDEPTH <= 216 ~ 216,
-                                 am_spring$AVGDEPTH > 216 & am_spring$AVGDEPTH <= 228 ~ 228,
-                                 am_spring$AVGDEPTH > 228 & am_spring$AVGDEPTH <= 240 ~ 240,
-                                 am_spring$AVGDEPTH > 240 & am_spring$AVGDEPTH <= 252 ~ 252,
-                                 am_spring$AVGDEPTH > 252 & am_spring$AVGDEPTH <= 264 ~ 264,
-                                 am_spring$AVGDEPTH > 264 & am_spring$AVGDEPTH <= 276 ~ 276,
-                                 am_spring$AVGDEPTH > 276 & am_spring$AVGDEPTH <= 288 ~ 288,
-                                 am_spring$AVGDEPTH > 288 & am_spring$AVGDEPTH <= 300 ~ 300,
-                                 am_spring$AVGDEPTH > 300 & am_spring$AVGDEPTH <= 312 ~ 312,
-                                 am_spring$AVGDEPTH > 312 & am_spring$AVGDEPTH <= 324 ~ 324,
-                                 am_spring$AVGDEPTH > 324 & am_spring$AVGDEPTH <= 336 ~ 336,
-                                 am_spring$AVGDEPTH > 336 & am_spring$AVGDEPTH <= 348 ~ 348,
-                                 am_spring$AVGDEPTH > 348 & am_spring$AVGDEPTH <= 360 ~ 360,
-                                 am_spring$AVGDEPTH > 360 & am_spring$AVGDEPTH <= 372 ~ 372
-                                 )
+# relationship of depth with biomass (presence/absence only)
+ggplot(am_spring) + 
+  aes(x = AVGDEPTH, y = EXPCATCHWT)+
+  geom_point() + 
+  geom_smooth() +
+  facet_wrap(~EST_YEAR, scales = "free_y") + 
+  labs(x = "Depth (m)", y = "Biomass (kg)", subtitle = "Relationship between depth and biomass observed (presence/absence)")
 
-depth_csum <- am_spring |> 
-     group_by(depth_bin) |> 
-     summarise(total_bio = sum(EXPCATCHWT), .groups = "drop") |> 
-     arrange(desc(total_bio)) |>
-     mutate(csum_bio = cumsum(total_bio), 
-            csum_prop = csum_bio/max(csum_bio))
-
-lim95 <- max(depth_csum$csum_bio)*0.95
-lim99 <- max(depth_csum$csum_bio)*0.99
-
-ggplot(depth_csum) + 
-  geom_point(aes(x = fct_reorder(as.character(depth_bin), csum_bio), y = csum_bio)) + 
-  ylim(0, NA) + 
-  geom_hline(yintercept = lim95, color = "red") +
-  geom_hline(yintercept = lim99, color = "blue") +
-  labs(x = "Depth (m)", y = "Cumulative Biomass (kg)", title = "AtlMack Cumulative Distribution of Biomass") +
-  theme_bw() + 
-  theme(axis.text.x = element_text(size = 8, hjust = 0.75, angle = 45, margin = margin(t = 2, r = 10, b = 10, l = 5, unit = "pt")), 
-        plot.margin = margin(t = 5, r = 15, b = 5, l = 5))
-
-ggsave("atlmack_csum-bio-by-depth.png", last_plot(), device = "png", here("outputs", "atlmackerel"), width = 10, height = 6)
-
-kable(depth_csum, align = "lcccc", caption = "Spring Atlantic mackerel cumulative distribution of biomass by depth bin. Bin value is the upper limit of the range of depths included.", format.args = list(big.mark = ","), booktabs = TRUE) |>
-  kable_styling(full_width = T, fixed_thead = T, font_size = 14) 
+# relationship of depth with biomass (presence/absence only) - removing depth outliers
+ggplot(am_spring |> filter(AVGDEPTH <= 200)) +
+  aes(x = AVGDEPTH, y = EXPCATCHWT)+
+  geom_point() +
+  geom_smooth() +
+  facet_wrap(~EST_YEAR, scales = "free_y") +
+  labs(x = "Depth (m)", y = "Biomass (kg)", subtitle = "Relationship between depth and biomass observed (presence/absence) with observations\nat depths greater than 200m removed")
 
 ```
 
 
-```{r}
-am_spring1 <- am_spring |> filter(EST_YEAR != 2020) 
-summary(am_spring1$AVGDEPTH)
-
-am_spring1$depth_bin <- case_when(am_spring1$AVGDEPTH <= 24 ~ 24, 
-                                 am_spring1$AVGDEPTH  > 24 & am_spring1$AVGDEPTH  <= 36 ~ 36,
-                                 am_spring1$AVGDEPTH  > 36 & am_spring1$AVGDEPTH  <= 48 ~ 48,
-                                 am_spring1$AVGDEPTH  > 48 & am_spring1$AVGDEPTH  <= 60 ~ 60,
-                                 am_spring1$AVGDEPTH  > 60 & am_spring1$AVGDEPTH  <= 72 ~ 72,
-                                 am_spring1$AVGDEPTH  > 72 & am_spring1$AVGDEPTH  <= 84 ~ 84,
-                                 am_spring1$AVGDEPTH  > 84 & am_spring1$AVGDEPTH  <= 96 ~ 96,
-                                 am_spring1$AVGDEPTH  > 96 & am_spring1$AVGDEPTH  <= 108 ~ 108,
-                                 am_spring1$AVGDEPTH  > 108 & am_spring1$AVGDEPTH  <= 120 ~ 120,
-                                 am_spring1$AVGDEPTH  > 120 & am_spring1$AVGDEPTH  <= 132 ~ 132,
-                                 am_spring1$AVGDEPTH  > 132 & am_spring1$AVGDEPTH  <= 144 ~ 144,
-                                 am_spring1$AVGDEPTH  > 144 & am_spring1$AVGDEPTH  <= 156 ~ 156,
-                                 am_spring1$AVGDEPTH  > 156 & am_spring1$AVGDEPTH  <= 168 ~ 168,
-                                 am_spring1$AVGDEPTH  > 168 & am_spring1$AVGDEPTH  <= 180 ~ 180,
-                                 am_spring1$AVGDEPTH  > 180 & am_spring1$AVGDEPTH  <= 192 ~ 192,
-                                 am_spring1$AVGDEPTH  > 192 & am_spring1$AVGDEPTH  <= 204 ~ 204,
-                                 am_spring1$AVGDEPTH  > 204 & am_spring1$AVGDEPTH  <= 216 ~ 216,
-                                 am_spring1$AVGDEPTH  > 216 & am_spring1$AVGDEPTH  <= 228 ~ 228,
-                                 am_spring1$AVGDEPTH  > 228 & am_spring1$AVGDEPTH  <= 240 ~ 240,
-                                 am_spring1$AVGDEPTH  > 240 & am_spring1$AVGDEPTH  <= 252 ~ 252,
-                                 am_spring1$AVGDEPTH  > 252 & am_spring1$AVGDEPTH  <= 264 ~ 264,
-                                 am_spring1$AVGDEPTH  > 264 & am_spring1$AVGDEPTH  <= 276 ~ 276,
-                                 am_spring1$AVGDEPTH  > 276 & am_spring1$AVGDEPTH  <= 288 ~ 288,
-                                 am_spring1$AVGDEPTH  > 288 & am_spring1$AVGDEPTH  <= 300 ~ 300,
-                                 am_spring1$AVGDEPTH  > 300 & am_spring1$AVGDEPTH  <= 312 ~ 312,
-                                 am_spring1$AVGDEPTH  > 312 & am_spring1$AVGDEPTH  <= 324 ~ 324,
-                                 am_spring1$AVGDEPTH  > 324 & am_spring1$AVGDEPTH  <= 336 ~ 336,
-                                 am_spring1$AVGDEPTH  > 336 & am_spring1$AVGDEPTH  <= 348 ~ 348,
-                                 am_spring1$AVGDEPTH  > 348 & am_spring1$AVGDEPTH  <= 360 ~ 360,
-                                 am_spring1$AVGDEPTH  > 360 & am_spring1$AVGDEPTH <= 372 ~ 372
-                                 )
-
-depth_csum1 <- am_spring1 |> 
-     group_by(depth_bin) |> 
-     summarise(total_bio = sum(EXPCATCHWT), .groups = "drop") |> 
-     arrange(desc(total_bio)) |>
-     mutate(csum_bio = cumsum(total_bio), 
-            csum_prop = csum_bio/max(csum_bio))
-
-lim95.1 <- max(depth_csum1$csum_bio)*0.95
-lim99.1 <- max(depth_csum1$csum_bio)*0.99
-
-ggplot(depth_csum1) + 
-  geom_point(aes(x = fct_reorder(as.character(depth_bin), csum_bio), y = csum_bio)) + 
-  ylim(0, NA) + 
-  geom_hline(yintercept = lim95.1, color = "red") +
-  geom_hline(yintercept = lim99.1, color = "blue") +
-  labs(x = "Depth (m)", y = "Cumulative Biomass (kg)", title = "AtlMack Cumulative Distribution of Biomass") +
-  theme_bw() + 
-  theme(axis.text.x = element_text(size = 8, hjust = 0.75, angle = 45, margin = margin(t = 2, r = 10, b = 10, l = 5, unit = "pt")), 
-        plot.margin = margin(t = 5, r = 15, b = 5, l = 5))
-
-#ggsave("atlmack_csum-bio-by-depth.png", last_plot(), device = "png", here("outputs", "atlmackerel"), width = 10, height = 6)
-
-kable(depth_csum1, align = "lcccc", caption = "Spring Atlantic mackerel cumulative distribution of biomass by depth bin. Bin value is the upper limit of the range of depths included.", format.args = list(big.mark = ","), booktabs = TRUE) |>
-  kable_styling(full_width = T, fixed_thead = T, font_size = 14) 
-
-
-```
 
 
 ### Proportion of Zeros
-```{r}
+```{r, echo=TRUE}
+# proportion in each year
 atlmack_complete |> 
   filter(!is.na(AVGDEPTH), SEASON == "SPRING", YEAR %in% full_years) |> 
   group_by(EST_YEAR) |>
   summarise(zeros = sum(EXPCATCHWT == 0), 
             prop = zeros/length(unique(TOWID)), .groups = "drop")
 
+# proportion overall
 atlmack_complete |> 
   filter(!is.na(AVGDEPTH), SEASON == "SPRING", YEAR %in% full_years) |> 
   summarise(zeros = sum(EXPCATCHWT == 0), 
             prop = zeros/length(unique(TOWID)))
+
 
 atlmack_complete |> 
   filter(!is.na(AVGDEPTH), SEASON == "SPRING", YEAR %in% full_years, EXPCATCHWT == 0) |> ungroup()|>
@@ -268,13 +193,16 @@ atlmack_complete |>
   geom_histogram(aes(x = TOWID)) #+ facet_wrap(~YEAR)
 
 
+
+
     
 ```
 
 
 
-## Cumulative Distribution 
-### All the data 
+## Cumulative Distribution
+### By Strata 
+#### All the data 
 ```{r}
 atlmack_csum <- atlmack_complete |> 
   filter(SEASON == "SPRING", YEAR %in% full_years) |>
@@ -285,8 +213,10 @@ atlmack_csum <- atlmack_complete |>
          csum_prop = csum_bio/max(csum_bio))
   
 atlmack_csum
+```
 
-  
+
+```{r, echo=TRUE}
 ggplot(atlmack_csum) + 
   geom_point(aes(x = fct_reorder(as.character(STRATUM), csum_bio), y = csum_bio)) + 
   ylim(0, NA) + 
@@ -299,7 +229,7 @@ ggplot(atlmack_csum) +
 
   
 ```
-#### Maps
+#####  Maps
 ```{r}
 atlmack_strata <- right_join(atlmack_csum, strata, by = "STRATUM") |> # join the filtered data to the strata shapefile; coearces the shapefile into a dataframe 
   na.omit() |> # remove NAs
@@ -346,7 +276,8 @@ ggplot() +
     theme(legend.position = "bottom", 
           panel.grid = element_blank()) 
 ```
-### Remove Outliers
+
+#### Remove Outliers
 Removed biomass observations greater than 99th quantile
 ```{r}
 atlmack_csum_no.out <- atlmack_complete |> 
@@ -359,7 +290,9 @@ atlmack_csum_no.out <- atlmack_complete |>
          csum_prop = csum_bio/max(csum_bio))
   
 atlmack_csum_no.out
-  
+```
+
+```{r}
 ggplot(atlmack_csum_no.out) + 
   geom_point(aes(x = fct_reorder(as.character(STRATUM), csum_bio), y = csum_bio)) + 
   ylim(0, NA) + 
@@ -369,6 +302,8 @@ ggplot(atlmack_csum_no.out) +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 90, size = 5))
 ```
+
+
 #### Maps
 ```{r}
 atlmack_no.out <- right_join(atlmack_csum_no.out, strata, by = "STRATUM") |> # join the filtered data to the strata shapefile; coearces the shapefile into a dataframe 
@@ -418,6 +353,174 @@ ggplot() +
           panel.grid = element_blank()) 
 ```
 
+
+### By Depth 
+#### All the data
+```{r cumulative biomass by depth}
+# summarise observations of depth
+summary(am_spring$AVGDEPTH)
+
+# create depth bin based on summary and add to dataframe
+am_spring$depth_bin <- case_when(am_spring$AVGDEPTH <= 24 ~ 24, 
+                                 am_spring$AVGDEPTH > 24 & am_spring$AVGDEPTH <= 36 ~ 36,
+                                 am_spring$AVGDEPTH > 36 & am_spring$AVGDEPTH <= 48 ~ 48,
+                                 am_spring$AVGDEPTH > 48 & am_spring$AVGDEPTH <= 60 ~ 60,
+                                 am_spring$AVGDEPTH > 60 & am_spring$AVGDEPTH <= 72 ~ 72,
+                                 am_spring$AVGDEPTH > 72 & am_spring$AVGDEPTH <= 84 ~ 84,
+                                 am_spring$AVGDEPTH > 84 & am_spring$AVGDEPTH <= 96 ~ 96,
+                                 am_spring$AVGDEPTH > 96 & am_spring$AVGDEPTH <= 108 ~ 108,
+                                 am_spring$AVGDEPTH > 108 & am_spring$AVGDEPTH <= 120 ~ 120,
+                                 am_spring$AVGDEPTH > 120 & am_spring$AVGDEPTH <= 132 ~ 132,
+                                 am_spring$AVGDEPTH > 132 & am_spring$AVGDEPTH <= 144 ~ 144,
+                                 am_spring$AVGDEPTH > 144 & am_spring$AVGDEPTH <= 156 ~ 156,
+                                 am_spring$AVGDEPTH > 156 & am_spring$AVGDEPTH <= 168 ~ 168,
+                                 am_spring$AVGDEPTH > 168 & am_spring$AVGDEPTH <= 180 ~ 180,
+                                 am_spring$AVGDEPTH > 180 & am_spring$AVGDEPTH <= 192 ~ 192,
+                                 am_spring$AVGDEPTH > 192 & am_spring$AVGDEPTH <= 204 ~ 204,
+                                 am_spring$AVGDEPTH > 204 & am_spring$AVGDEPTH <= 216 ~ 216,
+                                 am_spring$AVGDEPTH > 216 & am_spring$AVGDEPTH <= 228 ~ 228,
+                                 am_spring$AVGDEPTH > 228 & am_spring$AVGDEPTH <= 240 ~ 240,
+                                 am_spring$AVGDEPTH > 240 & am_spring$AVGDEPTH <= 252 ~ 252,
+                                 am_spring$AVGDEPTH > 252 & am_spring$AVGDEPTH <= 264 ~ 264,
+                                 am_spring$AVGDEPTH > 264 & am_spring$AVGDEPTH <= 276 ~ 276,
+                                 am_spring$AVGDEPTH > 276 & am_spring$AVGDEPTH <= 288 ~ 288,
+                                 am_spring$AVGDEPTH > 288 & am_spring$AVGDEPTH <= 300 ~ 300,
+                                 am_spring$AVGDEPTH > 300 & am_spring$AVGDEPTH <= 312 ~ 312,
+                                 am_spring$AVGDEPTH > 312 & am_spring$AVGDEPTH <= 324 ~ 324,
+                                 am_spring$AVGDEPTH > 324 & am_spring$AVGDEPTH <= 336 ~ 336,
+                                 am_spring$AVGDEPTH > 336 & am_spring$AVGDEPTH <= 348 ~ 348,
+                                 am_spring$AVGDEPTH > 348 & am_spring$AVGDEPTH <= 360 ~ 360,
+                                 am_spring$AVGDEPTH > 360 & am_spring$AVGDEPTH <= 372 ~ 372
+                                 )
+
+# calculate cumulative biomass by depth 
+depth_csum <- am_spring |> 
+     group_by(depth_bin) |> 
+     summarise(total_bio = sum(EXPCATCHWT), .groups = "drop") |> 
+     arrange(desc(total_bio)) |>
+     mutate(csum_bio = cumsum(total_bio), 
+            csum_prop = csum_bio/max(csum_bio)) |> 
+  arrange(csum_prop)
+
+# set 95% and 99% thresholds based on cumulative biomass
+lim95 <- max(depth_csum$csum_bio)*0.95
+lim99 <- max(depth_csum$csum_bio)*0.99
+```
+
+```{r echo=TRUE}
+# plot cumulative biomass by depth with threshold lines 
+ggplot(depth_csum) + 
+  geom_point(aes(x = fct_reorder(as.character(depth_bin), csum_bio), y = csum_bio)) + 
+  ylim(0, NA) + 
+  geom_hline(yintercept = lim95, color = "red") +
+  geom_hline(yintercept = lim99, color = "blue") +
+  labs(x = "Depth (m)", y = "Cumulative Biomass (kg)", title = "AtlMack Cumulative Distribution of Biomass") +
+  theme_bw() + 
+  theme(axis.text.x = element_text(size = 8, hjust = 0.75, angle = 45, margin = margin(t = 2, r = 10, b = 10, l = 5, unit = "pt")), 
+        plot.margin = margin(t = 5, r = 15, b = 5, l = 5))
+
+# ggsave("atlmack_csum-bio-by-depth.png", last_plot(), device = "png", here("outputs", "atlmackerel"), width = 10, height = 6)
+
+gt(depth_csum) |>
+  fmt_number() |>
+  cols_label(depth_bin = "Depth bin", 
+             total_bio = "Total biomass", 
+             csum_bio = "Cumulative biomass", 
+             csum_prop = "Proportion of biomass") |>
+  tab_header(title = md("Proportion of cumulative biomass by depth bin"), 
+             subtitle = md("Bin value is the upper limit of the range of depths included")) |>
+   cols_width(everything() ~ px(150)) |>
+  tab_options(table.width = pct(40), 
+              column_labels.font.weight = "bold")
+
+# kable(depth_csum, align = "lcccc", caption = "Spring Atlantic mackerel cumulative distribution of biomass by depth bin. Bin value is the upper limit of the range of depths included.", format.args = list(big.mark = ","), booktabs = TRUE) |>
+#   kable_styling(full_width = T, fixed_thead = T, font_size = 14) 
+
+```
+
+**Result**: 95% of cumulative biomass occurs below 170m in depth, while 99% of cumulative biomass occurs below 200m
+
+#### Without incomplete survey years 
+```{r}
+am_spring1 <- am_spring |> filter(EST_YEAR != 2020) 
+summary(am_spring1$AVGDEPTH)
+
+am_spring1$depth_bin <- case_when(am_spring1$AVGDEPTH <= 24 ~ 24, 
+                                 am_spring1$AVGDEPTH  > 24 & am_spring1$AVGDEPTH  <= 36 ~ 36,
+                                 am_spring1$AVGDEPTH  > 36 & am_spring1$AVGDEPTH  <= 48 ~ 48,
+                                 am_spring1$AVGDEPTH  > 48 & am_spring1$AVGDEPTH  <= 60 ~ 60,
+                                 am_spring1$AVGDEPTH  > 60 & am_spring1$AVGDEPTH  <= 72 ~ 72,
+                                 am_spring1$AVGDEPTH  > 72 & am_spring1$AVGDEPTH  <= 84 ~ 84,
+                                 am_spring1$AVGDEPTH  > 84 & am_spring1$AVGDEPTH  <= 96 ~ 96,
+                                 am_spring1$AVGDEPTH  > 96 & am_spring1$AVGDEPTH  <= 108 ~ 108,
+                                 am_spring1$AVGDEPTH  > 108 & am_spring1$AVGDEPTH  <= 120 ~ 120,
+                                 am_spring1$AVGDEPTH  > 120 & am_spring1$AVGDEPTH  <= 132 ~ 132,
+                                 am_spring1$AVGDEPTH  > 132 & am_spring1$AVGDEPTH  <= 144 ~ 144,
+                                 am_spring1$AVGDEPTH  > 144 & am_spring1$AVGDEPTH  <= 156 ~ 156,
+                                 am_spring1$AVGDEPTH  > 156 & am_spring1$AVGDEPTH  <= 168 ~ 168,
+                                 am_spring1$AVGDEPTH  > 168 & am_spring1$AVGDEPTH  <= 180 ~ 180,
+                                 am_spring1$AVGDEPTH  > 180 & am_spring1$AVGDEPTH  <= 192 ~ 192,
+                                 am_spring1$AVGDEPTH  > 192 & am_spring1$AVGDEPTH  <= 204 ~ 204,
+                                 am_spring1$AVGDEPTH  > 204 & am_spring1$AVGDEPTH  <= 216 ~ 216,
+                                 am_spring1$AVGDEPTH  > 216 & am_spring1$AVGDEPTH  <= 228 ~ 228,
+                                 am_spring1$AVGDEPTH  > 228 & am_spring1$AVGDEPTH  <= 240 ~ 240,
+                                 am_spring1$AVGDEPTH  > 240 & am_spring1$AVGDEPTH  <= 252 ~ 252,
+                                 am_spring1$AVGDEPTH  > 252 & am_spring1$AVGDEPTH  <= 264 ~ 264,
+                                 am_spring1$AVGDEPTH  > 264 & am_spring1$AVGDEPTH  <= 276 ~ 276,
+                                 am_spring1$AVGDEPTH  > 276 & am_spring1$AVGDEPTH  <= 288 ~ 288,
+                                 am_spring1$AVGDEPTH  > 288 & am_spring1$AVGDEPTH  <= 300 ~ 300,
+                                 am_spring1$AVGDEPTH  > 300 & am_spring1$AVGDEPTH  <= 312 ~ 312,
+                                 am_spring1$AVGDEPTH  > 312 & am_spring1$AVGDEPTH  <= 324 ~ 324,
+                                 am_spring1$AVGDEPTH  > 324 & am_spring1$AVGDEPTH  <= 336 ~ 336,
+                                 am_spring1$AVGDEPTH  > 336 & am_spring1$AVGDEPTH  <= 348 ~ 348,
+                                 am_spring1$AVGDEPTH  > 348 & am_spring1$AVGDEPTH  <= 360 ~ 360,
+                                 am_spring1$AVGDEPTH  > 360 & am_spring1$AVGDEPTH <= 372 ~ 372
+                                 )
+
+depth_csum1 <- am_spring1 |> 
+     group_by(depth_bin) |> 
+     summarise(total_bio = sum(EXPCATCHWT), .groups = "drop") |> 
+     arrange(desc(total_bio)) |>
+     mutate(csum_bio = cumsum(total_bio), 
+            csum_prop = csum_bio/max(csum_bio))
+
+lim95.1 <- max(depth_csum1$csum_bio)*0.95
+lim99.1 <- max(depth_csum1$csum_bio)*0.99
+```
+
+
+```{r, echo=TRUE}
+ggplot(depth_csum1) + 
+  geom_point(aes(x = fct_reorder(as.character(depth_bin), csum_bio), y = csum_bio)) + 
+  ylim(0, NA) + 
+  geom_hline(yintercept = lim95.1, color = "red") +
+  geom_hline(yintercept = lim99.1, color = "blue") +
+  labs(x = "Depth (m)", y = "Cumulative Biomass (kg)", title = "AtlMack Cumulative Distribution of Biomass") +
+  theme_bw() + 
+  theme(axis.text.x = element_text(size = 8, hjust = 0.75, angle = 45, margin = margin(t = 2, r = 10, b = 10, l = 5, unit = "pt")), 
+        plot.margin = margin(t = 5, r = 15, b = 5, l = 5))
+
+#ggsave("atlmack_csum-bio-by-depth.png", last_plot(), device = "png", here("outputs", "atlmackerel"), width = 10, height = 6)
+
+# kable(depth_csum1, align = "lcccc", caption = "Spring Atlantic mackerel cumulative distribution of biomass by depth bin. Bin value is the upper limit of the range of depths included.", format.args = list(big.mark = ","), booktabs = TRUE) |>
+#   kable_styling(full_width = T, fixed_thead = T, font_size = 14) 
+
+gt(depth_csum) |>
+  fmt_number() |>
+  cols_label(depth_bin = "Depth bin", 
+             total_bio = "Total biomass", 
+             csum_bio = "Cumulative biomass", 
+             csum_prop = "Proportion of biomass") |>
+  tab_header(title = md("Proportion of cumulative biomass by depth bin"), 
+             subtitle = md("Bin value is the upper limit of the range of depths included")) |>
+   cols_width(everything() ~ px(150)) |>
+  tab_options(table.width = pct(40), 
+              column_labels.font.weight = "bold")
+
+```
+
+**Result:** Removing 2020 made little difference, but still should be removed for prosterity.
+
 ## Stratified Mean Abundance Indices
 A stratified mean abundance index was derived for Atlantic mackerel for each year of the time series, both in the context of when wind tows were included in the calculation and when wind tows were excluded from the calculation across the full survey footprint. The difference in indices based on the differing calculation are displayed in the plot below. 
 
@@ -425,27 +528,35 @@ A stratified mean abundance index was derived for Atlantic mackerel for each yea
 ```{r stratmeans all data}
 atlmack_incl.strat <- atlmack_complete|> 
   filter(SEASON == "SPRING", EST_YEAR %in% full_years) |> 
-  stratified.mean() |> 
-  mutate(data_src = "All data", 
-         TYPE = "With Wind Included") 
+  group_by(EST_YEAR) |> 
+  nest() |> 
+  mutate(stratmu = map(data, ~stratified.mean(.,strata) |> 
+                         mutate(data_src = "All data",
+                                effort = "With Wind Included", 
+                                EST_YEAR = EST_YEAR)))
 
 atlmack_precl.strat <- atlmack_complete|> 
   filter(SEASON == "SPRING", EST_YEAR %in% full_years, AREA == "OUTSIDE") |> 
-  stratified.mean() |> 
-  mutate(data_src = "All data", 
-         TYPE = "With Wind Precluded") 
+  group_by(EST_YEAR) |> 
+  nest() |> 
+  mutate(stratmu = map(data, ~stratified.mean(.,strata) |> 
+                         mutate(data_src = "All data", 
+                                effort = "With Wind Precluded", 
+                                EST_YEAR = EST_YEAR))) 
 
-atlmack_stratmu <- bind_rows(atlmack_incl.strat, atlmack_precl.strat) |>
-  group_by(EST_YEAR, TYPE) |> 
+atlmack_stratmu <- bind_rows(atlmack_incl.strat$stratmu, atlmack_precl.strat$stratmu) |>
+  group_by(EST_YEAR, effort) |> 
   mutate(sdlog = sqrt(log(1+(sqrt(stratvar)/stratmu)^2)), #logistic standard deviation
          lower = qlnorm(0.025, log(stratmu), sdlog), # lower quantile of the logistic normal distribution
          upper = qlnorm(0.975, log(stratmu), sdlog)) |> # upper quantile of the logistic normal distribution
   mutate(sdlog = ifelse(is.nan(sdlog), 0, sdlog), # if sdlog is NaN, replace with 0
          lower = ifelse(is.nan(lower), 0, lower), # if the lower quantile is NaN, replace with 0
          upper = ifelse(is.nan(upper), 0, upper)) # if the upper quantile is NaN, replace with 0
+```
 
+```{r}
 ggplot(atlmack_stratmu) +
-  aes(x = as.factor(EST_YEAR), y = stratmu, color = TYPE, shape = TYPE) +
+  aes(x = as.factor(EST_YEAR), y = stratmu, color = effort, shape = effort) +
   #geom_point() +
   geom_pointrange(aes(ymin=lower, ymax = upper), position =  position_dodge2(width=0.4)) +
   scale_color_manual(values = pal) +
@@ -467,27 +578,35 @@ Abundance indices in both scenarios when you remove the observations of biomass 
 atlmack_incl.strat_no.out <- atlmack_complete|> 
   filter(SEASON == "SPRING", EST_YEAR %in% full_years) |> 
   filter(EXPCATCHWT <= quantile(EXPCATCHWT, 0.99)) |>
-  stratified.mean() |> 
-  mutate(data_src = "No Outliers", 
-         TYPE = "With Wind Included") 
+  group_by(EST_YEAR) |> 
+  nest() |> 
+  mutate(stratmu = map(data, ~stratified.mean(.,strata) |>
+                         mutate(data_src = "No Outliers", 
+                                effort = "With Wind Included", 
+                                EST_YEAR = EST_YEAR)))
 
 atlmack_precl.strat_no.out <- atlmack_complete |> 
   filter(SEASON == "SPRING", EST_YEAR %in% full_years, AREA == "OUTSIDE") |> 
   filter(EXPCATCHWT <= quantile(EXPCATCHWT, 0.99)) |>
-  stratified.mean() |> 
-  mutate(data_src = "No Outliers", 
-         TYPE = "With Wind Precluded") 
+  group_by(EST_YEAR) |> 
+  nest() |> 
+  mutate(stratmu = map(data, ~stratified.mean(.,strata) |>
+                         mutate(data_src = "No Outliers", 
+                                effort = "With Wind Precluded", 
+                                EST_YEAR = EST_YEAR)))
 
-atlmack_stratmu_no.out <- bind_rows(atlmack_incl.strat_no.out, atlmack_precl.strat_no.out) |> 
+atlmack_stratmu_no.out <- bind_rows(atlmack_incl.strat_no.out$stratmu, atlmack_precl.strat_no.out$stratmu) |> 
   mutate(sdlog = sqrt(log(1+(sqrt(stratvar)/stratmu)^2)), #logistic standard deviation
          lower = qlnorm(0.025, log(stratmu), sdlog), # lower quantile of the logistic normal distribution
          upper = qlnorm(0.975, log(stratmu), sdlog), 
          sdlog = ifelse(is.nan(sdlog), 0, sdlog), # if sdlog is NaN, replace with 0
          lower = ifelse(is.nan(lower), 0, lower), # if the lower quantile is NaN, replace with 0
          upper = ifelse(is.nan(upper), 0, upper)) 
+```
 
+```{r}
 ggplot(atlmack_stratmu_no.out) +
-  aes(x = as.factor(EST_YEAR), y = stratmu, color = TYPE, shape = TYPE) +
+  aes(x = as.factor(EST_YEAR), y = stratmu, color = effort, shape = effort) +
   #geom_point() +
   geom_pointrange(aes(ymin=lower, ymax = upper), position =  position_dodge2(width=0.4)) +
   scale_color_manual(values = pal) +
@@ -511,7 +630,7 @@ atlmack_mudiff <- atlmack_stratmu |>
   filter(EST_YEAR %in% c(2014:2019)) |> #filter for recent 5 years, skipping 2020
   #mutate(log_mu = log(stratmu)) |>
   arrange(desc(stratmu)) |>
-  group_by(SVSPP, EST_YEAR) |> #, 
+  group_by(EST_YEAR) |> #, 
   #summarize(sq_diff = (exp(diff(log(stratmu)))-1)^2, .groups = "drop") |>
   summarise(diff_mu = diff(stratmu)) |>
   arrange(desc(diff_mu)) |>
@@ -534,7 +653,7 @@ atlmack_mudiff_no.out <- atlmack_stratmu_no.out |>
   filter(EST_YEAR %in% c(2014:2019)) |> #filter for recent 5 years, skipping 2020
   #mutate(log_mu = log(stratmu)) |>
   arrange(desc(stratmu)) |>
-  group_by(SVSPP, EST_YEAR) |> #, 
+  group_by(EST_YEAR) |> #, 
   #summarize(sq_diff = (exp(diff(log(stratmu)))-1)^2, .groups = "drop") |>
   summarise(diff_mu = diff(stratmu)) |>
   arrange(desc(diff_mu)) |>
@@ -547,7 +666,9 @@ atlmack_mudiff_no.out <- atlmack_stratmu_no.out |>
   #group_by(SVSPP, SEASON) |>
   summarize(mudiff = mean(sq_diff), .groups = "drop") |> # calculate the average; drop the grouping factor 
   mutate(mudiff = sqrt(mudiff)*100) 
+```
 
+```{r, echo=TRUE}
 atlmack_mudiff_no.out
 atlmack_mudiff
 ```
@@ -556,7 +677,7 @@ atlmack_mudiff
 Calculate the mean percent relative difference between the status quo index when no outliers are removed and when outliers are removed  
 (e.g How different are the indices with all data included when you remove the outliers?)
 ```{r}
-atlmack_incl.mu <- bind_rows(atlmack_incl.strat, atlmack_incl.strat_no.out)
+atlmack_incl.mu <- bind_rows(atlmack_incl.strat$stratmu, atlmack_incl.strat_no.out$stratmu)
 
 atlmack_incl.mu_diff <- atlmack_incl.mu |> 
   #mutate(stratmu = ifelse(stratmu==0, 1, stratmu)) |>

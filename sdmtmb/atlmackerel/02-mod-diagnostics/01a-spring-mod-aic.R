@@ -22,16 +22,16 @@ here()
 
 ### Environment set up #### 
 # folder location based on data set used: c("all-dat", "no-bio-out", "no-dep-out")
-dat_set <- "no-dep-out"
+dat_set <- "no-bio-out"
 
 # data description: c("All observations", "Biomass outliers removed", "Depth outliers removed")
-data_desc <- "Depth outliers removed"
+data_desc <- "Biomass outliers removed"
 
 # model family folder: c("tweedie", "dpg")
-fam_file <- "tweedie"
+fam_file <- "dpg"
 
 # model family description: c("Tweedie", "Delta Gamma")
-fam_desc <- "Tweedie"
+fam_desc <- "Delta Gamma"
 
 # file names that will be read in 
 mod.files <- str_c("m",seq(1:14), "_spring.rds")
@@ -120,7 +120,7 @@ mods_tbl <- form |>
             conv, aic, fam) |> 
   mutate(#family = "tweedie",
          # time = case_when(time=="EST_YEAR" ~ "Year", time, "-"), 
-         season = "SPRING", 
+         season = "Spring", 
          data = data_desc) |> 
   relocate(c(convergence, AIC), .after = everything()) |> 
   rownames_to_column(var = "models") #|>
