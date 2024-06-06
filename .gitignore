@@ -4,3 +4,5 @@
 .Ruserdata
 # ignore all archive folders 
 archive*
+# ignore all sandbox folders 
+sandbox/
