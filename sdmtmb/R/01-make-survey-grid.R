@@ -1,5 +1,5 @@
 ### created: 03/15/2023
-### last updated: 08/02/2023
+### last updated: 06/06/2024
 
 # 01b - MAKE SURVEY GRID ####
 
@@ -22,14 +22,14 @@ suppressPackageStartupMessages(library(tidyverse))
 theme_set(theme_bw())
 #source()
 
-sdmtmb.dir <- "C:/Users/amiller7/Documents/cinar-osse/sseep-analysis/sdmtmb"
-sseep.dir <- "C:/Users/amiller7/Documents/cinar-osse/sseep-analysis"
+sdmtmb.dir <- here("data", "rds", "sdmtmb") 
+dat.files <- here("data", "rds")
 
 ### LOAD DATA ####
-strata <- readRDS(here("data", "rds", "active_strata.rds"))
+strata <- readRDS(here(dat.files, "active_strata.rds"))
 
 # read in wind areas where they are one large polygon
-wind_areas <- readRDS(here("data", "rds", "wind_areas_062022", "merged_wind_areas_Jun2022.rds"))
+wind_areas <- readRDS(here(dat.files, "wind_areas_062022", "merged_wind_areas_Jun2022.rds"))
 
 # read in east coastline
 east_coast <- sf::st_read(here("gis", "eastern_coast_UTM.shp"))
@@ -114,7 +114,8 @@ join_strat$AREA_CODE <- st_intersects(join_strat, wind_utm_union) |>
 bts <- getNOAA.bathy(lon1 = -80, lon2 = -60,
                      lat1 = 32, lat2 = 46, 
                      resolution = 0.25, 
-                     keep = TRUE)
+                     keep = TRUE, 
+                     path = here(sdmtmb.dir))
 
 # convert the bathy object to an sf point object to manipulate with the other grid objects
 bathy_grid <- marmap::as.xyz(bts) |>
