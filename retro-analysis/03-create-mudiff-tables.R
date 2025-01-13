@@ -1,15 +1,13 @@
 ### created: 06/06/2024
-### last updated: 
+### last updated: 11/11/2024
 
 # 03 - CREATE RETROSPECTIVE ANALYSIS TABLES ####
 
 
 ## OBJECTIVE ####
-# create tables of top ten impacts by species 
-#
 # script will: 
-# filter the mean difference data sets and create tables 
-# 
+# filter the mean difference data sets  
+# create tables
 #
 
 
@@ -36,141 +34,143 @@ cvdiff <- readRDS(here(dat.files, "species_cv-diff.rds"))
 # difference in population trends created from `01-calculate-retro-indices.R` here("retro-analysis")
 linreg_diff <- readRDS(here(dat.files, "species_slope-diff.rds"))
 
+svspp <- c(15, 32, 72, 103, 105, 106, 121, 131, 141, 503, 999)
 
 ### Data Wrangle ####
 # filter for top ten species effected in the fall
-mudiff10_fall <- mudiff |>
-  filter(SEASON == "FALL") |>
-  arrange(desc(MARE_perc)) |> 
-  head(10) |> 
-  mutate(MARE_perc = round(MARE_perc,0), 
-         COMNAME = str_to_sentence(COMNAME), 
-         SEASON = str_to_sentence(SEASON))|> 
-  rename(Species = COMNAME, 
-         Season = SEASON, 
-         "Relative Percent Difference" = MARE_perc) 
+mudiff10 <- mudiff |>
+  group_by(SEASON) |> 
+  nest() |>
+  mutate(subset = map(data, ~arrange(., desc(MARE)) |> head(10))) |> 
+  select(!data) |>
+  unnest(cols = subset) |> 
+  mutate(COMNAME = str_to_title(COMNAME), 
+         SEASON = str_to_title(SEASON))
 
-cvdiff10_fall <- cvdiff |>
-  filter(SEASON == "FALL") |>
-  arrange(desc(MARE_perc)) |> 
-  head(10) |> 
-  mutate(MARE_perc = round(MARE_perc,0), 
-         COMNAME = str_to_sentence(COMNAME), 
-         SEASON = str_to_sentence(SEASON))|> 
-  rename(Species = COMNAME, 
-         Season = SEASON, 
-         "Relative Percent Difference" = MARE_perc)
+cvdiff10 <- cvdiff |>
+  group_by(SEASON) |> 
+  nest() |>
+  mutate(subset = map(data, ~arrange(., desc(MARE)) |> head(10))) |> 
+  select(!data) |>
+  unnest(cols = subset) |> 
+  mutate(COMNAME = str_to_title(COMNAME), 
+         SEASON = str_to_title(SEASON))
 
-LRdiff10_fall <- linreg_diff |>
-  filter(SEASON == "FALL") |>
-  arrange(desc(MARE_perc)) |> 
-  head(10) |> 
-  mutate(MARE_perc = round(MARE_perc,0), 
-         COMNAME = str_to_sentence(COMNAME), 
-         SEASON = str_to_sentence(SEASON))|> 
-  rename(Species = COMNAME, 
-         Season = SEASON, 
-         "Relative Percent Difference" = MARE_perc)
+LRdiff10 <- linreg_diff |>
+  group_by(SEASON) |> 
+  nest() |>
+  mutate(subset = map(data, ~arrange(., desc(MAE)) |> head(10))) |> 
+  select(!data) |>
+  unnest(cols = subset) |> 
+  mutate(COMNAME = str_to_title(COMNAME), 
+         SEASON = str_to_title(SEASON))
 
 
 # filter for top ten species effected in the spring
-mudiff10_spring <- mudiff |>
-  filter(SEASON == "SPRING") |>
-  arrange(desc(MARE_perc)) |> 
-  head(10) |> 
-  mutate(MARE_perc = round(MARE_perc,0), 
-         COMNAME = str_to_sentence(COMNAME), 
-         SEASON = str_to_sentence(SEASON))|> 
-  rename(Species = COMNAME, 
-         Season = SEASON, 
-         "Relative Percent Difference" = MARE_perc)
+mudiff10_sseep <- mudiff |>
+  group_by(SEASON) |> 
+  nest() |>
+  mutate(subset = map(data, ~filter(., SVSPP %in% svspp) |> arrange(desc(MARE)))) |>
+  select(!data) |>
+  unnest(cols = subset) |> 
+  mutate(COMNAME = str_to_title(COMNAME), 
+         SEASON = str_to_title(SEASON))
 
-cvdiff10_spring <- cvdiff |>
-  filter(SEASON == "SPRING") |>
-  arrange(desc(MARE_perc)) |> 
-  head(10) |> 
-  mutate(MARE_perc = round(MARE_perc,0), 
-         COMNAME = str_to_sentence(COMNAME), 
-         SEASON = str_to_sentence(SEASON))|> 
-  rename(Species = COMNAME, 
-         Season = SEASON, 
-         "Relative Percent Difference" = MARE_perc)
+cvdiff10_sseep <- cvdiff |>
+  group_by(SEASON) |> 
+  nest() |>
+  mutate(subset = map(data, ~filter(., SVSPP %in% svspp) |> arrange(desc(MARE)))) |>
+  select(!data) |>
+  unnest(cols = subset) |> 
+  mutate(COMNAME = str_to_title(COMNAME), 
+         SEASON = str_to_title(SEASON))
 
-LRdiff10_spring <- linreg_diff |>
-  filter(SEASON == "SPRING") |>
-  arrange(desc(MARE_perc)) |> 
-  head(10) |> 
-  mutate(MARE_perc = round(MARE_perc,0), 
-         COMNAME = str_to_sentence(COMNAME), 
-         SEASON = str_to_sentence(SEASON))|> 
-  rename(Species = COMNAME, 
-         Season = SEASON, 
-         "Relative Percent Difference" = MARE_perc)
+LRdiff10_sseep <- linreg_diff |>
+  group_by(SEASON) |> 
+  nest() |>
+  mutate(subset = map(data, ~filter(., SVSPP %in% svspp) |> arrange(desc(MAE)))) |> 
+  select(!data) |>
+  unnest(cols = subset) |> 
+  mutate(COMNAME = str_to_title(COMNAME), 
+         SEASON = str_to_title(SEASON))
 
 
 ## Make Tables ####
-### Fall ####
-mudiff_fall.tbl <- mudiff10_fall[,c(3,6)] |> 
-  column_to_rownames(var = "Species") |>
-  gt(rownames_to_stub = TRUE) |> 
-  tab_header(title = md("The largest differences in fall abundance indices")) |>
-  tab_stubhead(label = md("**Species**")) |>
+mudiff.tbl <- mudiff10[,c(1,3,7)] |> 
+  group_by(SEASON) |>
+  gt(rowname_col = "COMNAME") |> 
+  fmt_percent() |>
+  cols_label(MARE = md("**Mean Absolute Relative Difference**")) |>
+  tab_header(title = md("Differences in abundance indices")) |>
   cols_width(everything() ~ px(200)) |> 
   tab_options(table.width = px(200), 
-              column_labels.font.weight = "bold")
+              column_labels.font.weight = "bold", 
+              row_group.background.color = "grey95")
   
-cvdiff_fall.tbl <- cvdiff10_fall[,c(3,6)] |> 
-  column_to_rownames(var = "Species") |>
-  gt(rownames_to_stub = TRUE) |> 
-  tab_header(title = md("The largest differences in fall survey CVs")) |>
-  tab_stubhead(label = md("**Species**")) |>
+cvdiff.tbl <- cvdiff10[,c(1,3,7)] |> 
+  group_by(SEASON) |>
+  gt(rowname_col = "COMNAME") |> 
+  fmt_percent() |>
+  cols_label(MARE = md("**Mean Absolute Relative Difference**")) |>
+  tab_header(title = md("Differences in survey CVs")) |>
   cols_width(everything() ~ px(200)) |> 
   tab_options(table.width = px(200), 
-              column_labels.font.weight = "bold")
+              column_labels.font.weight = "bold", 
+              row_group.background.color = "grey95")
 
-LRdiff_fall.tbl <- LRdiff10_fall[,c(3,6)] |> 
-  column_to_rownames(var = "Species") |>
-  gt(rownames_to_stub = TRUE) |> 
-  tab_header(title = md("The largest differences in fall population trends")) |>
-  tab_stubhead(label = md("**Species**")) |>
+LRdiff.tbl <- LRdiff10[,c(1,3,5)] |> 
+  group_by(SEASON) |>
+  gt(rowname_col = "COMNAME") |> 
+  fmt_percent() |>
+  cols_label(MAE = md("**Mean Absolute Difference**")) |>
+  tab_header(title = md("Differences in population trends")) |> 
   cols_width(everything() ~ px(200)) |> 
   tab_options(table.width = px(200), 
-              column_labels.font.weight = "bold")
+              column_labels.font.weight = "bold", 
+              row_group.background.color = "grey95")
 
 ### Spring ####
-mudiff_spr.tbl <- mudiff10_spring[,c(3,6)] |> 
-  column_to_rownames(var = "Species") |>
-  gt(rownames_to_stub = TRUE) |> 
-  tab_header(title = md("The largest differences in spring abundance indices")) |>
-  tab_stubhead(label = md("**Species**")) |>
+mudiff_sseep.tbl <- mudiff10_sseep[,c(1,3,7)] |> 
+  group_by(SEASON) |>
+  gt(rowname_col = "COMNAME") |> 
+  fmt_percent() |>
+  cols_label(MARE = md("**Mean Absolute Relative Difference**")) |>
+  tab_header(title = md("Differences in abundance indices")) |> 
   cols_width(everything() ~ px(200)) |> 
   tab_options(table.width = px(200), 
-              column_labels.font.weight = "bold")
+              column_labels.font.weight = "bold", 
+              row_group.background.color = "grey95")
 
-cvdiff_spr.tbl <- cvdiff10_spring[,c(3,6)] |> 
-  column_to_rownames(var = "Species") |>
-  gt(rownames_to_stub = TRUE) |> 
-  tab_header(title = md("The largest differences in spring survey CVs")) |>
-  tab_stubhead(label = md("**Species**")) |>
+cvdiff_sseep.tbl <- cvdiff10_sseep[,c(1,3,7)] |> 
+  group_by(SEASON) |>
+  gt(rowname_col = "COMNAME") |> 
+  fmt_percent() |>
+  cols_label(MARE = md("**Mean Absolute Relative Difference**")) |>
+  tab_header(title = md("Differences in survey CVs")) |> 
   cols_width(everything() ~ px(200)) |> 
   tab_options(table.width = px(200), 
-              column_labels.font.weight = "bold")
+              column_labels.font.weight = "bold", 
+              row_group.background.color = "grey95")
 
-LRdiff_spr.tbl <- LRdiff10_spring[,c(3,6)] |> 
-  column_to_rownames(var = "Species") |>
-  gt(rownames_to_stub = TRUE) |> 
-  tab_header(title = md("The largest differences in spring population trends")) |>
-  tab_stubhead(label = md("**Species**")) |>
+LRdiff_sseep.tbl <- LRdiff10_sseep[,c(1,3,5)] |> 
+  group_by(SEASON) |>
+  gt(rowname_col = "COMNAME") |> 
+  fmt_percent() |>
+  cols_label(MAE = md("**Mean Absolute Difference**")) |>
+  tab_header(title = md("Differences in population trends")) |>
   cols_width(everything() ~ px(200)) |> 
   tab_options(table.width = px(200), 
-              column_labels.font.weight = "bold")
+              column_labels.font.weight = "bold", 
+              row_group.background.color = "grey95")
 
 ## Save the data ####
-tbl.data <- list("fall_mudiff.png" = mudiff_fall.tbl, 
-                 "spring_mudiff.png" = mudiff_spr.tbl, 
-                 "fall_cvdiff.png" = cvdiff_fall.tbl, 
-                 "spring_cvdiff.png" = cvdiff_spr.tbl,
-                 "fall_slope-diff.png" = LRdiff_fall.tbl,
-                 "spring_slope-diff.png" = LRdiff_spr.tbl)
+tbl.data <- list("mudiff_table" = mudiff.tbl, 
+                 "SSEEP_mudiff" = mudiff_sseep.tbl, 
+                 "cvdiff_table" = cvdiff.tbl, 
+                 "SSEEP_cvdiff" = cvdiff_sseep.tbl,
+                 "slope-diff_table" = LRdiff.tbl,
+                 "SSEEP_slope-diff" = LRdiff_sseep.tbl)
 
-pmap(list(tbl.data, names(tbl.data)), ~gtsave(data = .x, filename = .y, path = here(tab.files), expand = 10))
+pmap(list(tbl.data, names(tbl.data)), ~gtsave(data = .x, filename = str_c(.y, "png", sep = "."), path = here(tab.files), expand = 10))
+
+pmap(list(tbl.data, names(tbl.data)), ~gtsave(data = .x, filename = str_c(.y, "docx", sep = "."), path = here(tab.files), expand = 10))

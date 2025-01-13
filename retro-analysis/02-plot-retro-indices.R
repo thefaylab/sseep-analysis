@@ -1,5 +1,5 @@
 ### created: 04/23/2024
-### last updated: 
+### last updated: 11/10/2024
 
 # 02 - PLOT RETROSPECTIVE INDICES BY SPECIES ####
 
@@ -45,7 +45,7 @@ mu_plots <- list()
 
 # create universal aesthetics for ggplot
 # names(park_palettes)
-pal <- park_palette("Badlands")
+pal <- c("#548F01",  "#D58A60")#park_palette("Badlands")
 
 # create a lookup table with filename-friendly species names
 specieslookup <- data |> 
@@ -72,7 +72,7 @@ for(i in species){ # for each value i in the species vector
     geom_pointrange(aes(ymin=lower, ymax = upper), position = position_dodge2(width=0.4)) + # plot the upper and lower quantiles about the mean 
     facet_wrap(vars(SEASON), scales = "free_y") + # create sequence of panels based on SEASON variable
     #facet_grid(rows = vars(GEO_AREA), cols = vars(SEASON), scales = "free_y") + # create sequence of panels based on SEASON variable
-    labs(x = "YEAR", y = "Stratified Mean (kg/tow)", title = str_to_title(x$COMNAME), subtitle = str_c("Annual and seasonal stratified mean biomass for", str_to_lower(x$COMNAME), "when wind tows are included and precluded from the calculation", sep = " "), SEASON = "", TYPE = "") + # edit plot labels 
+    labs(x = "Year", y = "Stratified Mean (kg/tow)", title = str_to_title(x$COMNAME), subtitle = str_c("Annual and seasonal stratified mean biomass for", str_to_lower(x$COMNAME), "when wind tows are included and precluded from the calculation", sep = " "), SEASON = "", TYPE = "") + # edit plot labels 
     ylim(0,NA) +
     theme_bw() + # black and white plot theme
     theme(legend.position="bottom", # move legend to the bottom
@@ -106,6 +106,6 @@ for(i in seq_along(species)){ # move along the sequence of values in the species
   
   # save the printed plot with the species name based on the list value generated
   #ggsave(filename = paste(unique(mu_plots[[i]]$data$COMNAME), ".png"), device = "png", path = here("outputs", "plots", "strat_mu"), width = 5, height = 5)
-  ggsave(filename = paste0(specieslookup$spname[i], ".png"), device = "png" , plot = mu_plots[[i]], path = here("outputs", "plots", "stratmu-plots"), width = 10, height = 5)
+  ggsave(filename = paste0(specieslookup$spname[i], ".png"), device = "png" , plot = mu_plots[[i]], path = here("outputs", "stratmu-plots"), width = 10, height = 5)
   
 }

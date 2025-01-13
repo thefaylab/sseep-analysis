@@ -1,5 +1,5 @@
 ### created: 02/08/2024
-### last updated: 04/23/2024
+### last updated: 11/10/2024
 
 # 01 - CALCULATE RETROSPECTIVE INDICES: WITH AND WITHOUT PRECLUSION ####
 
@@ -29,7 +29,7 @@ dat.files <- here("data", "rds")
 
 ### Read in data ####
 # dataset created from `05b-spatial-filter-data.R` here("tidy-data"). Contains complete observations for each species and unique tow filtered based on 95% cumulative distribution of biomass. 
-data <- readRDS(here(dat.files, "95filtered_complete_bts.rds"))
+data <- readRDS(here(dat.files, "95filtered_complete_bts.rds")) |> filter(EST_YEAR != 2020)
 
 # species dataframe for adding to final dataset 
 species <- readRDS(here(dat.files, "95filtered-species.rds"))
