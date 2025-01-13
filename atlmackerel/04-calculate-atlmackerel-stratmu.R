@@ -1,5 +1,5 @@
 ### created: 01/26/2024
-### last updated: 03/10/2024
+### last updated: 11/10/2024
 
 # 04 - CALCULATE STRATIFIED MEAN: ATLANTIC MACKEREL  ####
 
@@ -15,6 +15,7 @@ library(here)
 library(tidyverse)
 library(nationalparkcolors)
 source(here("R", "StratMeanFXs_v2.R"))
+source(here("R", "plot_fns.R"))
 
 pal <- park_palette("Badlands")
 
@@ -47,75 +48,84 @@ stratmu_precl <- atlmackerel |>
   unnest(cols = stratmu)
 
 
-stratmu_rows <- bind_rows(stratmu_incl, stratmu_precl) #|> # bind the data sets 
-  # group_by(EST_YEAR, effort, SEASON) |> 
-  # mutate(sdlog = sqrt(log(1+(sqrt(stratvar)/stratmu)^2)), #logistic standard deviation
-  #        lower = qlnorm(0.025, log(stratmu), sdlog), # lower quantile of the logistic normal distribution
-  #        upper = qlnorm(0.975, log(stratmu), sdlog)) |> # upper quantile of the logistic normal distribution
-  # mutate(sdlog = ifelse(is.nan(sdlog), 0, sdlog), # if sdlog is NaN, replace with 0
-  #        lower = ifelse(is.nan(lower), 0, lower), # if the lower quantile is NaN, replace with 0
-  #        upper = ifelse(is.nan(upper), 0, upper))
-
-
-## MEAN PERCENT RELATIVE DIFFERENCE ####
-# mudiff_dat <- stratmu |> 
-#   # filter(EST_YEAR %in% c(2016, 2017, 2018, 2019, 2021)) |> #filter for recent 5 years, skipping 2020 and 
-#   arrange(desc(stratmu)) |>
-#   group_by(EST_YEAR, SEASON) |> #, 
-#   summarise(diff_mu = diff(stratmu)) |>
-#   arrange(desc(diff_mu)) |>
-#   mutate(exp_mu = (exp(diff_mu))-1) |>
-#   arrange(desc(exp_mu)) |>
-#   mutate(sq_diff = exp_mu^2) |>
-#   arrange(desc(sq_diff))|>
-#   ungroup()|>
-#   group_by(SEASON) |>
-#   summarize(mudiff = mean(sq_diff), .groups = "drop") |> # calculate the average; drop the grouping factor 
-#   mutate(mudiff = sqrt(mudiff)*100) |>
-#   arrange(desc(mudiff))
+stratmu_rows <- bind_rows(stratmu_incl, stratmu_precl) 
 
 stratmu_cols <- left_join(stratmu_incl, stratmu_precl, by = c("SEASON", "EST_YEAR")) 
 
-mudiff_dat <- stratmu_cols |> 
-  calc.errors(observed = stratmu.y, expected = stratmu.x) |> 
-  group_by(SEASON) |> 
-  mean.diff()
-
-
 ## FIT LINEAR REGRESSIONS ####
-stratmu_lms <- stratmu |>
+stratmu_lms <- stratmu_rows |>
   group_by(SEASON, effort) |> 
   nest() |>
   mutate(model = map(data, ~lm(stratmu ~ EST_YEAR, data = .)),  
          coef = map(model, ~broom::tidy(., conf.int = TRUE))) |> 
   unnest(coef) |>
-  select(SEASON, effort, term, estimate, conf.low, conf.high) |>
+  select(SEASON, effort, term, estimate, conf.low, conf.high) 
+
+stratmu_slopes <- stratmu_lms |>
   filter(term == "EST_YEAR")
+
+precl_slopes <- stratmu_slopes |> 
+  filter(effort == "With Wind Precluded")
+
+incl_slopes <- stratmu_slopes |> 
+  filter(effort == "With Wind Included")
+
+slopes_cols <- left_join(incl_slopes, precl_slopes, by = "SEASON")
+
+fall_lms <- stratmu_lms |> 
+  filter(SEASON == "FALL")
+
+spring_lms <- stratmu_lms |> 
+  filter(SEASON == "SPRING")
+
+
+## MEAN PERCENT RELATIVE DIFFERENCE ####
+mudiff_dat <- stratmu_cols |> 
+  calc.errors(observed = stratmu.y, expected = stratmu.x) |> 
+  group_by(SEASON) |> 
+  mean.diff()
+
+cvdiff_dat <- stratmu_cols |> 
+  calc.errors(observed = cv.y, expected = cv.x) |> 
+  group_by(SEASON) |> 
+  mean.diff()
+
+slope_diff <- slopes_cols |> 
+  calc.errors(observed = estimate.y, expected = estimate.x) |> 
+  group_by(SEASON) |> 
+  mean.diff()
 
 
 ## PLOT ####
-ggplot(stratmu) +
-  aes(x = as.factor(EST_YEAR), y = stratmu, color = effort, shape = effort) +
-  #geom_point() +
-  geom_pointrange(aes(ymin=lower, ymax = upper), position =  position_dodge2(width=0.4)) +
-  facet_wrap(vars(SEASON), scales = "free_y") +
-  #facet_grid(rows = vars(GEO_AREA), cols = vars(SEASON), scales = "free_y") + 
-  labs(x = "Year", y = "Stratified Mean (kg/tow)", SEASON = "", effort = "") +
-  ylim(0,NA) +
-  theme_bw() + 
-  theme(legend.position="bottom",
-        legend.title = element_blank(), 
-        axis.text.x = element_text(angle = 90, hjust = -1), 
-        axis.title.x = element_text(margin = unit(c(5, 0, 0, 0), "mm")), 
-        axis.title.y = element_text(margin = unit(c(0, 3, 0, 0), "mm"))) + 
-  scale_color_manual(values = pal)
+stratmu_rows |> 
+  plot.stratmu(EST_YEAR, color = effort, shape = effort) + 
+  facet_wrap(~str_to_title(SEASON)) #+ 
 
-ggsave("am_stratmeans.png", last_plot(), device = "png", here("outputs", "atlmackerel"), width = 9, height = 5)
+ggsave("am_stratmeans.png", last_plot(), device = "png", here("outputs", "init-analysis-plots", "atlmackerel"), width = 9, height = 5)
+
+## TABLE #### 
+diff.tbl <- left_join(mudiff_dat, cvdiff_dat, by = "SEASON") |> 
+  left_join(slope_diff, by = "SEASON") |> 
+  select(SEASON, MARE.x, MARE.y, MARE) |> 
+  rename(stratmu_mare = MARE.x, 
+         cv_mare = MARE.y, 
+         slope_mare = MARE) |> 
+  mutate(species = "Atlantic mackerel")
+
 
 # save data 
-saveRDS(mudiff_dat, here("data", "atlmackerel", "am_mudiffdat.rds"))
-saveRDS(stratmu_incl, here("data", "atlmackerel", "am_stratmu_included.rds"))
-saveRDS(stratmu_precl, here("data", "atlmackerel", "am_stratmu_precluded.rds"))
-saveRDS(stratmu_rows, here("data", "atlmackerel", "am_stratmu_rows.rds"))
-saveRDS(stratmu_cols, here("data", "atlmackerel", "am_stratmu_cols.rds"))
-saveRDS(stratmu_lms, here("data", "atlmackerel", "am_obs_slopes.rds"))
+save.data <- list("mudiff_dat.rds" = mudiff_dat, 
+                  "cvdiff_dat.rds" = cvdiff_dat,
+                  "slope_diff.rds" = slope_diff,
+                  "stratmu_included.rds" = stratmu_incl, 
+                  "stratmu_precluded.rds" = stratmu_precl, 
+                  "stratmu_rows.rds" = stratmu_rows, 
+                  "stratmu_cols.rds" = stratmu_cols, 
+                  "stratmu_linregs.rds" = stratmu_lms, 
+                  "obs_slopes.rds" = stratmu_slopes, 
+                  "obs_slopes_cols.rds" = slopes_cols,
+                  "diff_summary_tbl.rds" = diff.tbl)
+
+pmap(list(save.data, names(save.data)), ~saveRDS(.x, here("data", "atlmackerel", .y)))
+
+
