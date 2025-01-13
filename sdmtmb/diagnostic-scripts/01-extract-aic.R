@@ -1,5 +1,5 @@
 ### created: 04/24/2024
-### last updated: 05/20/2024
+### last updated: 11/10/2024
 
 # 01 - DIAGNOSTICS: AIC ####
 
@@ -21,24 +21,24 @@ library(gt)
 
 ### Environment Set Up ####
 # season 
-season <- "fall"
+season <- "spring"
 
 # species
-species <- "sumflounder"
+species <- "atlmackerel"
 
-species_name <- "summer flounder"
+species_name <- "atlantic mackerel"
 
 ### File locations ####
-dat.files <- here("sdmtmb",  species, "data") ## FIXME when repo is reorganized
+dat.files <- here("data", "rds", "sdmtmb",  species) 
 
 # model locations
-mod.locs <- here(dat.files, "mods", season) ## FIXME when repo is reogranized 
+mod.locs <- here(dat.files, "mods", season)
+# mod.locs <- here(dat.files, "mods", "dpg", "no-dep-out")
 
 
 ### Read in data ####
 # number of models to read in 
-mod.num <- length(list.files(mod.locs, pattern = "[a-z]\\d+")) # find files in mod.locs that contain a pattern related to the model file names only; excludes folders. 
-# this is used here rather than assigning list.files(mod.locs) into mod.files (below), because models numbered in the teens are listed between model 1 and 2 due to folder organization. 
+mod.num <- length(list.files(mod.locs, pattern = "[a-z]\\d+")) # find files in mod.locs that contain a pattern related to the model file names only; excludes folders. # this is used here rather than assigning list.files(mod.locs) into mod.files (below), because models numbered in the teens are listed between model 1 and 2 due to folder organization. 
 
 # file names that will be read in 
 mod.files <- str_c("m",seq(mod.num), "_", season, ".rds", sep = "")
@@ -74,6 +74,19 @@ spatial <- map(mods.list, ~pluck(., "spatial")) |>
   as.data.frame() |> 
   rename(spatial = `as.character(map(mods.list, ~pluck(., "spatial")))`) |> 
   mutate(spatial = case_when(spatial=="on" ~ str_to_title(spatial), TRUE ~"-"))
+
+# for delta gamma models with differing spatial treatments
+# spatial <- map(mods.list, ~pluck(., "spatial")) |>
+#   as.character() |>
+#   as.data.frame() |>
+#   rename(spatial = `as.character(map(mods.list, ~pluck(., "spatial")))`) |> 
+#   mutate(spatial = str_extract(spatial, "\\w+")) |> # extract any word characters
+#   separate(col = spatial, sep = ",", into = c("spatial.1", "spatial.2")) |> 
+#   mutate(spatial.1 = str_extract(spatial.1, "\\w+"), 
+#          spatial.2 = str_extract(spatial.2, "\\w+"),
+#          spatial.1 = case_when(spatial.1=="on" ~ str_to_title(spatial.1), TRUE ~"-"), 
+#          spatial.2 = case_when(spatial.2=="on" ~ str_to_title(spatial.2), TRUE ~"-"))
+
 rownames(spatial) <- mod.names
 
 ### SPATIOTEMPORAL REs ####
@@ -117,12 +130,9 @@ mods_tbl <- form |>
 
 
 # save the data
-saveRDS(mods_tbl, file = here(dat.files, str_c(season, "-mod-configs.rds", sep = ""))) ## FIXME when repo is reorganized 
+saveRDS(mods_tbl, file = here(dat.files, str_c(season, "-mod-configs.rds", sep = ""))) 
 
 
-# kable(mods_tbl, align = "lcccc", caption = str_c(str_to_sentence(species_name), "seasonal model configurations", sep = ""), format.args = list(big.mark = ","), booktabs = TRUE) |>
-#   kable_styling(full_width = F, fixed_thead = T, font_size = 14) |>
-#   row_spec(which(mods_tbl$AIC == min(mods_tbl$AIC)), color = "red") 
 
 mods_gt <- mods_tbl |> column_to_rownames(var = "models") |>
   gt(rownames_to_stub = TRUE) |> # adds a line between model names and estimates 
@@ -135,8 +145,10 @@ mods_gt <- mods_tbl |> column_to_rownames(var = "models") |>
              family = md("**Family**"),
              season = md("**Season**"), 
              convergence = md("**Convergence**")) |>
-  tab_header(title = md("Fall summer flounder model configurations")) |>
+  tab_header(title = md(str_c(str_to_title(season), species_name, "model configurations", sep = " "))) |>
   tab_options(table.width = pct(85), 
               column_labels.font.weight = "bold")
 
-gtsave(mods_gt, filename = "fall_mod_aic_tbl.png", path = here("sdmtmb", "sumflounder", "tables"), expand = 100)
+gtsave(mods_gt, filename = str_c(season, "mod_aic_tbl.png", sep = "_"), path = here("outputs", "sdmtmb", species, "tables"), expand = 100)
+
+gtsave(mods_gt, filename = str_c(season, "mod_aic_tbl.docx", sep = "_"), path = here("outputs", "sdmtmb", species, "tables"), expand = 100)

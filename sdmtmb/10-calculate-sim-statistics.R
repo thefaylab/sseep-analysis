@@ -15,12 +15,12 @@ source(here("R", "StratMeanFXs_v2.R"))
 
 ### Environment Set-Up ####
 # set season and species to be simulated
-season <- "fall"
+season <- "spring"
 
-species <- "sumflounder"
+species <- "atlmackerel"
 
 # type of scenario simulated - c("no-wind", "baseline", "enhanced", "reduced")
-scenario <- "enhanced"
+scenario <- "baseline"
 
 # number of simulations 
 nsims <- 1:1000
