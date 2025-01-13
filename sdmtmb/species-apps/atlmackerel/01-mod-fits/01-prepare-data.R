@@ -56,9 +56,9 @@ saveRDS(data_no.out, here(atlmack.dat, "atlmackerel_spring_no-outliers.rds"))
 ## CONSTRUCT MESH #### 
 #mesh <- make_mesh(data, xy_cols = c("X", "Y"), cutoff = 10) 
 
-spring_mesh <- make_mesh(data, xy_cols = c("X", "Y"), cutoff = 20) #469 knots
-spring_mesh_200m <- make_mesh(data_200m, xy_cols = c("X", "Y"), cutoff = 20) #429 knots
-spring_mesh_no.out <- make_mesh(data_no.out, xy_cols = c("X", "Y"), cutoff = 20) #470 knots 
+spring_mesh <- sdmTMB::make_mesh(data, xy_cols = c("X", "Y"), cutoff = 20) #469 knots
+spring_mesh_200m <- sdmTMB::make_mesh(data_200m, xy_cols = c("X", "Y"), cutoff = 20) #429 knots
+spring_mesh_no.out <- sdmTMB::make_mesh(data_no.out, xy_cols = c("X", "Y"), cutoff = 20) #470 knots 
 #cutoff defines the minimum allowed distance between points in the units of X and Y (km)
 
 plot(spring_mesh)
