@@ -1,7 +1,7 @@
 ### created: 04/24/2024
-### last updated: 
+### last updated: 11/10/2024
 
-# 04 - DIAGNOSTICS: Residuals ####
+# 05 - DIAGNOSTICS: Residuals ####
 
 ## OBJECTIVE ####
 # Calculate randomized quantile residuals for best model fits 
@@ -16,9 +16,9 @@
 # remotes::install_github("pbs-assess/sdmTMB", dependencies = TRUE)
 suppressPackageStartupMessages(library(tidyverse)) 
 library(here)
-library(sf) 
+# library(sf) 
 library(sdmTMB)
-library(kableExtra)
+# library(kableExtra)
 set.seed(123)
 theme_set(theme_bw())
 
@@ -32,8 +32,8 @@ species <- "sumflounder"
 species_name <- "summer flounder"
 
 ### File locations ####
-dat.files <- here("sdmtmb",  species, "data") ## FIXME when repo is reorganized
-plot.files <- here("sdmtmb",  species, "plots", "resids")
+dat.files <- here("data", "rds", "sdmtmb",  species)
+plot.files <- here("outputs", "sdmtmb",  species, "plots", "resids")
 
 
 ### Read in data ####
@@ -83,7 +83,7 @@ mvn_resids_qqplot <- ggplot(mod_preds, aes(sample = resids_mvn)) + stat_qq(shape
 
 ### From MCMC Chains ####
 # Fixed effects are held at their MLEs and random effects are taken from a single posterior sample obtained with MCMC. These are an excellent option since they make no assumption about the distribution of the random effects 
-
+tic()
 samps <- sdmTMBextra::predict_mle_mcmc(mod, mcmc_iter = 800, mcmc_warmup = 400, nsim = 10)
 
 # create sublists of samples for iteration 
@@ -99,10 +99,11 @@ mcres <- map(samps_iter, ~pluck(.,"samp")) |> # select posterior samples from ea
 
 # add the MCMC residuals to the data
 modpreds_full <- map2_dfr(rep(list(mod_preds), length(mcres)), mcres, ~bind_cols(.x, .y))
+toc()
 
 ### for delta models 
-# modpreds1 <- map2(rep(list(mod_preds), length(mcres1)), mcres1, ~bind_cols(.x, .y))
-# modpreds_full <- map(mcres2, ~select(., mcmc_resids) |> rename(mcmc_resids2 = mcmc_resids)) |> map2_dfr(modpreds1, ~bind_cols(.y, .x))
+modpreds1 <- map2(rep(list(mod_preds), length(mcres1)), mcres1, ~bind_cols(.x, .y))
+modpreds_full <- map(mcres2, ~select(., mcmc_resids) |> rename(mcmc_resids2 = mcmc_resids)) |> map2_dfr(modpreds1, ~bind_cols(.y, .x))
 
 
 #### Plots ####
@@ -113,7 +114,7 @@ mcmc_resids_hist <- ggplot(modpreds_full) + geom_histogram(aes(x = mcmc_resids),
 mcmc_resids_qqplot <- ggplot(modpreds_full, aes(sample = mcmc_resids)) + stat_qq(shape = 21) + stat_qq_line(linetype = 2) + labs(x = "Theoretical Quantiles", y = "Sample Quantiles", subtitle = str_c("Normal Q-Q Plot of MCMC-sampled posterior residuals for", season, species_name, "model", sep = " "))
 
 # predicted(fitted) vs residual plot 
-fit.mcres_plot <- ggplot(modpreds_full) + geom_point(aes(x = est, y = mcmc_resids)) + geom_hline(yintercept = 0) + labs(x = "Predicted Biomass (kg)", y = "MCMC-sampled Posterior Residual", subtitle = str_c(str_to_sentence(season), species_name, "model residuals versus estimates of biomass", sep = " "))
+fit.mcres_plot <- ggplot(modpreds_full) + geom_point(aes(x = est, y = mcmc_resids)) + geom_hline(yintercept = 0) + labs(x = "Biomass estimates in link space", y = "MCMC-sampled Posterior Residual", subtitle = str_c(str_to_sentence(season), species_name, "model residuals versus estimates of biomass", sep = " "))
 
 # predictor vs residual plot 
 depth.mcres_plot <- ggplot(modpreds_full) + geom_point(aes(x = AVGDEPTH, y = mcmc_resids)) + geom_hline(yintercept = 0) + labs(x = "Average Depth", y = "MCMC-sampled Posterior Residual", subtitle = str_c(str_to_sentence(season), species_name, "model residuals versus depth", sep = " "))
@@ -140,7 +141,7 @@ plots <- list("eb-resids_hist.png" = eb_resids_hist,
               "depth-mcres_plot.png" = depth.mcres_plot, 
               "year-mcress_plot.png" = year.mcres_plot) 
 
-pmap(list(data, names(data)), ~saveRDS(.x, file = here(dat.files, "resids", str_c(season, species, .y, sep = "_"))))
+pmap(list(data, names(data)), ~saveRDS(.x, file = here(dat.files, species, "resids", str_c(season, species, .y, sep = "_"))))
 
 pmap(list(plots, names(plots)), ~ggsave(plot = .x, filename = str_c(season, .y, sep = "_"), device = "png", path = here(plot.files), width = 9, height = 5))
 
@@ -153,7 +154,7 @@ pmap(list(plots, names(plots)), ~ggsave(plot = .x, filename = str_c(season, .y, 
 ## CALCULATE DHARMa RESIDUALS ####
 # simulations with the parameters fixed at their Maximum Likelihood Estimate (MLE) and predictions conditional on the fitted random effects
 sim_mod <- simulate(mod, nsim = 500, type = "mle-mvn")
-saveRDS(sim_mod, here(dat.files, "resids", str_c(season, "mod_sim_resids.rds", sep = "_")))
+# saveRDS(sim_mod, here(dat.files, "resids", str_c(season, "mod_sim_resids.rds", sep = "_")))
 
 dim(sim_mod) # row = nrow(moddat), cols = sim draws 
 
@@ -172,7 +173,7 @@ dharma_residuals(sim_mod, mod)
 #   observedResponse = moddat$EXPCATCHWT,
 #   fittedPredictedResponse = pred_fixed
 # )
-r_mod <- dharma_residuals(sim_mod, mod, return_DHARMa = TRUE)
+r_mod <- sdmTMB::dharma_residuals(sim_mod, mod, return_DHARMa = TRUE)
 saveRDS(r_mod, here(dat.files, "resids", str_c(season, "dharma_resids.rds", sep = "_")))
 
 # plot residuals 

@@ -1,7 +1,7 @@
 ### created: 05/29/2024
 ### last updated: 
 
-# 08 - EXTRACT MODEL PARAMETERS ####
+# 10 - DIAGNOSTICS: EXTRACT MODEL PARAMETERS ####
 
 ## OBJECTIVE ####
 # extract model fit parameters 
