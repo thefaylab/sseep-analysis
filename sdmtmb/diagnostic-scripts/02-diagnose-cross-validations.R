@@ -1,5 +1,5 @@
 ### created: 04/25/2024
-### last updated: 05/20/2024
+### last updated: 11/09/2024
 
 # 02 - DIAGNOSTICS: CROSS VALIDATION TEST ERROR RATE ####
 
@@ -21,19 +21,19 @@ library(gt)
 
 ### Environment Set Up ####
 # season 
-season <- "spring"
+season <- "fall"
 
 # species
-species <- "atlmackerel"
+species <- "sumflounder"
 
-species_name <- "atlantic mackerel"
+species_name <- "summer flounder"
 
 ### File locations ####
-dat.files <- here("sdmtmb",  species, "data") ## FIXME when repo is reorganized
+dat.files <- here("data", "rds", "sdmtmb",  species) 
 
 # model locations
-cv.locs <- here(dat.files, "cross-valid", season) ## FIXME when repo is reogranized 
-
+cv.locs <- here(dat.files, "cross-valid", season)
+# cv.locs <- here(dat.files, "cross-valid", "tweedie", "all-dat")
 
 ### Read in data ####
 # number of models to read in 
@@ -88,7 +88,7 @@ cvs_tbl <- sum_logliks |>
   relocate(convergence, .before = `Sum log likelihood`) 
 
 # save the data
-saveRDS(cvs_tbl, file = here(dat.files, str_c(season, "-cv-diagnostics.rds", sep = ""))) ## FIXME when repo is reorganized 
+saveRDS(cvs_tbl, file = here(dat.files, str_c(season, "-cv-diagnostics.rds", sep = ""))) 
 
 # kable(cvs_tbl, align = "lcccc", caption = str_c(str_to_sentence(species_name), season, "cross validation diagnostics", sep = " "), format.args = list(big.mark = ","), booktabs = TRUE) |>
 #   kable_styling(full_width = F, fixed_thead = T, font_size = 14) |>
@@ -101,10 +101,12 @@ cvs_gt <- cvs_tbl |> column_to_rownames(var = "models") |>
   cols_label(convergence = md("**Convergence**"), 
              `Sum log likelihood` = md("**Sum log likelihood**"),
              cv_mse = md("**MSE**")) |>
-  tab_header(title = md("Fall summer cross validation metrics")) |>
+  tab_header(title = md(str_c(str_to_title(season), species_name, "cross validation metrics", sep = " "))) |>
   tab_options(table.width = pct(30))
 
-gtsave(cvs_gt, filename = "fall_cross-valid_diagnostics.png", path = here("sdmtmb", "sumflounder", "tables"), expand = 100)
+gtsave(cvs_gt, filename = str_c(season, "cv_tbl.docx", sep = "_"), path = here("outputs", "sdmtmb", species, "tables"), expand = 100)
+
+gtsave(cvs_gt, filename = str_c(season, "cv_tbl.png", sep = "_"), path = here("outputs", "sdmtmb", species, "tables"), expand = 100)
 
 
 

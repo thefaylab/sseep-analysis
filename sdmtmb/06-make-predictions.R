@@ -27,9 +27,9 @@ pal <- natparks.pals("DeathValley", type = "continuous")
 season <- "spring"
 
 # species
-species <- "atlmackerel"
+species <- "sumflounder"
 
-species_name <- "atlantic mackerel"
+species_name <- "summer flounder"
 
 ### File locations ####
 dat.files <- here("data", "rds", "sdmtmb", species) 
@@ -40,8 +40,10 @@ plot.files <- here("outputs", "sdmtmb",  species, "plots")
 mod <- readRDS(here(dat.files, str_c(season, "mod.rds", sep = "_"))) ## FIXME as needed
 
 # seasonal spatial footprint grid
-grid <- readRDS(here(dat.files, str_c(season, "grid_Jun2022.rds", sep = "_"))) 
+grid <- readRDS(here(dat.files, str_c(season, "grid_Jun2022.rds", sep = "_")))
+# grid <- readRDS(here("data", "rds", "sdmtmb", "survey_grid_Jun2022.rds")) |> mutate(X = X/1000, Y = Y/1000)
 ### check grid coordinates against model fitting coordinates; divide by 1000 if grid coordinates > model fitting coordinates
+
 
 ## MAKE PREDICTIONS ####
 ### Model Predictions ####
@@ -58,16 +60,16 @@ grid_preds <- predict(mod, newdata = grid)
 
 ## PLOT PREDICTIONS ####
 # estimates 
-pred_map <- #plot_map(coastline, strata_utm, dat = grid_preds, column = exp(est)) +
-plot_map(coastline, strata_utm, dat = grid_preds, column = exp(est1+est2)) +
+pred_map <- plot_map(coastline, strata_utm, dat = grid_preds |> filter(EST_YEAR %in% c(2016:2021)), column = exp(est)) +
+# plot_map(coastline, strata_utm, dat = grid_preds, column = exp(est1+est2)) +
   scale_fill_gradient2(low = pal[4], mid = pal[3], high = pal[1], midpoint = 20, trans = "sqrt") +
   labs(fill = "Biomass", subtitle = str_c("Predictions of", season, species_name, "spatial distribution", sep = " ")) +
-  facet_wrap(~EST_YEAR)
+  facet_wrap(~EST_YEAR) 
 
 
 # main effects only
-fixed.eff_map <- #plot_map(coastline, strata_utm, dat = grid_preds, column = exp(est_non_rf)
-  plot_map(coastline, strata_utm, dat = grid_preds, column = exp(est_non_rf1+est_non_rf2)) + 
+fixed.eff_map <- plot_map(coastline, strata_utm, dat = grid_preds, column = exp(est_non_rf)) +
+  # plot_map(coastline, strata_utm, dat = grid_preds, column = exp(est_non_rf1+est_non_rf2)) + 
   scale_fill_gradient2(low = pal[4], mid = pal[5], high = pal[3], midpoint = 0.10, trans = "sqrt") + 
   labs(fill = "Main effect estimates", subtitle = str_c("Predictions of fixed effects on", season, species_name, "spatial distribution", sep = " ")) + 
   facet_wrap(~EST_YEAR) 
@@ -88,12 +90,12 @@ epsilon_map <- plot_map(coastline, strata_utm, dat = grid_preds, column = epsilo
 data <- list("mod_preds.rds" = mod_preds, 
              "grid_preds.rds" = grid_preds)
 
-pmap(list(data, names(data)), ~saveRDS(.x, here(dat.files, str_c(season, .y, sep = "_")))) # FIXME 
+pmap(list(data, names(data)), ~saveRDS(.x, here(dat.files, str_c(season, .y, sep = "_"))))
 
-plots <- list("pred-dist_maps.png" = pred_map, 
-              "fixed-eff_maps.png" = fixed.eff_map, 
-              "omega-re_map.png" = omega_map,
-              "epsilon-re_maps.png" = epsilon_map)
+plots <- list("pred-dist_4-yr-maps.png" = pred_map, 
+              "fixed-eff_4-yr-maps.png" = fixed.eff_map, 
+              "omega-re_4-yr-map.png" = omega_map,
+              "epsilon-re_4-yr-maps.png" = epsilon_map)
 
-pmap(list(plots, names(plots)), ~ggsave(plot = .x, filename = str_c(season, .y, sep = "_"), device = "png", path = here(plot.files), width = 15, height = 15))
+pmap(list(plots, names(plots)), ~ggsave(plot = .x, filename = str_c(season, .y, sep = "_"), device = "png", path = here(plot.files), width = 10, height = 10))
 
