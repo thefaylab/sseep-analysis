@@ -1,5 +1,5 @@
 ### created: 01/26/2024
-### last updated: 
+### last updated: 11/10/2024
 
 # 05 - PLOT ATLANTIC MACKEREL MEAN DIFFERENCES ####
 
@@ -25,37 +25,60 @@ library(patchwork)
 
 ### LOAD DATA ####
 # dataset created from `03-strat-mu-diff.R` here("retro-analysis"). 
-mudiff_all <- readRDS(here("data", "rds", "retro-analysis", "species_mean-sq-diff.rds"))
+# datasets created from `03-strat-mu-diff.R` here("retro-analysis"). 
+mudiff_all <- readRDS(here("data", "rds", "retro-analysis", "species_stratmu-diff.rds")) 
+
+cvdiff_all <- readRDS(here("data", "rds", "retro-analysis", "species_cv-diff.rds")) 
+
+slope_diff_all <- readRDS(here("data", "rds", "retro-analysis", "species_slope-diff.rds"))
 
 # dataset created from `05-calculate-sumflounder-stratmu.R` here("sumflounder"). 
-mudiff_dat <- readRDS(here("data", "atlmackerel", "am_mudiffdat.rds"))
+mudiff_dat <- readRDS(here("data", "atlmackerel", "mudiff_dat.rds"))
 
+cvdiff_dat <- readRDS(here("data", "atlmackerel", "cvdiff_dat.rds"))
+
+slope_diff_dat <- readRDS(here("data", "atlmackerel", "slope_diff.rds"))
 
 
 # PLOTS ####
-# am_mudiff_fall_plot <- ggplot() +  
-#   geom_histogram(data = mudiff_all |> filter(SEASON == "FALL"), aes(mudiff, after_stat(count)), color = "white", fill = "#5dc5e9") +
-#   geom_vline(xintercept = as.numeric(mudiff_dat[1,3]), linetype = 6, color = "#0a4c8a", linewidth = 1) + 
-#   facet_wrap(~str_to_title(SEASON)) +
-#   labs(x = "Relative percent differences", y = "Number of species") +
-#   ylim(0, 125)+
-#   theme_bw() + 
-#   theme(axis.title = element_text(size = 16), axis.title.x = element_text(margin = margin(5, 5, 5, 5)), axis.title.y = element_text(margin = margin(5, 5, 5, 5)), axis.text = element_text(size = 14), strip.text = element_text(size = 14))
-
-mudiff_spr_plot <- ggplot() +  
-  geom_histogram(data = mudiff_all |> filter(SEASON == "SPRING"), aes(mudiff, after_stat(count)), color = "white", fill = "#5dc5e9") +
-  geom_vline(xintercept = as.numeric(mudiff_dat[1,3]), linetype = 6, color = "#0a4c8a", linewidth = 1) + 
+# mean difference
+mudiff_plot <- ggplot() +  
+  geom_histogram(data = mudiff_all |> filter(SEASON == "SPRING"), aes((MARE*100), after_stat(count)), color = pal[5], fill = pal[1]) +
+  geom_vline(xintercept = as.numeric(mudiff_dat[1,5]*100), linetype = 6, color = pal[3], linewidth = 1) + 
+  annotate("text", x = as.numeric(mudiff_dat[1,5]*100)-0.5, y = 50, label = str_c(round((mudiff_dat[1,5]*100), 0), "%", sep = " "), angle = 90) +
   facet_wrap(~str_to_title(SEASON)) +
-  labs(x = "Relative percent differences", y = "Number of species", title = "Average squared relative differences of annual stratified mean abundance indices between survey effort scenarios") +
-  ylim(0,120) +
+  labs(x = "Mean absolute relative differences", y = "Number of species") +
+  ylim(0,100) +
   theme_bw() + 
-  theme(axis.title = element_text(size = 16), axis.title.x = element_text(margin = margin(5, 5, 5, 5)), axis.text = element_text(size = 16), axis.title.y = element_text(margin = margin(5, 5, 5, 5)), strip.text = element_text(size = 14), plot.title = element_text(size = 16, hjust = 0.5))
+  theme(axis.title = element_text(size = 11), axis.text = element_text(size = 11),  strip.text = element_text(size = 11))
 
-# sf_mudiff_present <- ((sf_mudiff_fall_plot + theme(plot.margin = unit(c(5, 2, 5, 5), "pt"))) + (sf_mudiff_spr_plot + theme(plot.margin = unit(c(5,5,5,2), "pt")))) + plot_annotation(title = "Average squared relative differences of annual stratified mean abundance indices between survey effort scenarios", theme = theme(plot.title = element_text(size = 16, hjust = 0.5)))
+# cv difference
+cvdiff_plot <- ggplot() +  
+  geom_histogram(data = cvdiff_all |> filter(SEASON == "SPRING"), aes((MARE*100), after_stat(count)), color = pal[5], fill = pal[1]) +
+  geom_vline(xintercept = as.numeric(cvdiff_dat[1,5]*100), linetype = 6, color = pal[3], linewidth = 1) + 
+  annotate("text", x = as.numeric(cvdiff_dat[1,5]*100)-0.5, y = 50, label = str_c(round((cvdiff_dat[1,5]*100), 0), "%", sep = " "), angle = 90) +
+  facet_wrap(~str_to_title(SEASON)) +
+  labs(x = "Relative percent differences", y = "Number of species") +
+  ylim(0,100) +
+  theme_bw() + 
+  theme(axis.title = element_text(size = 11), axis.text.x = element_text(size = 11), strip.text = element_text(size = 11))
+
+# slope diff
+slope_diff_plot <- ggplot() +
+  geom_histogram(data = mudiff_all |> filter(SEASON == "SPRING"), aes((MAE*100), after_stat(count)), color = pal[5], fill = pal[1]) +
+  geom_vline(xintercept = as.numeric(slope_diff_dat[1,3]*100), linetype = 6, color = pal[3], linewidth = 1) +
+  annotate("text", x = as.numeric(slope_diff_dat[1,3]*100)+ 120, y = 165, label = str_c(round(slope_diff_dat[1,3]*100, 2), "%", sep = " "), angle = 90) +
+  facet_wrap(~str_to_title(SEASON)) +
+  ylim(0, 200)+
+  labs(x = "Relative absolute differences", y = "Number of species") +
+  theme_bw() +
+  theme(axis.title = element_text(size = 11), axis.title.x = element_text(margin = margin(5, 5, 5, 5)), axis.text.x = element_text(size = 11), axis.title.y = element_text(margin = margin(5, 5, 5, 5)), axis.text.y =  element_blank(), axis.ticks.y = element_blank(), strip.text = element_text(size = 11))
 
 
 
 ### save the plot
-ggsave(filename ="mudiff_present.png", device = "png", plot = last_plot(), path = here("outputs", "atlmackerel"), width = 13, height = 8)
+ggsave(filename ="mudiff_plot.png", device = "png", plot = mudiff_plot, path = here("outputs", "init-analysis-plots", "atlmackerel"), width = 8, height = 6)
 
+ggsave(filename ="cvdiff_plot.png", device = "png", plot = cvdiff_plot, path = here("outputs", "init-analysis-plots", "atlmackerel"), width = 8, height = 6)
 
+ggsave(filename ="slope-diff.png", device = "png", plot = slope_diff_plot, path = here("outputs", "init-analysis-plots", "atlmackerel"), width = 10, height = 6)
