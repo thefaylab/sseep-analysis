@@ -36,7 +36,7 @@ ggplot() +
   scale_color_viridis_c(guide = "legend", trans = "sqrt") + 
   labs(x = "Longitude", y = "Latitude", color = "Biomass", size = "Biomass") + 
   theme(legend.position = "bottom")
-ggsave("atlmackerel-biomass-map.png", last_plot(), device = "png", here("sdmtmb", "atlmackerel", "plots"), width = 6, height = 8)
+# ggsave("atlmackerel-biomass-map.png", last_plot(), device = "png", here("sdmtmb", "atlmackerel", "plots"), width = 6, height = 8)
 
 # estimates 
 plot_map(coastline, strata_utm, dat = grid_preds, column = exp(est)) + 
@@ -46,7 +46,7 @@ plot_map(coastline, strata_utm, dat = grid_preds, column = exp(est)) +
   theme(legend.position = "bottom", axis.title.x = element_text(size = 14, margin = margin(10, 0, 5, 0)), axis.title.y = element_text(size = 14, margin = margin(0, 10, 0, 5)), axis.text = element_text(size = 14), strip.text = element_text(size = 14), legend.title = element_text(size = 14),  legend.text = element_text(size = 12, angle = 45))
 
 # ggsave("atlmackerel-preds-map.png", device = "png", path = here("sdmtmb", "atlmackerel", "plots"), width = 6, height = 8)
-ggsave("atlmackerel-preds-map-all-years.png", device = "png", path = here("sdmtmb", "atlmackerel", "plots"), width = 8, height = 10)
+# ggsave("atlmackerel-preds-map-all-years.png", device = "png", path = here("sdmtmb", "atlmackerel", "plots"), width = 8, height = 10)
 
 # main effects only
 plot_map(coastline, strata_utm, dat = grid_preds, column = exp(est_non_rf)) + labs(fill = "Main effect estimates") + theme(legend.position = "bottom")

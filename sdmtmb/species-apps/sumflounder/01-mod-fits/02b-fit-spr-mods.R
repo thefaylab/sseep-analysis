@@ -20,18 +20,18 @@ library(sdmTMB)
 library(kableExtra)
 
 here()
-sumflounder.dat <- here("sdmtmb", "sumflounder", "data")
-mods.dat <- here("sdmtmb", "sumflounder", "data", "mods")
+dat.files <- here("data", "rds", "sdmtmb", species)
+mods.dat <- here(dat.files, "mods")
 season <- "spring"
 
 ## LOAD DATA ####
 # summer flounder data 
-sf_spring <- readRDS(here(sumflounder.dat, "sumflounder_spring.rds")) |> 
+sf_spring <- readRDS(here(dat.files, "sumflounder_spring.rds")) |> 
   mutate(AREA = as.factor(AREA), 
          EST_YEAR = as.factor(EST_YEAR))
 
 # mesh 
-spring_mesh <- readRDS(here(sumflounder.dat, "spring_mesh.rds"))
+spring_mesh <- readRDS(here(dat.files, "spring_mesh.rds"))
 
 ## MODEL FITS ####
 

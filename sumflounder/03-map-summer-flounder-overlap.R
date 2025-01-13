@@ -34,7 +34,7 @@ fall_footprint <- readRDS(here("data", "sumflounder", "sf_fall_footprint.rds"))
 spring_footprint <- readRDS(here("data", "sumflounder", "sf_spring_footprint.rds"))
 
 
-## PLOT THE DISTRIBUTION ####
+## PLOT THE SPATIAL FRAME ####
 # create a color palette for creating a legend
 pal <- c("#5dc5e9", "#0a4c8a", "#3f7f00")
 

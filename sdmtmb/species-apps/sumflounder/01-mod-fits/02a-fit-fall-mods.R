@@ -1,5 +1,5 @@
 ### created: 12/10/2022
-### last updated: 12/07/2023
+### last updated: 07/05/2024
 
 # 02a - FIT FALL MODELS ####
 
@@ -24,25 +24,24 @@ here()
 ### Environment set up ####
 # folder location based on season: c("fall", "spring")
 season <- "fall"
-# folder location based on data set used: c("all-dat", "no-bio-out", "no-dep-out")
-dat <- "all-dat"
+
 
 ### File Locations ####
 # species folder 
-sumflounder.dat <- here("sdmtmb", "sumflounder", "data")
+dat.files <- here("data", "rds", "sdmtmb", "sumflounder")
 
 # model locations
-mods.dat <- here("sdmtmb", "sumflounder", "data", "mods")
+mods.dat <- here(dat.files, "mods")
 
 
 ### READ DATA ####
 # fall summer flounder data created in `01-prepare-data.R`
-sf_fall <- readRDS(here(sumflounder.dat, "sumflounder_fall.rds")) |> 
+sf_fall <- readRDS(here(dat.files, "sumflounder_fall.rds")) |> 
   mutate(AREA = as.factor(AREA), 
          EST_YEAR = as.factor(EST_YEAR))
 
 # fall mesh created in `01-prepare-data.R` 
-fall_mesh <- readRDS(here(sumflounder.dat, "fall_mesh.rds"))
+fall_mesh <- readRDS(here(dat.files, "fall_mesh.rds"))
 
 ## MODEL FITS: WITH ALL DATA ####
 
