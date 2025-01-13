@@ -1,5 +1,5 @@
 ### created:      02/15/2022
-### last update:  02/26/2024
+### last update:  11/11/2024
 ###
 
 # 02b - CALCULATE PERCENT IMPACTS ####
@@ -41,6 +41,7 @@ compare_time <- readRDS(here(init.analysis.dat, "compare_time.rds"))
 
 compare_sp_yr <- readRDS(here(init.analysis.dat, "compare_species-year.rds"))
 
+compare_sp_yr_ssn <- readRDS(here(init.analysis.dat, "compare_species-year-ssn.rds"))
 
 # PERCENT SUMMARIES ####
 
@@ -57,9 +58,9 @@ compare_species <- compare_species |>
          WIND_OVERLAP_TOW = round(((WIND_TOW/OVERLAP_TOW)*100), digits = 0), 
          CLASS = "Species",#)
          
-#compare_species <- compare_species |> 
-  # mutate(
-    WIND_OVERLAP_CATCH = ifelse(is.nan(WIND_OVERLAP_CATCH), 0, WIND_OVERLAP_CATCH),
+         #compare_species <- compare_species |> 
+         # mutate(
+         WIND_OVERLAP_CATCH = ifelse(is.nan(WIND_OVERLAP_CATCH), 0, WIND_OVERLAP_CATCH),
          WIND_OVERLAP_BIO = ifelse(is.nan(WIND_OVERLAP_BIO), 0, WIND_OVERLAP_BIO),
          WIND_OVERLAP_TOW = ifelse(is.nan(WIND_OVERLAP_TOW), 0, WIND_OVERLAP_TOW))
 
@@ -81,10 +82,10 @@ compare_season <- compare_season |>
          WIND_OVERLAP_BIO = round(((WIND_BIO/OVERLAP_BIO)*100), digits = 0), 
          WIND_OVERLAP_TOW = round(((WIND_TOW/OVERLAP_TOW)*100), digits = 0), 
          CLASS = "Season",#)
-
-#compare_season <- compare_season |> 
-  #mutate(
-    WIND_OVERLAP_CATCH = ifelse(is.nan(WIND_OVERLAP_CATCH), 0, WIND_OVERLAP_CATCH),
+         
+         #compare_season <- compare_season |> 
+         #mutate(
+         WIND_OVERLAP_CATCH = ifelse(is.nan(WIND_OVERLAP_CATCH), 0, WIND_OVERLAP_CATCH),
          WIND_OVERLAP_BIO = ifelse(is.nan(WIND_OVERLAP_BIO), 0, WIND_OVERLAP_BIO),
          WIND_OVERLAP_TOW = ifelse(is.nan(WIND_OVERLAP_TOW), 0, WIND_OVERLAP_TOW))
 
@@ -104,10 +105,10 @@ compare_year <- compare_year |>
          WIND_OVERLAP_BIO = round(((WIND_BIO/OVERLAP_BIO)*100), digits = 0), 
          WIND_OVERLAP_TOW = round(((WIND_TOW/OVERLAP_TOW)*100), digits = 0), 
          CLASS = "Year",#)
-
-# compare_year <- compare_year |> 
-  # mutate(
-    WIND_OVERLAP_CATCH = ifelse(is.nan(WIND_OVERLAP_CATCH), 0, WIND_OVERLAP_CATCH),
+         
+         # compare_year <- compare_year |> 
+         # mutate(
+         WIND_OVERLAP_CATCH = ifelse(is.nan(WIND_OVERLAP_CATCH), 0, WIND_OVERLAP_CATCH),
          WIND_OVERLAP_BIO = ifelse(is.nan(WIND_OVERLAP_BIO), 0, WIND_OVERLAP_BIO),
          WIND_OVERLAP_TOW = ifelse(is.nan(WIND_OVERLAP_TOW), 0, WIND_OVERLAP_TOW))
 
@@ -127,11 +128,11 @@ compare_sp_yr <- compare_sp_yr |>
          WIND_OVERLAP_CATCH = round(((WIND_CATCH/OVERLAP_CATCH)*100), digits = 0), 
          WIND_OVERLAP_BIO = round(((WIND_BIO/OVERLAP_BIO)*100), digits = 0), 
          WIND_OVERLAP_TOW = round(((WIND_TOW/OVERLAP_TOW)*100), digits = 0),#)
-
-
-# compare_sp_yr <- compare_sp_yr |> 
-  # mutate(
-    OVERLAP_CATCHPCT = ifelse(is.nan(OVERLAP_CATCHPCT), 0, OVERLAP_CATCHPCT),
+         
+         
+         # compare_sp_yr <- compare_sp_yr |> 
+         # mutate(
+         OVERLAP_CATCHPCT = ifelse(is.nan(OVERLAP_CATCHPCT), 0, OVERLAP_CATCHPCT),
          WIND_CATCHPCT = ifelse(is.nan(WIND_CATCHPCT), 0, WIND_CATCHPCT),
          OVERLAP_BIOPCT = ifelse(is.nan(OVERLAP_BIOPCT), 0, OVERLAP_BIOPCT),
          WIND_BIOPCT = ifelse(is.nan(WIND_BIOPCT), 0, WIND_BIOPCT),
@@ -141,6 +142,30 @@ compare_sp_yr <- compare_sp_yr |>
 
 write.csv(compare_sp_yr, here(summary.csv, "species-yearly-summaries.csv"), row.names=FALSE)
 saveRDS(compare_sp_yr, here(init.analysis.dat, "species-year-impacts.rds"))
+
+
+#### BY SPECIES, YEAR, AND SEASON ####
+compare_sp_yr_ssn <- compare_sp_yr_ssn |>
+  mutate(OVERLAP_CATCHPCT = round(((OVERLAP_CATCH/BTS_CATCH)*100), digits = 0), 
+         WIND_CATCHPCT = round(((WIND_CATCH/BTS_CATCH)*100), digits = 0), 
+         OVERLAP_BIOPCT = round(((OVERLAP_BIO/BTS_BIO)*100), digits = 0), 
+         WIND_BIOPCT = round(((WIND_BIO/BTS_BIO)*100), digits = 0), 
+         OVERLAP_TOWPCT = round(((OVERLAP_TOW/BTS_TOW)*100), digits = 0), 
+         WIND_TOWPCT = round(((WIND_TOW/BTS_TOW)*100), digits = 0), 
+         WIND_OVERLAP_CATCH = round(((WIND_CATCH/OVERLAP_CATCH)*100), digits = 0), 
+         WIND_OVERLAP_BIO = round(((WIND_BIO/OVERLAP_BIO)*100), digits = 0), 
+         WIND_OVERLAP_TOW = round(((WIND_TOW/OVERLAP_TOW)*100), digits = 0),      OVERLAP_CATCHPCT = ifelse(is.nan(OVERLAP_CATCHPCT), 0, OVERLAP_CATCHPCT),
+         WIND_CATCHPCT = ifelse(is.nan(WIND_CATCHPCT), 0, WIND_CATCHPCT),
+         OVERLAP_BIOPCT = ifelse(is.nan(OVERLAP_BIOPCT), 0, OVERLAP_BIOPCT),
+         WIND_BIOPCT = ifelse(is.nan(WIND_BIOPCT), 0, WIND_BIOPCT),
+         WIND_OVERLAP_CATCH = ifelse(is.nan(WIND_OVERLAP_CATCH), 0, WIND_OVERLAP_CATCH),
+         WIND_OVERLAP_BIO = ifelse(is.nan(WIND_OVERLAP_BIO), 0, WIND_OVERLAP_BIO),
+         WIND_OVERLAP_TOW = ifelse(is.nan(WIND_OVERLAP_TOW), 0, WIND_OVERLAP_TOW))
+
+write.csv(compare_sp_yr_ssn, here(summary.csv, "annual-seasonal-species-summaries.csv"), row.names=FALSE)
+saveRDS(compare_sp_yr_ssn, here(init.analysis.dat, "species-season-year-impacts.rds"))
+
+
 
 ## BY TIME OF DAY ####
 compare_time <- compare_time |>

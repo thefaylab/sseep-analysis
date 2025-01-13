@@ -1,5 +1,5 @@
 ### created:      07/11/2023
-### last update:  04/04/2024
+### last update:  11/11/2024
 ###
 
 # 02a - COMPARE SUMMARIES ####
@@ -38,6 +38,7 @@ bts_yr <- readRDS(here(init.analysis.dat, "bts_yr_summary.rds"))
 bts_time <- readRDS(here(init.analysis.dat, "bts_time_summary.rds"))
 bts_strat <- readRDS(here(init.analysis.dat, "bts_strata_summary.rds"))
 bts_ssn <- readRDS(here(init.analysis.dat, "bts_ssn_summary.rds"))
+bts_sp_ssn_yr <- readRDS(here(init.analysis.dat, "bts_sp-ssn-yr_summary.rds"))
 
 # bts_sp_strat <- readRDS(here(init.analysis.dat, "bts_sp-str_summary.rds"))
 # 
@@ -49,7 +50,7 @@ bts_sp_yr <- readRDS(here(init.analysis.dat, "bts_sp-yr_summary.rds"))
 overlap_sum <- readRDS(here(init.analysis.dat, "overlap_summaries.rds"))
 overlap_sp <- readRDS(here(init.analysis.dat, "overlap_species_summaries.rds"))
 # overlap_sp_strat <- readRDS(here(init.analysis.dat, "overlap_sp-str_summary.rds"))
-# 
+overlap_sp_ssn_yr <- readRDS(here(init.analysis.dat, "overlap_sp_ssn_yr_summary.rds"))
 overlap_sp_yr <- readRDS(here(init.analysis.dat, "overlap_sp-yr_summary.rds"))
 
 overlap_yr <- readRDS(here(init.analysis.dat, "overlap_yr_summary.rds"))
@@ -68,6 +69,7 @@ wind_yr <- readRDS(here(init.analysis.dat, "wind_yr_summary.rds"))
 wind_time <- readRDS(here(init.analysis.dat, "wind_time_summary.rds"))
 wind_strat <- readRDS(here(init.analysis.dat, "wind_strata_summary.rds"))
 wind_ssn <- readRDS(here(init.analysis.dat, "wind_ssn_summary.rds"))
+wind_sp_ssn_yr <- readRDS(here(init.analysis.dat, "wind_sp_ssn_yr_summary.rds"))
 
 # species dataframe created here("tidy-data", "04-complete-datasets.R")
 species <- readRDS(here("data", "rds", "species.rds"))
@@ -147,14 +149,14 @@ compare_strat <- full_join(bts_strat, overlap_strat, by = "STRATUM") |>
   mutate(OVERLAP_CATCH = ifelse(is.na(OVERLAP_CATCH), 0, OVERLAP_CATCH),
          OVERLAP_BIO = ifelse(is.na(OVERLAP_BIO), 0, OVERLAP_BIO),
          OVERLAP_TOW = ifelse(is.na(OVERLAP_TOW), 0, OVERLAP_TOW)) #|> 
-  #rename(COMNAME = COMNAME.x)
+#rename(COMNAME = COMNAME.x)
 
 compare_strat <- full_join(compare_strat, wind_strat, by =  "STRATUM") |> 
   mutate(WIND_CATCH = ifelse(is.na(WIND_CATCH), 0, WIND_CATCH),
          WIND_BIO = ifelse(is.na(WIND_BIO), 0, WIND_BIO),
          WIND_TOW = ifelse(is.na(WIND_TOW), 0, WIND_TOW)) |>
   select(!TYPE) #|>
-  # rename(COMNAME = COMNAME.x)
+# rename(COMNAME = COMNAME.x)
 
 saveRDS(compare_strat, here(init.analysis.dat, "compare_strat.rds"))
 
@@ -327,6 +329,23 @@ compare_sp_yr <- full_join(compare_sp_yr, wind_sp_yr, by = c("SVSPP", "EST_YEAR"
   rename(COMNAME = COMNAME.x)
 
 saveRDS(compare_sp_yr, here(init.analysis.dat, "compare_species-year.rds"))
+
+#### Compare species by year and season ####
+compare_sp_yr_ssn <- full_join(bts_sp_ssn_yr, overlap_sp_ssn_yr, by = c("SVSPP", "EST_YEAR", "SEASON")) |> 
+  select(!c(TYPE.x, TYPE.y, COMNAME.y)) |> 
+  mutate(OVERLAP_CATCH = ifelse(is.na(OVERLAP_CATCH), 0, OVERLAP_CATCH),
+         OVERLAP_BIO = ifelse(is.na(OVERLAP_BIO), 0, OVERLAP_BIO),
+         OVERLAP_TOW = ifelse(is.na(OVERLAP_TOW), 0, OVERLAP_TOW)) |> 
+  rename(COMNAME = COMNAME.x)
+
+compare_sp_yr_ssn <- full_join(compare_sp_yr_ssn, wind_sp_ssn_yr, by = c("SVSPP", "EST_YEAR", "SEASON")) |> 
+  mutate(WIND_CATCH = ifelse(is.na(WIND_CATCH), 0, WIND_CATCH),
+         WIND_BIO = ifelse(is.na(WIND_BIO), 0, WIND_BIO),
+         WIND_TOW = ifelse(is.na(WIND_TOW), 0, WIND_TOW)) |> 
+  select(!c(COMNAME.y, TYPE)) |> 
+  rename(COMNAME = COMNAME.x)
+
+saveRDS(compare_sp_yr_ssn, here(init.analysis.dat, "compare_species-year-ssn.rds"))
 
 # comp_sp_yr <- full_join(comp_sp_yr, species2, by = "SVSPP") 
 # comp_sp_yr <- comp_sp_yr[, c(1, 9, 10, 2:8)] 
