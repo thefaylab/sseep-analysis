@@ -98,11 +98,13 @@ calc.errors <- function(dat, observed, expected){
 
 error.dat <- dat |> 
   mutate(error = {{observed}} - {{expected}},
+         abs.err = abs(error),
          rel.err = error / {{expected}}, 
-         abs.err = abs(rel.err)) |> 
+         abs.rel.err = abs.err / {{expected}}) |> 
   mutate(error = ifelse(is.nan(error), 0, error), 
+         abs.err = ifelse(is.nan(abs.err), 0, abs.err),
          rel.err = ifelse(is.nan(rel.err), 0, rel.err), 
-         abs.err =  ifelse(is.nan(abs.err), 0, abs.err))
+         abs.rel.err =  ifelse(is.nan(abs.rel.err), 0, abs.rel.err))
   
 return(error.dat)
   
@@ -133,8 +135,9 @@ mean.diff <- function(error.dat){
   
   mudiff <- error.dat |> 
     summarise(ME = mean(error), 
-              MRE_perc = mean(rel.err)*100, 
-              MARE_perc = mean(abs.err)*100)
+              MAE = mean(abs.err),
+              MRE = mean(rel.err), 
+              MARE = mean(abs.rel.err))
   
   return(mudiff)
   
