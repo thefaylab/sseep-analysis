@@ -1,0 +1,120 @@
+---
+title: "An empirical analysis of potential impacts on survey data"
+author: "Angelia Miller"
+date: "2024-11-24"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(gt)
+library(here)
+
+init.analysis.dat <- here("data", "rds", "init-analysis")
+
+```
+
+# Impacts on sample sizes
+```{r}
+# percent loss data created here("init-analysis", "02b-percent-impacts")
+compare_species <- readRDS(here(init.analysis.dat, "species-impacts.rds"))
+compare_season <- readRDS(here(init.analysis.dat, "compare_season.rds"))
+sumflounder <- readRDS(here("data", "sumflounder", "sumflounder.rds"))
+data <- readRDS(here("data", "rds", "completed_bts_data.rds")) |> filter(SVSPP == 121) |> mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT))
+```
+
+
+## Case Study Species 
+How many tows were they observed over the full survey area and times series
+```{r}
+compare_species |> filter(SVSPP %in% c(103, 121)) |> 
+  group_by(SVSPP) |> 
+  summarise(prop_bts = BTS_TOW/8102)
+```
+
+How many of total tows were wind tows
+```{r}
+compare_species$WIND_TOWPCT 
+```
+
+
+### Summer flounder 
+```{r}
+### how many ows occurred in wind areas vs outside areas over time and in each season 
+
+
+sumflounder_summ <- sumflounder |>
+  group_by(EST_YEAR, AREA, SEASON) |>
+  summarise(sum_tow = length(unique(TOWID)),
+  sum_catch = sum(EXPCATCHNUM),
+  sum_bio = sum(EXPCATCHWT))
+
+sumflounder_summ |> filter(SEASON == "SPRING", AREA == "WIND")
+sumflounder_summ |> filter(SEASON == "SPRING", EST_YEAR %in% c(2011, 2016))
+# find percentage of wind tows/biomass/numbers compared to full effort (wind/wind+outside)
+```
+
+
+```{r}
+### what is the percentage of wind tows to total tows 
+sumflounder_summ |> group_by(AREA, SEASON) |> summarise(sum(sum_tow))
+
+sumflounder_summ |> group_by(AREA, SEASON) |> summarise(mean(sum_tow), sd(sum_tow))
+### fall 
+211/(1694+211)
+### spring
+208/(2006+11)
+```
+
+
+### Atlantic mackerel
+```{r}
+### how many tows occurred in wind areas vs outside areas over time and in each season
+
+
+full_survey <- c(2009:2019, 2021)
+
+am_spring <- data |> filter(SEASON == "SPRING", YEAR %in% full_survey)
+summary(am_spring$EXPCATCHWT)
+
+atlmack_summ <- am_spring |>
+  group_by(EST_YEAR, AREA, SEASON) |>
+  summarise(sum_tow = length(unique(TOWID)),
+  sum_catch = sum(EXPCATCHNUM),
+  sum_bio = sum(EXPCATCHWT))
+```
+
+
+```{r}
+# How much of the 7% difference is coming from the very small estimate in 2014?
+atlmack_summ |> filter(EST_YEAR == 2014)
+atlmack_summ |> ungroup() |> filter(AREA == "WIND")
+atlmack_summ |> ungroup() |> filter(AREA == "WIND") |> summarise(sum_tow = sum(sum_tow), sum_catch = sum(sum_catch), sum_bio = sum(sum_bio))
+.031/1101
+1/11198
+11/209
+
+```
+
+```{r}
+### what is the range of biomass 
+am_spring |> filter(EXPCATCHWT != 0) |> summarise(min = min(EXPCATCHWT), 
+                                                  q1 = quantile(EXPCATCHWT, 0.25), 
+                                                  median = median(EXPCATCHWT), 
+                                                  mean = mean(EXPCATCHWT), 
+                                                  sd = sd(EXPCATCHWT),
+                                                  q3 = quantile(EXPCATCHWT, 0.75), 
+                                                  max = max(EXPCATCHWT))
+
+```
+
+```{r}
+### what is the percentage of wind tows to total tows 
+atlmack_summ |> group_by(AREA, SEASON) |> summarise(sum(sum_tow))
+
+atlmack_summ |> group_by(AREA, SEASON) |> summarise(mean(sum_tow), sd(sum_tow))
+
+209/(3839+209)
+```
+

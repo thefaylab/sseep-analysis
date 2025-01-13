@@ -1,0 +1,27 @@
+---
+title: '"An empirical analysis of potential impacts on survey data"'
+author: "Angelia Miller"
+date: "2024-11-30"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Null Hypothesis 
+
+## Summer flounder
+
+```{r cars}
+summary(cars)
+```
+
+## Atlantic mackerel
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+

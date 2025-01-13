@@ -1,0 +1,97 @@
+---
+title: "An empirical analysis of potential impacts on survey data"
+author: "Angelia Miller"
+date: "2024-12-21"
+output: word_document
+---
+Stratified mean plots for top species 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+source(here("R", "plot_fns.R"))
+dat.files <- here("data", "rds", "retro-analysis")
+theme <- theme_bw(base_size = 14) + theme(legend.position = "bottom")
+theme_set(theme)
+
+### Read in data ####
+data <- readRDS(here(dat.files, "all_stratmu_rows.rds"))
+specieslookup <- data |> 
+  ungroup() |>
+  select(SVSPP, COMNAME) |> 
+  distinct() |> 
+  mutate(spname = str_to_lower(gsub(" ", "_", COMNAME)))|> 
+  arrange(SVSPP)
+```
+
+## Fall species 
+```{r}
+fall_spp <- c("roughtail_stingray", 
+"rough_scad",
+"spanish_sardine",
+"striped_anchovy",
+"northern_stargazer",
+"weakfish",
+"spiny_butterfly_ray",
+"bluntnose_stingray",
+"striped_burrfish",
+"bullnose_ray")
+
+fall_spp_tbl <- specieslookup |> filter(spname %in% fall_spp)
+fall_svspp <- fall_spp_tbl$SVSPP
+
+fall_data <- data |> filter(SEASON == "FALL", SVSPP %in% fall_svspp)
+
+```
+
+```{r}
+
+fall_plots <- fall_data |> group_by(COMNAME) |> nest() |> mutate(plot = map(data, ~plot.stratmu(., EST_YEAR, color = effort) + labs(title = str_to_sentence(COMNAME)) + facet_wrap(~str_to_title(.$SEASON)))) |> left_join(specieslookup, by = "COMNAME")
+
+pmap(list(fall_plots$plot, fall_plots$spname), ~ggsave(filename = str_c(.y, "png", sep = "."), device = "png" , plot = .x, path = here("outputs", "manuscript", "all-species", "fall-stratmu"), width = 8, height = 5))
+
+```
+
+
+## Spring Species 
+```{r}
+spring_spp <- c("striped_bass",
+"spiny_searobin",
+"snake_eel_uncl",
+"lady_crab",
+"spider_crab_uncl",
+"northern_stargazer",
+"smooth_dogfish", 
+"blueback_herring", 
+"bobtail_uncl", 
+"ling_uncl")
+
+spring_spp_tbl <- specieslookup |> filter(spname %in% spring_spp)
+
+spring_svspp <- spring_spp_tbl$SVSPP
+
+spring_data <- data |> filter(SEASON == "SPRING", SVSPP %in% spring_svspp)
+
+```
+
+```{r}
+spring_plots <- spring_data |> group_by(COMNAME) |> nest() |> mutate(plot = map(data, ~plot.stratmu(., EST_YEAR, color = effort) + labs(title = str_to_sentence(COMNAME)) + facet_wrap(~str_to_title(.$SEASON)))) |> left_join(specieslookup, by = "COMNAME")
+
+pmap(list(spring_plots$plot, spring_plots$spname), ~ggsave(filename = str_c(.y, "png", sep = "."), device = "png" , plot = .x, path = here("outputs", "manuscript", "all-species", "spring-stratmu"), width = 8, height = 5))
+
+```
+
+## SSEEP Species
+
+```{r}
+sseep_spp <- c(15, 32, 72, 103, 105, 106, 121, 131, 141, 503, 999)
+
+sseep_data <- data |> filter(SVSPP %in% sseep_spp)
+```
+
+
+```{r}
+sseep_plots <- sseep_data |> group_by(COMNAME) |> nest() |> mutate(plot = map(data, ~plot.stratmu(., EST_YEAR, color = effort) + labs(title = str_to_sentence(COMNAME)) + facet_wrap(~str_to_title(.$SEASON)))) |> left_join(specieslookup, by = "COMNAME")
+
+pmap(list(sseep_plots$plot, sseep_plots$spname), ~ggsave(filename = str_c(.y, "png", sep = "."), device = "png" , plot = .x, path = here("outputs", "manuscript", "SSEEP-species"), width = 10, height = 5))
+
+```

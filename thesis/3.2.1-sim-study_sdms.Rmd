@@ -1,0 +1,1046 @@
+---
+title: "A simulation study of potential impacts on indices of abundance"
+author: "Angelia Miller"
+date: "2024-11-24"
+output: word_document
+---
+
+```{r}
+library(sf)
+library(patchwork)
+library(here)
+library(sdmTMB)
+library(NatParksPalettes)
+suppressPackageStartupMessages(library(tidyverse))
+
+theme <- theme_bw(base_size = 14) + theme(legend.position = "bottom", legend.text = element_text(angle = 45))
+theme_set(theme)
+pal <- natparks.pals("DeathValley", type = "continuous")
+pal1 <- park_palette("SmokyMountains")
+pal2 <- park_palette("Zion")
+
+strata <- readRDS(here("data", "rds", "active_strata_wts.rds"))
+
+source(here("sdmtmb", "functions", "plot_fns.R"))
+source(here("R", "StratMeanFXs_v2.R"))
+source(here("R", "plot_fns.R"))
+```
+
+# Summer flounder
+```{r sf preds}
+sf.files <- here("data", "rds", "sdmtmb", "sumflounder") 
+sf.plots <- here("outputs", "sdmtmb",  "sumflounder", "plots")
+
+# read in predictions created here("mod-forecasts.R")
+fall_preds <- readRDS(file = here(sf.files, "fall_grid_preds.rds"))
+
+spring_preds <- readRDS(file = here(sf.files, "spring_grid_preds.rds"))
+```
+
+## Model Predictions Maps
+### Fall Maps
+#### Subset years
+```{r sf fall subset maps}
+# estimates 
+fall_sub_pred_map <- plot_map(coastline, strata_utm, dat = fall_preds |> filter(EST_YEAR %in% c(2016:2021)), column = exp(est)) + 
+  scale_fill_gradient2(low = pal[4], mid = pal[3], high = pal[1], midpoint = 10, trans = "sqrt") +
+  labs(fill = "Biomass") +
+  facet_grid(cols = vars(str_to_title(SEASON), EST_YEAR)) 
+
+
+# main effects only
+fall_sub_fixed <- plot_map(coastline, strata_utm, dat = fall_preds |> filter(EST_YEAR %in% c(2016:2021)), column = exp(est_non_rf)) +
+  scale_fill_gradient2(low = pal[4], mid = pal[5], high = pal[3], midpoint = 0.10, trans = "sqrt") + 
+  labs(fill = "Main effect estimates") +
+  facet_grid(cols = vars(str_to_title(SEASON), EST_YEAR)) 
+
+# # spatial random effects
+fall_sub_omega <- plot_map(coastline, strata_utm, dat = fall_preds |> filter(EST_YEAR %in% c(2016:2021)), column = omega_s) + 
+  scale_fill_gradient2(low = pal[4], mid = "white", high = pal[2], midpoint = 0) + 
+  labs(fill = "Biomass") +
+  facet_grid(cols = vars(str_to_title(SEASON), EST_YEAR)) 
+
+
+# # spatiotemporal random effects
+fall_sub_epsilon <- plot_map(coastline, strata_utm, dat = fall_preds |> filter(EST_YEAR %in% c(2016:2021)), column = epsilon_st) + 
+  scale_fill_gradient2(low = pal[4], mid = "white", high = pal[2], midpoint = 0) + 
+  labs(fill =  "Spatiotemporal RE\nestimates") + 
+  facet_grid(cols = vars(str_to_title(SEASON), EST_YEAR)) 
+
+```
+
+#### All years
+```{r sf fall maps}
+# estimates 
+fall_pred_map <- plot_map(coastline, strata_utm, dat = fall_preds, column = exp(est)) + 
+  scale_fill_gradient2(low = pal[4], mid = pal[3], high = pal[1], midpoint = 10, trans = "sqrt") +
+  labs(fill = "Biomass") +
+  facet_wrap(vars(str_to_title(SEASON), EST_YEAR)) 
+
+
+# main effects only
+fall_fixed <- plot_map(coastline, strata_utm, dat = fall_preds, column = exp(est_non_rf)) +
+  scale_fill_gradient2(low = pal[4], mid = pal[5], high = pal[3], midpoint = 0.10, trans = "sqrt") + 
+  labs(fill = "Main effect estimates") +
+  facet_wrap(vars(str_to_title(SEASON), EST_YEAR)) 
+
+# # spatial random effects
+fall_omega <- plot_map(coastline, strata_utm, dat = fall_preds, column = omega_s) + 
+  scale_fill_gradient2(low = pal[4], mid = "white", high = pal[2], midpoint = 0) + 
+  labs(fill = "Biomass") +
+  facet_wrap(vars(str_to_title(SEASON), EST_YEAR)) 
+
+
+# # spatiotemporal random effects
+fall_epsilon <- plot_map(coastline, strata_utm, dat = fall_preds, column = epsilon_st) + 
+  scale_fill_gradient2(low = pal[4], mid = "white", high = pal[2], midpoint = 0) + 
+  labs(fill =  "Spatiotemporal RE\nestimates") + 
+  facet_wrap(vars(str_to_title(SEASON), EST_YEAR)) 
+
+```
+
+### Spring Maps
+#### Subset years
+```{r sf spring subset maps}
+# estimates 
+spring_sub_pred_map <- plot_map(coastline, strata_utm, dat = spring_preds |> filter(EST_YEAR %in% c(2017:2021)), column = exp(est)) + 
+  scale_fill_gradient2(low = pal[4], mid = pal[3], high = pal[1], midpoint = 10, trans = "sqrt") +
+  labs(fill = "Biomass") +
+  facet_grid(cols = vars(str_to_title(SEASON), EST_YEAR)) 
+
+
+# main effects only
+spring_sub_fixed <- plot_map(coastline, strata_utm, dat = spring_preds |> filter(EST_YEAR %in% c(2017:2021)), column = exp(est_non_rf)) +
+  scale_fill_gradient2(low = pal[4], mid = pal[5], high = pal[3], midpoint = 0.10, trans = "sqrt") + 
+  labs(fill = "Main effect estimates") +
+  facet_grid(cols = vars(str_to_title(SEASON), EST_YEAR)) 
+
+# # spatial random effects
+spring_sub_omega <- plot_map(coastline, strata_utm, dat = spring_preds |> filter(EST_YEAR %in% c(2017:2021)), column = omega_s) + 
+  scale_fill_gradient2(low = pal[4], mid = "white", high = pal[2], midpoint = 0) + 
+  labs(fill = "Biomass") +
+  facet_grid(cols = vars(str_to_title(SEASON), EST_YEAR)) 
+
+# # spatiotemporal random effects
+spring_sub_epsilon <- plot_map(coastline, strata_utm, dat = spring_preds |> filter(EST_YEAR %in% c(2017:2021)), column = epsilon_st) + 
+  scale_fill_gradient2(low = pal[4], mid = "white", high = pal[2], midpoint = 0) + 
+  labs(fill =  "Spatiotemporal RE\nestimates") + 
+  facet_grid(cols = vars(str_to_title(SEASON), EST_YEAR)) 
+
+```
+
+#### All years
+```{r sf spring maps}
+# estimates 
+spring_pred_map <- plot_map(coastline, strata_utm, dat = spring_preds, column = exp(est)) + 
+  scale_fill_gradient2(low = pal[4], mid = pal[3], high = pal[1], midpoint = 10, trans = "sqrt") +
+  labs(fill = "Biomass") +
+  facet_grid(cols = vars(str_to_title(SEASON), EST_YEAR)) 
+
+
+# main effects only
+spring_fixed <- plot_map(coastline, strata_utm, dat = spring_preds, column = exp(est_non_rf)) +
+  scale_fill_gradient2(low = pal[4], mid = pal[5], high = pal[3], midpoint = 0.10, trans = "sqrt") + 
+  labs(fill = "Main effect estimates") +
+  facet_grid(cols = vars(str_to_title(SEASON), EST_YEAR)) 
+
+# # spatial random effects
+spring_omega <- plot_map(coastline, strata_utm, dat = spring_preds, column = omega_s) + 
+  scale_fill_gradient2(low = pal[4], mid = "white", high = pal[2], midpoint = 0) + 
+  labs(fill = "Biomass") +
+  facet_grid(cols = vars(str_to_title(SEASON), EST_YEAR)) 
+
+# # spatiotemporal random effects
+spring_epsilon <- plot_map(coastline, strata_utm, dat = spring_preds, column = epsilon_st) + 
+  scale_fill_gradient2(low = pal[4], mid = "white", high = pal[2], midpoint = 0) + 
+  labs(fill =  "Spatiotemporal RE\nestimates") + 
+  facet_grid(cols = vars(str_to_title(SEASON), EST_YEAR)) 
+
+```
+
+### Patchwork
+```{r sf subset patchwork}
+sub_pred_maps <- (fall_sub_pred_map / spring_sub_pred_map) + plot_annotation(tag_levels = "A") & theme(legend.position = "bottom")
+
+sub_fixed_maps <- (fall_sub_fixed / spring_sub_fixed) + plot_annotation(tag_levels = "A") & theme(legend.position = "bottom")
+
+sub_omega_maps <- (fall_sub_omega / spring_sub_omega) + plot_annotation(tag_levels = "A") & theme(legend.position = "bottom")
+
+sub_epsilon_maps <- (fall_sub_epsilon / spring_sub_epsilon) + plot_annotation(tag_levels = "A") & theme(legend.position = "bottom")
+```
+
+```{r save sf maps}
+sf_maps <- list("prediction_map.png" = sub_pred_maps, 
+                "main_effects_map.png"= sub_fixed_maps, 
+                "spatial_re_map.png" = sub_omega_maps, 
+                "spatiotemporal_map.png" = sub_epsilon_maps, 
+                "fall_pred-dist_maps.png" = fall_pred_map,
+                "fall_fixed-eff_maps.png"= fall_fixed,
+                "fall_omega-re_map.png" = fall_omega,
+                "fall_epsilon-re_maps.png" = fall_epsilon,
+                "spring_pred-dist_maps.png" = spring_pred_map,
+                "spring_fixed-eff_maps.png"= spring_fixed,
+                "spring_omega-re_map.png" = spring_omega,
+                "spring_epsilon-re_maps.png" = spring_epsilon)
+
+pmap(list(sf_maps, names(sf_maps)), ~ggsave(plot = .x, filename = .y, device = "png", path = here("outputs", "manuscript", "sumflounder", "final-mod"), width = 10, height = 10))
+```
+
+
+## Residuals 
+```{r sf resid data}
+# mcmc residuals 
+### fall 
+### spring
+```
+
+```{r}
+
+```
+
+## Marginal Effects 
+```{r sf marg-eff data}
+# marginal effects
+             
+```
+
+```{r}
+
+```
+
+## Post-Model Check
+```{r sf post-check data}
+# simulated sumflounder data
+### fall
+sf_fall_simdat <- readRDS(here(sf.files, "post-check", "fall_post-check_simdat.rds")) |> 
+  mutate(SEASON = "FALL") # add season for binding
+### spring
+sf_spr_simdat <- readRDS(here(sf.files, "post-check", "spring_post-check_simdat.rds")) |> 
+  mutate(SEASON = "SPRING")  # add season for binding
+
+# simulated stratified means 
+### fall
+sf_fall_sim_stratmu <- readRDS(here(sf.files, "post-check", "fall_sim_strat_rows.rds"))
+### spring
+sf_spr_sim_stratmu <- readRDS(here(sf.files, "post-check", "spring_sim_strat_rows.rds"))
+
+# simulated slopes 
+### fall
+sf_fall_sim_slopes <- readRDS(here(sf.files, "post-check", "fall_post-check_sim-slopes.rds"))
+### spring
+sf_spr_sim_slopes <- readRDS(here(sf.files, "post-check", "spring_post-check_sim-slopes.rds"))
+
+sf_sim_slopes <- bind_rows(sf_fall_sim_slopes, sf_spr_sim_slopes)
+
+# observed estimates of stratified means 
+sumflounder <- readRDS(here("data", "sumflounder", "sumflounder.rds"))
+
+# observed estimates of stratified means 
+sf_obs_stratmu <- readRDS(here("data", "sumflounder", "stratmu_rows.rds")) |> mutate(SEASON = str_to_title(SEASON)) |> rename(season = SEASON)
+
+# observed population trends 
+sf_obs_slopes <- readRDS(here("data", "sumflounder", "stratmu_linregs.rds")) |> mutate(SEASON = str_to_title(SEASON)) |> rename(season = SEASON)
+```
+### Nominal Mean
+```{r sf nom-mus}
+# bind fall and spring simulated data 
+sf_simdat <- bind_rows(sf_fall_simdat, sf_spr_simdat)
+
+# find the average biomass in each year and simulation
+sf_sim_mu <- sf_simdat |> group_by(nsim, EST_YEAR, SEASON) |> 
+  summarise(mean = mean(EXPCATCHWT)) |>
+  group_by(EST_YEAR, SEASON) |> nest() 
+
+# find average biomass in each year and season from observed data
+sf_yearly_mu <- sumflounder |> group_by(EST_YEAR, SEASON) |> 
+  summarise(mean = mean(EXPCATCHWT)) 
+
+```
+
+```{r yearly sf nom-mu}
+sf_yearly_pval <- sf_sim_mu |> 
+  left_join(sf_yearly_mu, by = c("SEASON", "EST_YEAR")) |> 
+  mutate(quant_fn = map(data, ~ecdf(.x$mean)),
+         quant = map(quant_fn, ~ .x(mean))) |> 
+  unnest(cols = quant)
+
+```
+
+
+```{r overall sf nom-mus}
+sf_ssn_mu <- sumflounder |> group_by(SEASON) |> 
+  summarise(mean = mean(EXPCATCHWT)) 
+
+all_sf_sim_mu <- sf_simdat |> group_by(nsim, SEASON) |> 
+  summarise(mean = mean(EXPCATCHWT)) |> 
+  group_by(SEASON) |> 
+  nest() 
+
+all_sf_mu_pval <- all_sf_sim_mu |> 
+  left_join(sf_ssn_mu, by = "SEASON") |>
+  mutate(quant_fn = map(data, ~ecdf(.x$mean)),
+         quant = map(quant_fn, ~ .x(mean))) |> 
+  unnest(cols = quant)
+
+```
+
+
+#### Plot
+```{r}
+sf_yearly_plot <- ggplot() + 
+  aes(x = as.factor(EST_YEAR), y = mean) + 
+  geom_boxplot(data = sf_sim_mu |> unnest(cols = data), color = pal1[6]) +
+  geom_point(data = sf_yearly_pval, aes(fill = "Observed biomass"), size = 2, shape = 23) + 
+  scale_fill_manual(name = "", labels = "Observed average biomass (kg)", values = c(pal1[1])) + 
+  scale_size_manual(labels = "Observed average biomass (kg)", values = c(2))+ 
+  scale_shape_manual(labels = "Observed average mean biomass (kg)", values = c(23)) +
+  labs(x = "Year", y = "Average Biomass (kg)") +
+  facet_wrap(~str_to_title(SEASON)) + 
+  theme(legend.position = "bottom", legend.margin = margin(t = -5))
+
+ggsave(plot = sf_yearly_plot, filename = "nom-mu_pval_plot.png", device = "png", path = here("outputs", "manuscript", "sumflounder", "post-check"), width = 8, height = 4)
+```
+
+
+### Stratified Mean 
+```{r sf strat wrangle}
+# simulated 
+sf_sim_stratmu <- bind_rows(sf_fall_sim_stratmu, sf_spr_sim_stratmu) |> 
+  group_by(effort, EST_YEAR, season) |>
+  nest() 
+  
+# predicted 
+# sf_pred_stratmu <- bind_rows(sf_fall_pred_stratmu, sf_spr_pred_stratmu) #|> 
+  #filter(effort == "With Wind Precluded") #|> 
+  # group_by(EST_YEAR, season) |> 
+  # nest()
+
+```
+
+
+```{r}
+sf_stratmu_pval <- sf_sim_stratmu |> 
+  left_join(sf_obs_stratmu, by = c("EST_YEAR", "effort", "season")) |>
+  mutate(quant_fn = map(data, ~ecdf(.x$stratmu)),
+         quant = map2(quant_fn, stratmu, ~.x(.y))) |>
+  unnest(cols = quant)
+
+```
+
+#### Plot
+```{r}
+ggplot() + 
+  aes(x = as.factor(EST_YEAR), y = stratmu) +
+  geom_boxplot(data = sf_sim_stratmu |> unnest(cols = data), color = pal1[6]) +
+  geom_point(data = sf_stratmu_pval, aes(fill = "Observed stratified mean (kg/tow)"), size = 2, shape = 23) + 
+  scale_fill_manual(name = "", labels = "Observed stratified mean biomass (kg/tow)", values = c(pal1[1])) + 
+  scale_size_manual(labels = "Observed stratified mean biomass (kg/tow)", values = c(2))+ 
+  scale_shape_manual(labels = "Observed stratified mean biomass (kg/tow)", values = c(23)) +
+  labs(x = "Year", y = "Stratified Mean Biomass (kg/tow)") + 
+  facet_wrap(vars(season, effort)) + 
+  theme(legend.position = "bottom", legend.margin = margin(t = -5))
+
+ggsave(plot = last_plot(), filename = "stratmu_pval_plot.png", device = "png", path = here("outputs", "manuscript", "sumflounder", "post-check"), width = 10, height = 8)
+
+```
+
+### Slopes 
+```{r}
+sf_quant <- sf_sim_slopes |>
+  group_by(effort, season) |>
+  nest() |>
+  left_join(sf_obs_slopes, by = c("season", "effort")) |>
+  mutate(quant.fn = map(data, ~ecdf(.x$estimate)), # for each set of effort data find the CDF
+         quant = map(quant.fn, ~.x(estimate))) |> # use the resulting CDF and find the representative quantile
+  select(season, effort, estimate, quant) |> 
+  unnest(cols = quant)
+
+sf_sim_cis <- sf_sim_slopes |> 
+  group_by(effort, season) |> 
+  nest() |> 
+  mutate(lower = map(data, ~quantile(.$estimate, 0.025)),
+         upper = map(data, ~quantile(.$estimate, 0.975))) |> 
+  unnest(cols = c(lower, upper))
+
+sf_spr_sim_cis <- sf_sim_cis |> 
+  filter(season == "Spring")
+```
+
+```{r}
+sf_fall_precl.plot <- plot_distribution(sf_fall_sim_slopes, ci_dat = c(sf_fall_sim_cis$lower[2], sf_fall_sim_cis$upper[2]), scenario = "With Wind Precluded") +
+  geom_vline(aes(xintercept = as.numeric(sf_obs_slopes$estimate[4]), linetype = effort, color = effort), linewidth = 1.5) +
+  scale_color_manual(values = c(pal1[6]), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
+  scale_linetype_manual(values = c(5), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
+  scale_linewidth(range = c(1,1), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
+  annotate("text", x = as.numeric(sf_obs_slopes$estimate[4])-0.01, y = 50, label = str_c(sf_quant$quant[2]*100, "%", sep = ""), angle = 90, size = 5) + ylim(0, 125) + #xlim((-0.25), NA) +
+  facet_wrap(~str_to_title(season))
+```
+
+
+```{r}
+sf_fall_incl.plot <- plot_distribution(sf_fall_sim_slopes, ci_dat = c(sf_fall_sim_cis$lower[1], sf_fall_sim_cis$upper[1]), scenario = "With Wind Included") +
+  geom_vline(aes(xintercept = as.numeric(sf_obs_slopes$estimate[2]), linetype = effort, color = effort), linewidth = 1.5) +
+  scale_color_manual(values = c("black"), labels = c("Observed linear regression slope\nof the status quo abundance index"), name = NULL) +
+  scale_linetype_manual(values = c(6), labels = c("Observed linear regression slope\nof the status quo abundance index"), name = NULL) +
+  scale_linewidth(range = c(1,1), labels = c("Observed linear regression slope\nof the status quo abundance index"), name = NULL) +
+  annotate("text", x = as.numeric(sf_obs_slopes$estimate[2])-0.005, y = 50, label = str_c(sf_quant$quant[1]*100, "%", sep = ""), angle = 90, size = 5) + ylim(0, 125) + #xlim(-0.3, 0) +
+  facet_wrap(~str_to_title(season))
+```
+
+
+```{r}
+sf_spr_precl.plot <- plot_distribution(sf_spr_sim_slopes, ci_dat = c(sf_spr_sim_cis$lower[2], sf_spr_sim_cis$upper[2]), scenario = "With Wind Precluded") +
+  geom_vline(aes(xintercept = as.numeric(sf_obs_slopes$estimate[3]), linetype = effort, color = effort), linewidth = 1.5) +
+  scale_color_manual(values = c(pal1[6]), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
+  scale_linetype_manual(values = c(5), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
+  scale_linewidth(range = c(1,1), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
+  annotate("text", x = as.numeric(sf_obs_slopes$estimate[3])-0.01, y = 50, label = str_c(sf_quant$quant[4]*100, "%", sep = ""), angle = 90, size = 5) + ylim(0, 120) + #xlim((-0.3), 0) +
+  facet_wrap(~str_to_title(season))
+```
+
+
+```{r}
+sf_spr_incl.plot <- plot_distribution(sf_spr_sim_slopes, ci_dat = c(sf_spr_sim_cis$lower[1], sf_spr_sim_cis$upper[1]), scenario = "With Wind Included") +
+  geom_vline(aes(xintercept = as.numeric(sf_obs_slopes$estimate[1]), linetype = effort, color = effort), linewidth = 1.5) +
+  scale_color_manual(values = c("black"), labels = c("Observed linear regression slope\nof the status quo abundance index"), name = NULL) +
+  scale_linetype_manual(values = c(6), labels = c("Observed linear regression slope\nof the status quo abundance index"), name = NULL) +
+  scale_linewidth(range = c(1,1), labels = c("Observed linear regression slope\nof the status quo abundance index"), name = NULL) +
+  annotate("text", x = as.numeric(sf_obs_slopes$estimate[1])-0.005, y = 50, label = str_c(sf_quant$quant[3]*100, "%", sep = ""), angle = 90, size = 5) + ylim(0, 115) + #xlim(-0.3, 0) +
+  facet_wrap(~str_to_title(season))
+```
+
+
+```{r}
+sf_patchwork <- (sf_fall_incl.plot + sf_fall_precl.plot ) / (sf_spr_incl.plot + sf_spr_precl.plot) +
+  plot_annotation(tag_levels = "A") + 
+  plot_layout(guides = "collect") & theme(legend.position = "bottom")
+
+ggsave(plot = sf_patchwork, filename = "post-pred_plots.png", device = "png", path = here("outputs", "manuscript", "sumflounder", "post-check"), width = 10, height = 8)
+
+```
+
+
+## Simulations 
+```{r sf sim scenario data}
+### fall
+sf_fall_all_stratmu <- readRDS(here("data", "rds", "sdmtmb", "sumflounder", "simulations", "fall", "fall_sumflounder_all_sim.stratmus.rds"))
+sf_fall_all_slopes <- readRDS(here("data", "rds", "sdmtmb", "sumflounder", "simulations", "fall", "fall_sumflounder_all_sim.slopes.rds"))
+sf_fall_all_mudiff <- readRDS(here("data", "rds", "sdmtmb", "sumflounder", "simulations", "fall", "fall_sumflounder_all_sim.mudiff.rds"))
+sf_fall_all_slopes.diff <- readRDS(here("data", "rds", "sdmtmb", "sumflounder", "simulations", "fall", "fall_sumflounder_all_sim.slope.diff.rds"))
+
+### spring
+sf_spring_all_stratmu <- readRDS(here("data", "rds", "sdmtmb", "sumflounder", "simulations", "spring", "spring_sumflounder_all_sim.stratmus.rds"))
+sf_spring_all_slopes <- readRDS(here("data", "rds", "sdmtmb", "sumflounder", "simulations", "spring", "spring_sumflounder_all_sim.slopes.rds"))
+sf_spring_all_mudiff <- readRDS(here("data", "rds", "sdmtmb", "sumflounder", "simulations", "spring", "spring_sumflounder_all_sim.mudiff.rds"))
+sf_spring_all_slopes.diff <- readRDS(here("data", "rds", "sdmtmb", "sumflounder", "simulations", "spring", "spring_sumflounder_all_sim.slope.diff.rds"))
+```
+
+```{r bind sf sim dat}
+sf_all_stratmu <- bind_rows(sf_fall_all_stratmu, sf_spring_all_stratmu)
+
+sf_all_slopes <- bind_rows(sf_fall_all_slopes, sf_spring_all_slopes)
+
+sf_all_mudiff <- bind_rows(sf_fall_all_mudiff, sf_spring_all_mudiff)
+
+sf_all_slope_diff <- bind_rows(sf_fall_all_slopes.diff, sf_spring_all_slopes.diff)
+```
+
+### Stratified Mean
+```{r sf linreg lines dat}
+sf_all_stratmu_list <- sf_all_stratmu |> 
+  group_by(SEASON, EFFORT, SCENARIO, SIM) |>
+  nest() |>
+  mutate(model = map(data, ~lm(STRATMU~FUTURE_YEAR, data = .)),
+         coefs = map(model, ~broom::tidy(., conf.int = TRUE))) |>
+  unnest(coefs) |>
+  select(EFFORT, SCENARIO, SIM, term, estimate, statistic, p.value, conf.low, conf.high)
+```
+
+#### Single Sim Plots
+Two plots were  made using simulation 1 and simulation 22 to show the differences in simulations. 
+```{r sf fall sim plots}
+sim_num <- 1
+
+sf_fall_sim_trend <- sf_all_stratmu_list |> filter(SIM == sim_num, SEASON == "fall")
+
+sf_fall_base_plot <- sf_all_stratmu |> 
+  rename(stratmu = STRATMU,
+         stratvar = STRATVAR) |> 
+  filter(SIM == sim_num, SCENARIO == "baseline", SEASON == "fall") |>
+  plot.stratmu(year_col = FUTURE_YEAR, color = EFFORT) + 
+  geom_abline(slope = sf_fall_sim_trend$estimate[2], intercept = sf_fall_sim_trend$estimate[1], color = "#548F01", linewidth = 0.75, linetype = "dashed", show.legend = TRUE) +
+  geom_abline(slope = sf_fall_sim_trend$estimate[4], intercept = sf_fall_sim_trend$estimate[3], color = "#D58A60", linewidth = 0.75, linetype = "dashed", show.legend = TRUE) + ylim(0, 2.0) +
+  facet_wrap(vars(str_to_title(SEASON),str_to_title(SCENARIO)))
+
+sf_fall_enhanced_plot <- sf_all_stratmu |> 
+  rename(stratmu = STRATMU,
+         stratvar = STRATVAR) |> 
+  filter(SIM == sim_num, SCENARIO == "enhanced", SEASON == "fall") |>
+  plot.stratmu(year_col = FUTURE_YEAR, color = EFFORT) + 
+  geom_abline(slope = sf_fall_sim_trend$estimate[6], intercept = sf_fall_sim_trend$estimate[5], color = "#548F01", linewidth = 0.75, linetype = "dashed") +
+  geom_abline(slope = sf_fall_sim_trend$estimate[8], intercept = sf_fall_sim_trend$estimate[7], color = "#D58A60", linewidth = 0.75, linetype = "dashed") + labs(y = "") + ylim(0, 2.0) +
+  facet_wrap(vars(str_to_title(SEASON),str_to_title(SCENARIO)))
+
+sf_fall_reduced_plot <- sf_all_stratmu |> 
+  rename(stratmu = STRATMU,
+         stratvar = STRATVAR) |> 
+  filter(SIM == sim_num, SCENARIO == "reduced", SEASON == "fall") |>
+  plot.stratmu(year_col = FUTURE_YEAR, color = EFFORT) + 
+  geom_abline(slope = sf_fall_sim_trend$estimate[10], intercept = sf_fall_sim_trend$estimate[9], color = "#548F01", linewidth = 0.75, linetype = "dashed") +
+  geom_abline(slope = sf_fall_sim_trend$estimate[12], intercept = sf_fall_sim_trend$estimate[11], color = "#D58A60", linewidth = 0.75, linetype = "dashed") + labs(y = "") +
+  facet_wrap(vars(str_to_title(SEASON),str_to_title(SCENARIO)))
+```
+
+```{r sf spring sim plots}
+sf_spring_sim_trend <- sf_all_stratmu_list |> filter(SIM == sim_num, SEASON == "spring")
+
+sf_spring_base_plot <- sf_all_stratmu |> 
+  rename(stratmu = STRATMU,
+         stratvar = STRATVAR) |> 
+  filter(SIM == sim_num, SCENARIO == "baseline", SEASON == "spring") |>
+  plot.stratmu(year_col = FUTURE_YEAR, color = EFFORT) + 
+  geom_abline(slope = sf_spring_sim_trend$estimate[2], intercept = sf_spring_sim_trend$estimate[1], color = "#548F01", linewidth = 0.75, linetype = "dashed", show.legend = TRUE) +
+  geom_abline(slope = sf_spring_sim_trend$estimate[4], intercept = sf_spring_sim_trend$estimate[3], color = "#D58A60", linewidth = 0.75, linetype = "dashed", show.legend = TRUE) +
+  facet_wrap(vars(str_to_title(SEASON),str_to_title(SCENARIO)))
+
+sf_spring_enhanced_plot <- sf_all_stratmu |> 
+  rename(stratmu = STRATMU,
+         stratvar = STRATVAR) |> 
+  filter(SIM == sim_num, SCENARIO == "enhanced", SEASON == "spring") |>
+  plot.stratmu(year_col = FUTURE_YEAR, color = EFFORT) + 
+  geom_abline(slope = sf_spring_sim_trend$estimate[6], intercept = sf_spring_sim_trend$estimate[5], color = "#548F01", linewidth = 0.75, linetype = "dashed") +
+  geom_abline(slope = sf_spring_sim_trend$estimate[8], intercept = sf_spring_sim_trend$estimate[7], color = "#D58A60", linewidth = 0.75, linetype = "dashed") + labs(y = "") +
+  facet_wrap(vars(str_to_title(SEASON),str_to_title(SCENARIO)))
+
+sf_spring_reduced_plot <- sf_all_stratmu |> 
+  rename(stratmu = STRATMU,
+         stratvar = STRATVAR) |> 
+  filter(SIM == sim_num, SCENARIO == "reduced", SEASON == "spring") |>
+  plot.stratmu(year_col = FUTURE_YEAR, color = EFFORT) + 
+  geom_abline(slope = sf_spring_sim_trend$estimate[10], intercept = sf_spring_sim_trend$estimate[9], color = "#548F01", linewidth = 0.75, linetype = "dashed") +
+  geom_abline(slope = sf_spring_sim_trend$estimate[12], intercept = sf_spring_sim_trend$estimate[11], color = "#D58A60", linewidth = 0.75, linetype = "dashed") + labs(y = "") + #ylim(0, 1.5) +
+  facet_wrap(vars(str_to_title(SEASON),str_to_title(SCENARIO)))
+```
+
+```{r sf sim patchwork}
+sf_patch <- (sf_fall_base_plot + sf_fall_enhanced_plot + sf_fall_reduced_plot) / (sf_spring_base_plot + sf_spring_enhanced_plot + sf_spring_reduced_plot) +
+  plot_annotation(tag_levels = "A") + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+```
+
+#### Simulation Distribution plots 
+```{r sf stratmu boxplot}
+sf_stratmu_plot <- ggplot(sf_all_stratmu) + 
+  geom_boxplot(aes(x = str_to_title(SCENARIO), y = STRATMU, color = EFFORT), linewidth = 0.65)  +
+  scale_color_manual(values = c(pal1[2], pal1[1]), labels = c( "With Wind Included", "With Wind Precluded"), name = "") +
+  ylim(0, NA) +
+  facet_wrap(~str_to_title(SEASON)) + 
+  labs(x = "Productivity Scenario", y = "Stratified Mean (kg/tow)") + 
+  theme(legend.position = "bottom")
+```
+
+
+#### Mean difference plots
+```{r sf mudiff plot}
+sf_mudiff_plot <- ggplot(sf_all_mudiff) + 
+  geom_boxplot(aes(x = str_to_title(SCENARIO), y = MARE_perc, color = SCENARIO), linewidth = 0.65)  +
+  # geom_hline(data = pred_strat_error, aes(yintercept = MARE*100), linetype = "longdash", alpha = 0.75) +
+  scale_color_manual(values = c(pal2[5], pal2[1], pal2[4]), labels = c("Baseline", "Enhanced", "Reduced"), name = "") +
+  ylim(0, NA) +
+  facet_wrap(~str_to_title(SEASON)) + 
+  labs(x = "Productivity Scenario", y = "Mean absolute relative difference") + 
+  theme(legend.position = "none")
+```
+
+
+### CV Plots
+```{r sf cv plot}
+sf_cv_plot <- ggplot(sf_all_stratmu) + 
+  geom_boxplot(aes(x = str_to_title(SCENARIO), y = CV, color = EFFORT), linewidth = 0.65)  +
+  scale_color_manual(values = c(pal1[2], pal1[1]), labels = c( "With Wind Included", "With Wind Precluded"), name = "") +
+  ylim(0, NA) +
+  facet_wrap(~str_to_title(SEASON)) + 
+  labs(x = "Productivity Scenario", y = "Coefficient of Variation") + 
+  theme(legend.position = "bottom")
+```
+
+### Slope Plots
+```{r sf slope plot 1}
+sf_slope_plot1 <- ggplot(sf_all_slopes) + 
+  geom_boxplot(aes(x = str_to_title(SCENARIO), y = estimate, color = EFFORT), linewidth = 0.65)  +
+  scale_color_manual(values = c(pal1[2], pal1[1]), labels = c( "With Wind Included", "With Wind Precluded"), name = "") +
+  # ylim(0, NA) +
+  facet_wrap(~str_to_title(SEASON), scales = "free_y") + 
+  labs(x = "Productivity Scenario", y = "Linear Regression Slope Estimates") + 
+  theme(legend.position = "bottom")
+
+```
+
+```{r sf slope plot 2}
+sf_slope_plot2 <- ggplot(sf_all_slope_diff) + 
+  geom_boxplot(aes(x = str_to_title(SCENARIO), y = MAE*100, color = SCENARIO), linewidth = 0.65)  +
+  scale_color_manual(values = c(pal2[5], pal2[1], pal2[4]), labels = c("Baseline", "Enhanced", "Reduced"), name = "") +
+  ylim(0, NA) +
+  facet_wrap(~str_to_title(SEASON), scales = "free_y") + 
+  labs(x = "Productivity Scenario", y = "Mean absolute difference") + 
+  theme(legend.position = "none")
+```
+
+
+### Save the plots
+```{r}
+sf_plots <- list(#"sumflounder_one-sim.png" = sf_patch, 
+                 "sumflounder_sim.stratmu_dist.png" = sf_stratmu_plot, 
+                 "sumflounder_sim.stratmu-diff.png" = sf_mudiff_plot, 
+                 "sumflounder_sim.cv-dist.png" = sf_cv_plot, 
+                 "sumflounder_sim.slope-dist.png" = sf_slope_plot1, 
+                 "sumflounder_sim.slope-diff.png" = sf_slope_plot2)
+
+pmap(list(sf_plots, names(sf_plots)), ~ggsave(.x, filename = .y, device = "png", here("outputs", "manuscript", "sumflounder", "simulations"), width = 10, height = 7))
+```
+
+
+# Atlantic mackerel
+```{r am spatial pred data}
+am.files <- here("data", "rds", "sdmtmb", "atlmackerel") 
+am.plots <- here("outputs", "sdmtmb",  "atlmackerel", "plots")
+
+# read in model fitting data where observations at depths greater than 200m were removed; created here("sdmtmb", "atlmackerel", "01-mod-fits", "04-explore-polynomial-mods.Rmd")
+am_spring <- readRDS(here(am.files, "atlmackerel_spring_no-dep-out.rds"))
+
+# read in predictions created here("sdmtmb", "atlmackerel", "03-mod-predictions", "01-spring-grid-predictions.R")
+grid_preds <- readRDS(file = here(am.files, "atlmackerel_grid_preds.rds")) |> 
+  mutate(EST_YEAR = as.integer(as.character(EST_YEAR)))
+
+```
+
+## Model Prediction Maps
+```{r am pred maps}
+# model fitting data 
+ggplot() + 
+  geom_sf(data = coastline, fill = "#efe5c7", color = "#816c62") +
+  geom_sf(data = strata_utm, fill = NA) +
+  geom_point(data = am_spring, aes(X*1000, Y*1000, size = EXPCATCHWT, color = EXPCATCHWT)) +
+  scale_color_viridis_c(guide = "legend", trans = "sqrt") + 
+  labs(x = "Longitude", y = "Latitude", color = "Biomass", size = "Biomass") + 
+  theme(legend.position = "bottom")
+
+# estimates 
+plot_map(coastline, strata_utm, dat = grid_preds, column = exp(est)) + 
+  scale_fill_viridis_c(trans = "sqrt") + 
+  labs(fill = "Biomass") + 
+  facet_wrap(~EST_YEAR) +
+  theme(legend.position = "bottom", axis.title.x = element_text(size = 14, margin = margin(10, 0, 5, 0)), axis.title.y = element_text(size = 14, margin = margin(0, 10, 0, 5)), axis.text = element_text(size = 14), strip.text = element_text(size = 14), legend.title = element_text(size = 14),  legend.text = element_text(size = 12, angle = 45))
+
+
+# main effects only
+plot_map(coastline, strata_utm, dat = grid_preds, column = exp(est_non_rf)) + labs(fill = "Main effect estimates") + theme(legend.position = "bottom")
+
+# spatial random effects
+plot_map(coastline, strata_utm, dat = grid_preds, column = omega_s) + scale_fill_gradient2() + labs(fill = "Spatial RE\nestimates") + theme(legend.position = "bottom")
+
+# spatiotemporal random effects
+plot_map(coastline, strata_utm, dat = grid_preds |> filter(EST_YEAR %in% c(2017:2021)), column = epsilon_st) + scale_fill_gradient2() + labs(fill =  "Spatiotemporal RE\nestimates") + facet_wrap(vars(EST_YEAR)) + theme(legend.position = "bottom")
+
+```
+
+## Post-Model Check
+```{r am post-check data}
+# simulated atlmackerel data
+am_simdat <- readRDS(here(am.files, "post-check", "spring_post-check_simdat.rds")) #|> 
+  # mutate(SEASON = "SPRING")  # add season for binding
+
+am_sim_slopes <- readRDS(here(am.files, "post-check", "spring_post-check_sim-slopes.rds"))
+```
+
+
+### Nominal Mean
+```{r am nom-mus}
+# find the average biomass in each year and simulation
+am_yearly_sim_mu <- am_simdat |> group_by(nsim, EST_YEAR, SEASON) |> 
+  summarise(mean = mean(EXPCATCHWT)) |> 
+  group_by(EST_YEAR, SEASON) |> nest() 
+
+# find average biomass in each year from observed data
+am_yearly_mu <- am_spring |> group_by(EST_YEAR, SEASON) |> 
+  summarise(mean = mean(EXPCATCHWT)) 
+
+# find the average biomass in each simulation
+am_sim_mu <- am_simdat |> group_by(nsim, SEASON) |> 
+  summarise(mean = mean(EXPCATCHWT)) #|>
+  # group_by(SEASON) |> nest()
+
+# find average biomass from observed data
+am_mu <- mean(am_spring$EXPCATCHWT)
+
+```
+
+```{r yearly am nom-mu}
+am_yearly_pval <- am_yearly_sim_mu |> 
+  left_join(am_yearly_mu, by = c("EST_YEAR", "SEASON")) |> 
+  mutate(quant_fn = map(data, ~ecdf(.x$mean)),
+         quant = map(quant_fn, ~ .x(mean))) |> 
+  unnest(cols = quant)
+
+```
+
+
+```{r overall am nom-mus}
+am_quant_fn <- ecdf(am_sim_mu$mean)
+am_quant_fn(am_mu)
+```
+
+
+#### Plot
+```{r}
+am_yearly_plot <- ggplot() + 
+  aes(x = as.factor(EST_YEAR), y = mean) + 
+  geom_boxplot(data = am_yearly_sim_mu |> unnest(cols = data), color = pal1[6]) +
+  geom_point(data = am_yearly_pval, aes(fill = "Observed average"), size = 2, shape = 23) + 
+  scale_fill_manual(name = "", labels = "Observed average biomass (kg)", values = c(pal1[1])) + 
+  scale_size_manual(labels = "Observed average biomass (kg)", values = c(2))+ 
+  scale_shape_manual(labels = "Observed average biomass (kg)", values = c(23)) +
+  labs(x = "Year", y = "Average Biomass (kg)") +
+  facet_wrap(~str_to_title(SEASON)) +
+  theme(legend.position = "bottom", legend.margin = margin(t = -5))
+
+ggsave(plot = am_yearly_plot, filename = "nom-mu_pval_plot.png", device = "png", path = here("outputs", "manuscript", "atlmackerel", "post-check"), width = 8, height = 4)
+
+```
+
+### Stratified Mean 
+```{r am strat wrangle}
+# simulated stratified means 
+am_sim_stratmu <- readRDS(here(am.files, "post-check", "spring_sim_strat_rows.rds")) |> 
+  group_by(effort, EST_YEAR, season) |>
+  nest() 
+  
+# observed
+# with data used for modeling fitting minus depth outliers - a different dataset than those used for retro-analysis
+am_obs_stratmu_nested <- am_spring |>
+  group_by(EST_YEAR) |> 
+  nest() |> 
+  mutate(incl.stratmu = map(data, ~stratified.mean(., strata) |> mutate(effort = "With Wind Included")), 
+         precl.stratmu = map(data, ~filter(., AREA == "OUTSIDE") |> stratified.mean(strata) |> mutate(effort = "With Wind Precluded")))
+
+am_incl_stratmu <- am_obs_stratmu_nested |>
+  select(!c(data, precl.stratmu)) |>
+  unnest(cols = incl.stratmu) 
+
+am_precl_stratmu <- am_obs_stratmu_nested |>
+  select(!c(data, incl.stratmu)) |>
+  unnest(cols = precl.stratmu) 
+
+am_obs_stratmu <- bind_rows(am_incl_stratmu, am_precl_stratmu) |>
+  mutate(season = "Spring")
+
+```
+
+
+```{r}
+am_stratmu_pval <- am_sim_stratmu |> 
+  left_join(am_obs_stratmu, by = c("EST_YEAR", "effort", "season")) |>
+  mutate(quant_fn = map(data, ~ecdf(.x$stratmu)),
+         quant = map2(quant_fn, stratmu, ~.x(.y))) |>
+  unnest(cols = quant)
+
+```
+
+#### Plot
+```{r}
+ggplot() + 
+  aes(x = as.factor(EST_YEAR), y = stratmu) +
+  geom_boxplot(data = am_sim_stratmu |> unnest(cols = data), color = pal1[6]) +
+  geom_point(data = am_stratmu_pval, aes(fill = "Observed biomass"), size = 2, shape = 23) + 
+  scale_fill_manual(name = "", labels = "Observed stratified mean biomass (kg/tow)", values = c(pal1[1])) + 
+  scale_size_manual(labels = "Observed stratified mean biomass (kg/tow)", values = c(2))+ 
+  scale_shape_manual(labels = "Observed stratified mean biomass (kg/tow)", values = c(23)) +
+  labs(x = "Year", y = "Stratified Mean Biomass (kg/tow)") + 
+  facet_wrap(vars(season, effort)) +
+  theme(legend.position = "bottom", legend.margin = margin(t = -5))
+
+ggsave(plot = last_plot(), filename = "stratmu_pval_plot.png", device = "png", path = here("outputs", "manuscript", "atlmackerel", "post-check"), width = 10, height = 6)
+
+```
+
+### Slopes
+```{r}
+am_obs_slopes <- am_obs_stratmu |> 
+  group_by(effort) |> 
+  nest() |> 
+  mutate(model = map(data, ~lm(stratmu~EST_YEAR, data = .)), 
+         coefs = map(model, ~broom::tidy(., conf.int = TRUE))) |> 
+  unnest(cols = coefs) |> 
+  filter(term == "EST_YEAR") |> 
+  select(!c(data, model))
+
+am_quant <- am_sim_slopes |>
+  group_by(effort) |>
+  nest() |>
+  mutate(quant.fn = map(data, ~ecdf(.x$estimate)), # for each set of effort data find the CDF
+         quant = map(quant.fn, ~.x(am_obs_slopes$estimate[2]))) |> # use the resulting CDF and find the representative quantile
+  unnest(cols = quant)
+```
+
+#### Plot
+```{r}
+am_sim_cis <- am_sim_slopes |> 
+  group_by(effort, season) |> 
+  nest() |> 
+  mutate(lower = map(data, ~quantile(.$estimate, 0.025)),
+         upper = map(data, ~quantile(.$estimate, 0.975))) |> 
+  unnest(cols = c(lower, upper))
+```
+
+```{r}
+am_precl.plot <- plot_distribution(am_sim_slopes, ci_dat = c(am_sim_cis$lower[2], am_sim_cis$upper[2]), scenario = "With Wind Precluded") +
+  geom_vline(aes(xintercept = as.numeric(am_obs_slopes$estimate[2]), linetype = effort, color = effort), linewidth = 1.5) +
+  scale_color_manual(values = c(pal1[6]), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
+  scale_linetype_manual(values = c(5), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
+  scale_linewidth(range = c(1,1), labels = c("Observed linear regression slope\nof the precluded abundance index"), name = NULL) +
+  annotate("text", x = as.numeric(am_obs_slopes$estimate[2])-0.035, y = 50, label = str_c(am_quant$quant[2]*100, "%", sep = ""), angle = 90, size = 5) + ylim(0, 150) + xlim((-0.7), 0.7) +
+  facet_wrap(~str_to_title(season))
+```
+
+```{r}
+am_incl.plot <- plot_distribution(am_sim_slopes, ci_dat = c(am_sim_cis$lower[1], am_sim_cis$upper[1]), scenario = "With Wind Included") +
+  geom_vline(aes(xintercept = as.numeric(am_obs_slopes$estimate[1]), linetype = effort, color = effort), linewidth = 1.5) +
+  scale_color_manual(values = c("black"), labels = c("Observed linear regression slope\nof the status quo abundance index"), name = NULL) +
+  scale_linetype_manual(values = c(6), labels = c("Observed linear regression slope\nof the status quo abundance index"), name = NULL) +
+  scale_linewidth(range = c(1,1), labels = c("Observed linear regression slope\nof the status quo abundance index"), name = NULL) +
+  annotate("text", x = as.numeric(am_obs_slopes$estimate[2])-0.10, y = 50, label = str_c(am_quant$quant[1]*100, "%", sep = ""), angle = 90, size = 5) + ylim(0, 150) + xlim(-0.7, 0.7) +
+  facet_wrap(~str_to_title(season))
+```
+
+```{r}
+am_patchwork <- (am_incl.plot + am_precl.plot ) + 
+  plot_annotation(tag_levels = "A") + 
+  plot_layout(guides = "collect") & theme(legend.position = "bottom")
+
+ggsave(plot = am_patchwork, filename = "spring_post-pred_plots.png", device = "png", path = here("outputs", "manuscript", "atlmackerel", "post-check"), width = 10, height = 6)
+
+```
+
+
+## Simulations
+```{r am sim scenario data}
+am_all_stratmu <- readRDS(here("data", "rds", "sdmtmb", "atlmackerel", "simulations", "spring", "spring_atlmackerel_all_sim.stratmus.rds"))
+am_all_slopes <- readRDS(here("data", "rds", "sdmtmb", "atlmackerel", "simulations", "spring", "spring_atlmackerel_all_sim.slopes.rds"))
+am_all_mudiff <- readRDS(here("data", "rds", "sdmtmb", "atlmackerel", "simulations", "spring", "spring_atlmackerel_all_sim.mudiff.rds"))
+am_all_slopes.diff <- readRDS(here("data", "rds", "sdmtmb", "atlmackerel", "simulations", "spring", "spring_atlmackerel_all_sim.slope.diff.rds"))
+```
+
+### Stratified Means
+```{r am linreg lines dat}
+am_all_stratmu_list <- am_all_stratmu |> 
+  group_by(SEASON, EFFORT, SCENARIO, SIM) |>
+  nest() |>
+  mutate(model = map(data, ~lm(STRATMU~FUTURE_YEAR, data = .)),
+         coefs = map(model, ~broom::tidy(., conf.int = TRUE))) |>
+  unnest(coefs) |>
+  select(EFFORT, SCENARIO, SIM, term, estimate, statistic, p.value, conf.low, conf.high)
+
+am_one_sim_trend <- am_all_stratmu_list |> filter(SIM == 1)
+```
+
+#### Single Sim Plots
+```{r am scenario plots}
+am_base_plot <- am_all_stratmu |> 
+  rename(stratmu = STRATMU,
+         stratvar = STRATVAR) |> 
+  filter(SIM == 1, SCENARIO == "baseline") |>
+  plot.stratmu(year_col = FUTURE_YEAR, color = EFFORT) + 
+  geom_abline(slope = am_one_sim_trend$estimate[2], intercept = am_one_sim_trend$estimate[1], color = "#548F01", linewidth = 0.75, linetype = "dashed", show.legend = TRUE) +
+  geom_abline(slope = am_one_sim_trend$estimate[4], intercept = am_one_sim_trend$estimate[3], color = "#D58A60", linewidth = 0.75, linetype = "dashed", show.legend = TRUE) +
+  facet_wrap(vars(str_to_title(SEASON),str_to_title(SCENARIO)))
+
+am_enhanced_plot <- am_all_stratmu |> 
+  rename(stratmu = STRATMU,
+         stratvar = STRATVAR) |> 
+  filter(SIM ==1, SCENARIO == "enhanced") |>
+  plot.stratmu(year_col = FUTURE_YEAR, color = EFFORT) + 
+  geom_abline(slope = am_one_sim_trend$estimate[6], intercept = am_one_sim_trend$estimate[5], color = "#548F01", linewidth = 0.75, linetype = "dashed") +
+  geom_abline(slope = am_one_sim_trend$estimate[8], intercept = am_one_sim_trend$estimate[7], color = "#D58A60", linewidth = 0.75, linetype = "dashed") + labs(y = "") +
+  facet_wrap(vars(str_to_title(SEASON),str_to_title(SCENARIO)))
+
+am_reduced_plot <- am_all_stratmu |> 
+  rename(stratmu = STRATMU,
+         stratvar = STRATVAR) |> 
+  filter(SIM == 1, SCENARIO == "reduced") |>
+  plot.stratmu(year_col = FUTURE_YEAR, color = EFFORT) + 
+  geom_abline(slope = am_one_sim_trend$estimate[10], intercept = am_one_sim_trend$estimate[9], color = "#548F01", linewidth = 0.75, linetype = "dashed") +
+  geom_abline(slope = am_one_sim_trend$estimate[12], intercept = am_one_sim_trend$estimate[11], color = "#D58A60", linewidth = 0.75, linetype = "dashed") + labs(y = "") +
+  facet_wrap(vars(str_to_title(SEASON),str_to_title(SCENARIO)))
+```
+
+```{r am patch}
+am_one_sim_scenario_plot <- (am_base_plot + am_enhanced_plot + am_reduced_plot) + 
+  plot_annotation(tag_levels = "A") + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+```
+
+#### Simulation Distribution plots 
+```{r am stratmu boxplot}
+am_stratmu_plot <- ggplot(am_all_stratmu) + 
+  geom_boxplot(aes(x = str_to_title(SCENARIO), y = STRATMU, color = EFFORT), linewidth = 0.65)  +
+  scale_color_manual(values = c(pal1[2], pal1[1]), labels = c( "With Wind Included", "With Wind Precluded"), name = "") +
+  ylim(0, NA) +
+  facet_wrap(~str_to_title(SEASON)) + 
+  labs(x = "Productivity Scenario", y = "Stratified Mean (kg/tow)") + 
+  theme(legend.position = "bottom")
+```
+
+#### Mean difference plots
+```{r am mudiff plot}
+am_mudiff_plot <- ggplot(am_all_mudiff) + 
+  geom_boxplot(aes(x = str_to_title(SCENARIO), y = MARE_perc, color = SCENARIO), linewidth = 0.65)  +
+  scale_color_manual(values = c(pal2[5], pal2[1], pal2[4]), labels = c("Baseline", "Enhanced", "Reduced"), name = "") +
+  ylim(0, NA) +
+  facet_wrap(~str_to_title(SEASON)) + 
+  labs(x = "Productivity Scenario", y = "Mean absolute relative difference") + 
+  theme(legend.position = "none")
+```
+
+### CV Plots
+```{r am cv plot}
+am_cv_plot <- ggplot(am_all_stratmu) + 
+  geom_boxplot(aes(x = str_to_title(SCENARIO), y = CV, color = EFFORT), linewidth = 0.65)  +
+  scale_color_manual(values = c(pal1[2], pal1[1]), labels = c( "With Wind Included", "With Wind Precluded"), name = "") +
+  ylim(0, NA) +
+  facet_wrap(~str_to_title(season)) + 
+  labs(x = "Productivity Scenario", y = "Coefficient of Variation") + 
+  theme(legend.position = "bottom")
+```
+
+
+### Slope Plots 
+```{r am slope plot 1}
+am_slope_plot1 <- ggplot(am_all_slopes) + 
+  geom_boxplot(aes(x = str_to_title(SCENARIO), y = estimate, color = EFFORT), linewidth = 0.65)  +
+  scale_color_manual(values = c(pal1[2], pal1[1]), labels = c( "With Wind Included", "With Wind Precluded"), name = "") +
+  #ylim(0, NA) +
+  facet_wrap(~str_to_title(SEASON)) + 
+  labs(x = "Productivity Scenario", y = "Linear Regression Slope Estimates") + 
+  theme(legend.position = "bottom")
+```
+
+```{r am slope plot 2}
+am_slope_plot2 <- ggplot(am_all_slopes.diff) + 
+  geom_boxplot(aes(x = str_to_title(SCENARIO), y = MAE, color = SCENARIO), linewidth = 0.65)  +
+  scale_color_manual(values = c(pal2[5], pal2[1], pal2[4]), labels = c("Baseline", "Enhanced", "Reduced"), name = "") +
+  ylim(0, NA) +
+  facet_wrap(~str_to_title(SEASON)) + 
+  labs(x = "Productivity Scenario", y = "Mean absolute difference") + 
+  theme(legend.position = "none")
+```
+
+### Save the plots
+```{r}
+am_plots <- list("atlmackerel_sim.scenario.png" = am_one_sim_scenario_plot, 
+                 "atlmackerel_sim.stratmu_dist.png" = am_stratmu_plot, 
+                 "atlmackerel_sim.stratmu-diff.png" = am_mudiff_plot, 
+                 "atlmackerel_sim.cv-dist.png" = am_cv_plot, 
+                 "atlmackerel_sim.slope-dist.png" = am_slope_plot1, 
+                 "atlmackerel_sim.slope-diff.png" = am_slope_plot2)
+
+pmap(list(am_plots, names(am_plots)), ~ggsave(.x, filename = .y, device = "png", here("outputs", "manuscript", "atlmackerel", "simulations"), width = 10, height = 7))
+```
+
+
+# Comparison Tables
+```{r all quants}
+### summer flounder
+sf_yearly_pval_tbl <- sf_yearly_pval |> 
+  select(!c(data, quant_fn)) |> 
+  mutate(species = "Summer flounder", 
+         spp_id = "SF") 
+
+sf_mu_pval_tbl <- all_sf_mu_pval |> 
+  select(!c(data, quant_fn)) |> 
+  mutate(species = "Summer flounder", 
+         spp_id = "SF")
+
+sf_stratmu_pval_tbl <- sf_stratmu_pval |> 
+  select(effort, season, EST_YEAR, stratmu, quant) |> 
+  mutate(species = "Summer flounder", 
+         spp_id = "SF")
+
+### atlantic mackerel
+am_yearly_pval_tbl <- am_yearly_pval |> 
+  select(!c(data, quant_fn)) |> 
+  mutate(species = "Atlantic mackerel", 
+         spp_id = "AM") 
+
+am_mu_pval_tbl <- tibble(SEASON = "SPRING", mean = am_mu, quant = am_quant_fn(am_mu), species = "Atlantic mackerel", 
+         spp_id = "AM")
+
+am_stratmu_pval_tbl <- am_stratmu_pval |> 
+  select(effort, season, EST_YEAR, stratmu, quant) |> 
+  mutate(species = "Atlantic mackerel", 
+         spp_id = "AM")
+
+### binded
+yearly_nom_mu_pval_tbl <- bind_rows(sf_yearly_pval_tbl, am_yearly_pval_tbl) |> 
+  relocate(species, .before = everything()) |> 
+  mutate(SEASON = str_to_title(SEASON)) |>
+  pivot_wider(values_from = c(mean, quant), names_from = SEASON) 
+
+nom_mu_pval_tbl <- bind_rows(sf_mu_pval_tbl, am_mu_pval_tbl) |> 
+  relocate(species, .before = everything()) |> 
+  mutate(SEASON = str_to_title(SEASON)) |> 
+  pivot_wider(values_from = c(mean, quant), names_from = SEASON)
+
+stratmu_pval_tbl <- bind_rows(sf_stratmu_pval_tbl, am_stratmu_pval_tbl) |> 
+  arrange(EST_YEAR) |>
+  relocate(species, .before = everything()) |> 
+  pivot_wider(values_from = c(stratmu, quant), names_from = effort)
+
+```
+
+```{r quant tbls}
+yearly_nom_mu_gt <- yearly_nom_mu_pval_tbl |> 
+  gt(rowname_col = "EST_YEAR", 
+     groupname_col = "species") |>
+  fmt_number(columns = !EST_YEAR) |>
+  sub_missing() |> 
+  tab_spanner(label = md("*Fall*"), 
+              columns = ends_with("Fall"))|> 
+  tab_spanner(label = md("*Spring*"), 
+              columns = ends_with("Spring"))|>
+  cols_hide(spp_id) |>
+  cols_label(starts_with("mean") ~ md("**Mean**"), 
+             starts_with("quant") ~ md("**Quantile**")) 
+
+nom_mu_gt <- nom_mu_pval_tbl |> 
+  gt(rowname_col = "species") |>
+  fmt_number() |>
+  tab_spanner(label = md("*Fall*"), 
+              columns = ends_with("Fall"))|> 
+  tab_spanner(label = md("*Spring*"), 
+              columns = ends_with("Spring"))|>
+  cols_hide(spp_id) |>
+  cols_label(starts_with("mean") ~ md("**Mean**"), 
+             starts_with("quant") ~ md("**Quantile**")) 
+
+stratmu_gt <- stratmu_pval_tbl |> 
+  gt(rowname_col = "EST_YEAR", 
+     groupname_col = c("species", "season")) |>
+  fmt_number(columns = !EST_YEAR) |> 
+  sub_missing() |> 
+  tab_spanner(label = md("*With Wind Included*"), 
+              columns = ends_with("Included"))|> 
+  tab_spanner(label = md("*With Wind Precluded*"), 
+              columns = ends_with("Precluded"))|>
+  cols_hide(spp_id) |>
+  cols_label(starts_with("stratmu") ~ md("**Stratified Mean (kg/tow)**"), 
+             starts_with("quant") ~ md("**Quantile**")) 
+```
+
+
+```{r}
+tables <- list("yearly-nom-mu_tbl.docx" = yearly_nom_mu_gt, 
+               "nom-mu_tbl.docx" = nom_mu_gt, 
+               "stratmu_tbl.docx" = stratmu_gt)
+
+pmap(list(tables, names(tables)), ~gtsave(data = .x, filename = .y, path = here("outputs", "manuscript"), expand = 10))
+```
+
+

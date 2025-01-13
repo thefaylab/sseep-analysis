@@ -1,0 +1,461 @@
+---
+title: "An empirical analysis of potential impacts on survey data"
+author: "Angelia Miller"
+date: "2024-11-24"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(gt)
+library(here)
+library(nationalparkcolors)
+
+pal <- park_palette("Redwoods")
+init.analysis.dat <- here("data", "rds", "init-analysis")
+
+```
+
+# Impacts on sample sizes
+```{r data}
+bts <- readRDS(here("data", "rds", "tidy-data", "full-bts-indexed.rds")) |>
+  mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT), # fills expcatch wt values with 0 if missing
+         EXPCATCHNUM = ifelse(is.na(EXPCATCHNUM), 0, EXPCATCHNUM))
+
+wind <- filter(bts, AREA == "WIND")
+
+# pull out unique strata in wind area dataset indicating potentially impacted strata ###
+impacted_strata <- unique(wind$STRATUM)
+
+# filter observations by impacted strata only 
+overlap <- bts |>
+  group_by(SVSPP, COMNAME) |>
+  filter(STRATUM %in% impacted_strata)
+```
+
+
+```{r data}
+# percent loss data created here("init-analysis", "02b-percent-impacts")
+compare_species <- readRDS(here(init.analysis.dat, "species-impacts.rds"))
+compare_season <- readRDS(here(init.analysis.dat, "compare_season.rds"))
+```
+
+## Overall species 
+Total number of tows:
+```{r}
+compare_season |> ungroup() |> summarise(sum = sum(BTS_TOW))
+```
+
+
+How many tows occur in wind areas compare to total tows: 
+```{r}
+compare_season |> summarise(sum_bts = sum(BTS_TOW), 
+                            sum_wind = sum(WIND_TOW), 
+                            sum_overlap = sum(OVERLAP_TOW),
+                            prop_bts = sum_wind/sum_bts, 
+                            prop_overlap = sum_wind/sum_overlap)
+```
+
+Number of species caught in all 8,102 tows: 
+```{r}
+bts |> group_by(SEASON, SVSPP) |> summarise(towct = length(unique(TOWID))) |> filter(towct == 3922 | towct == 4180)
+```
+*Result:* 0 species caught in all 8,102 tows 
+
+What species was caught in the most amount of tows 
+```{r}
+bts |> group_by(SEASON, SVSPP) |> summarise(towct = length(unique(TOWID))) |> arrange(desc(towct))
+```
+*Result:* In the spring, SVSPP == 72 (Silver Hake) was caught in 3,480 tows; In the fall SVSPP == 503 (Longfin Squid) caught in 3,004 tows 
+
+
+
+Number of species that were not caught in any wind tows:
+```{r}
+compare_species |> filter(WIND_TOW == 0) |> ungroup() |> summarise(length(SVSPP))
+```
+*Result:* 323 species were not caught in any wind tows 
+
+
+Number of species where the proportion of wind tows to total tows in overlapped strata is greater than 0 and less than 100:
+```{r}
+wind_species <- compare_species |> filter(WIND_OVERLAP_TOW > 0 & WIND_OVERLAP_TOW < 100) 
+
+length(wind_species$SVSPP)
+
+wind_species
+```
+
+*Result:* 156 species were caught in some proportion of wind tows:overlapped strata
+
+
+Number of tows that caught one species over the whole footprint and was also a wind tow 
+```{r}
+one_tow <- compare_species |> filter(BTS_TOW == 1 & OVERLAP_TOW ==1 & WIND_TOW == 1) |> select(COMNAME)
+```
+
+*Result:* Two species caught in one tow 
+
+
+Is the tow that caught SVSPP == 66 the same tow that caught SVSPP == 702?
+```{r}
+bts |> filter(SVSPP %in% one_tow$SVSPP)
+```
+*Result*: No two separate tows in two separate years. 
+
+How many other species had wind tows constitute 100% of their observations
+```{r}
+compare_species |> group_by(WIND_OVERLAP_TOW) |> summarise(length(SVSPP))
+
+perc_100 <- compare_species |> filter(WIND_OVERLAP_TOW == 100) 
+
+perc_100
+```
+
+
+```{r}
+perc_100_spp <- bts |> filter(SVSPP %in% perc_100$SVSPP) |> select(TOWID, COMNAME, SVSPP)
+perc_100_spp
+
+overlap_tows <- overlap |> filter(SVSPP %in% perc_100$SVSPP)
+overlap_tows
+
+# total bts tows
+perc_100_spp |> pivot_wider(names_from = TOWID, values_from = COMNAME) 
+
+# total overlap tows 
+perc_100_spp |> filter(TOWID %in% unique(overlap_tows$TOWID)) |> pivot_wider(names_from = TOWID, values_from = COMNAME)
+
+```
+
+*Results:* 7 other wind tows caught an another 6 species total; a second species was caught in the same wind tow that caught frigate mackerel; a total of 9 species were caught in wind tows that accounted for 100% of the tows that caught them in strata overlapped by wind. 
+
+What is the proportion of bts tows that the wind tow accounts for for silver hatchetfish (the other species caught with frigate mackerel)
+```{r}
+perc_100 |> filter(COMNAME == "SILVER HATCHETFISH")
+```
+*Result:* One wind tow accounted for 9% of total tows that caught silver hatchetfish in the survey. 
+
+What is the proportion of tows for those 6 species 
+```{r}
+perc_100 |> select(SVSPP, COMNAME,BTS_TOW, WIND_TOW, OVERLAP_TOWPCT, WIND_TOWPCT, WIND_OVERLAP_TOW)
+```
+
+```{r}
+compare_overlap_plot <- ggplot(compare_species) + geom_histogram(aes(x = WIND_OVERLAP_TOW), fill = pal[4]) + labs(x = "Percentage of survey tows lost", y = "Number of species") +#, subtitle = "Percentage of wind-precluded survey tows by the Bigelow in a strata overlapped by wind energy areas") + 
+  coord_flip() + 
+  theme(text = element_text(size = 12))
+
+compare_overlap_plot
+```
+
+```{r}
+compare_species_plot <- ggplot(compare_species) + geom_histogram(aes(x = WIND_TOWPCT), fill = pal[5]) + labs(x = "Percentage of survey tows lost", y = "Number of species") +#, subtitle = "Percentage of wind-precluded survey tows by the Bigelow\ncompared to the full survey footprint") + 
+  coord_flip() + 
+  theme(text = element_text(size = 12))
+compare_species_plot
+```
+```{r patchwork}
+total_species_plot <- (compare_species_plot / compare_overlap_plot) + plot_annotation(tag_levels = "A")
+  
+total_species_plot 
+
+ggsave("total_species_plot.png", plot = total_species_plot, device = "png", path = here("outputs", "manuscript", "all-species"), width = 8, height = 10)
+```
+
+Average number of tows for remaining 156 species?
+```{r}
+# min_species <- compare_species |> filter(WIND_OVERLAP_TOW == 0 | WIND_OVERLAP_TOW == 100)
+```
+
+
+```{r}
+# remain_species <- anti_join(compare_species, min_species, by = "SVSPP")
+# summary(remain_species)
+#mean(wind_overlap_tow)
+#min(BTS_TOW)/max(BTS_TOW)
+```
+### Cumulative functions
+Functions
+```{r}
+bts_tow_fn <- ecdf(compare_species$WIND_TOWPCT)
+bts_bio_fn <- ecdf(compare_species$WIND_BIOPCT)
+bts_num_fn <- ecdf(compare_species$WIND_CATCHPCT)
+
+overlap_tow_fn <- ecdf(compare_species$WIND_OVERLAP_TOW)
+overlap_bio_fn <- ecdf(compare_species$WIND_OVERLAP_BIO)
+overlap_num_fn <- ecdf(compare_species$WIND_OVERLAP_CATCH)
+```
+
+How many species are above the average:
+```{r}
+summary(compare_species)
+```
+
+#### Overlapped strata
+- average wind tow proportion of overlapped strata == 7.25
+```{r}
+# quantile
+overlap_tow_fn(7.25)
+1-overlap_tow_fn(7.25)
+
+#number of species
+overlap_tow_fn(7.25)*488
+
+```
+*Result:* On average, 7.25% of tows in overlapped strata were wind tows.  
+
+- average wind biomass proportion of overlapped strata
+```{r}
+# quantile
+overlap_bio_fn(6.96)
+
+#number of species
+overlap_bio_fn(6.96)*488
+
+```
+*Result:* On average, 6.96% of the biomass caught in overlapped strata occurred in wind areas. Biomass caught 379 species were caught below the proportion of wind tows
+
+- average wind catch proportion of overlapped strata
+```{r}
+# quantile
+overlap_num_fn(6.79)
+
+#number of species
+overlap_num_fn(6.79)*488
+
+```
+*Result:* On average, 7% of the fish caught in overlapped strata occurred in wind areas. 
+
+#### Whole survey area
+- average wind tow proportion of survey area
+```{r}
+#quantile
+bts_tow_fn(2.42)
+
+#number of species
+bts_tow_fn(2.42)*488
+```
+*Result:* On average, 2% of the tows in survey footprint occurred in wind areas. 
+
+- average wind biomass proportion of survey area
+```{r}
+#quantile
+bts_bio_fn(1.95)
+
+#number of species
+bts_bio_fn(1.95)*488
+
+```
+*Result:* On average, 2% of the biomass caught in the survey footprint occurred in wind areas. 
+
+- average wind catch proportion of survey area
+```{r}
+#quantile
+bts_num_fn(2.2)
+
+#number of species
+bts_num_fn(2.2)*488
+
+```
+*Result:* On average, 2% of the fish caught in the survey footprint occurred in wind areas. 
+
+## Stakeholder species
+```{r}
+svspp <- c(15, 32, 72, 103, 105, 106, 121, 131, 141, 503, 999)
+species_impact <- compare_species |> filter(SVSPP %in% svspp) |> relocate(c(WIND_CATCHPCT, WIND_BIOPCT, WIND_TOWPCT), .before = WIND_OVERLAP_CATCH)
+summary(species_impact)
+```
+
+Quantiles 
+```{r}
+species_impact <- species_impact |> 
+  mutate(bts_tow_quant = bts_tow_fn(WIND_TOWPCT), 
+         bts_bio_quant = bts_bio_fn(WIND_BIOPCT), 
+         bts_num_quant = bts_num_fn(WIND_CATCHPCT), 
+         overlap_tow_quant = overlap_tow_fn(WIND_OVERLAP_TOW), 
+         overlap_bio_quant = overlap_bio_fn(WIND_OVERLAP_BIO),
+         overlap_num_quant = overlap_num_fn(WIND_OVERLAP_CATCH))
+```
+
+
+### Wind vs Overlap
+Quantiles compared to whole species suite 
+```{r}
+species_impact |> select(COMNAME, overlap_tow_quant, overlap_bio_quant, overlap_num_quant)
+```
+
+Which species had the highest percentages in terms of tows
+```{r}
+
+```
+
+Which species had the highest percentages in terms of biomass and number
+```{r}
+
+```
+
+Which species had the lowest percentages in terms of tows 
+```{r}
+
+```
+
+Which species had the lowest percentages in terms of biomass and number
+```{r}
+
+```
+
+
+
+### Wind vs BTS
+Quantiles compared to whole species suite 
+```{r}
+species_impact |> select(COMNAME, bts_tow_quant, bts_bio_quant, bts_num_quant)
+```
+
+
+Which species had the highest percentages in terms of tows
+```{r}
+
+```
+
+Which species had the highest percentages in terms of biomass and number
+```{r}
+
+```
+
+Which species had the lowest percentages in terms of tows 
+```{r}
+
+```
+
+Which species had the lowest percentages in terms of biomass and num
+```{r}
+
+```
+
+
+### Plots 
+```{r}
+
+```
+
+## Case Study Species 
+How many tows were they caught in over the full survey area and times series:
+```{r}
+compare_species |> filter(SVSPP %in% c(103, 121)) |> 
+  group_by(SVSPP) |> 
+  summarise(prop_bts = BTS_TOW/8102)
+```
+
+How many of total tows were wind tows:
+```{r}
+compare_species |> filter(SVSPP %in% c(103, 121)) |> 
+  select(SVSPP, WIND_TOWPCT) 
+```
+
+### Summer flounder
+```{r}
+sumflounder <- readRDS(here("data", "sumflounder", "sumflounder.rds"))
+```
+
+How many tows occurred in wind areas vs outside areas over time and in each season
+```{r}
+sumflounder_summ <- sumflounder |>
+  group_by(EST_YEAR, AREA, SEASON) |>
+  summarise(sum_tow = length(unique(TOWID)),
+            sum_catch = sum(EXPCATCHNUM),
+            sum_bio = sum(EXPCATCHWT))
+sumflounder_summ
+```
+
+
+```{r}
+sumflounder_summ |> filter(SEASON == "SPRING", AREA == "WIND")
+sumflounder_summ |> filter(SEASON == "SPRING", EST_YEAR %in% c(2011, 2016))
+
+```
+
+What is the percentage of wind tows to total tows?
+```{r}
+sumflounder_summ |> group_by(AREA, SEASON) |> summarise(sum(sum_tow))
+```
+
+What is the average number of tows and how much does it vary 
+```{r}
+sumflounder_summ |> group_by(AREA, SEASON) |> summarise(mean(sum_tow), sd(sum_tow))
+
+```
+
+Find percentage of wind tows/biomass/numbers compared to full effort (wind/wind+outside)
+```{r}
+### fall 
+211/(1694+211)
+### spring
+208/(2006+11)
+```
+
+
+### Atlantic mackerel
+```{r}
+data <- readRDS(here("data", "rds", "completed_bts_data.rds")) |> filter(SVSPP == 121) |> mutate(EXPCATCHWT = ifelse(is.na(EXPCATCHWT), 0, EXPCATCHWT))
+
+full_survey <- c(2009:2019, 2021)
+
+am_spring <- data |> filter(SEASON == "SPRING", YEAR %in% full_survey)
+summary(am_spring$EXPCATCHWT)
+```
+
+How many tows occurred in wind areas vs outside areas over time and in each season
+```{r}
+atlmack_summ <- am_spring |>
+  group_by(EST_YEAR, AREA, SEASON) |>
+  summarise(sum_tow = length(unique(TOWID)),
+  sum_catch = sum(EXPCATCHNUM),
+  sum_bio = sum(EXPCATCHWT))
+atlmack_summ
+```
+
+How much of the 7% difference (in initial MARE) is coming from the very small estimate in 2014?
+```{r}
+# look at the 2014 data 
+atlmack_summ |> filter(EST_YEAR == 2014)
+
+# look at the wind data 
+atlmack_summ |> ungroup() |> filter(AREA == "WIND")
+
+# summarise the wind data
+atlmack_summ |> ungroup() |> filter(AREA == "WIND") |> summarise(sum_tow = sum(sum_tow), sum_catch = sum(sum_catch), sum_bio = sum(sum_bio))
+.031/1101
+1/11198
+11/209
+
+```
+
+What is the range of biomass 
+```{r}
+am_spring |> filter(EXPCATCHWT != 0) |> summarise(min = min(EXPCATCHWT), 
+                                                  q1 = quantile(EXPCATCHWT, 0.25), 
+                                                  median = median(EXPCATCHWT), 
+                                                  mean = mean(EXPCATCHWT), 
+                                                  sd = sd(EXPCATCHWT),
+                                                  q3 = quantile(EXPCATCHWT, 0.75), 
+                                                  max = max(EXPCATCHWT))
+
+```
+
+What is the percentage of wind tows to total tows
+```{r}
+###  
+atlmack_summ |> group_by(AREA, SEASON) |> summarise(sum(sum_tow))
+```
+
+What is the average number of tows and how much does it vary 
+```{r}
+atlmack_summ |> group_by(AREA, SEASON) |> summarise(mean(sum_tow), sd(sum_tow))
+
+209/(3839+209)
+```
+
+

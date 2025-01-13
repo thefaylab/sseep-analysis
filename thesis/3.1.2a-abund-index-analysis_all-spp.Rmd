@@ -1,0 +1,241 @@
+---
+title: "Impacts on indices of abundance"
+author: "Angelia Miller"
+date: "2024-11-24"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(here)
+library(gt)
+source(here("R", "StratMeanFXs_v2.R"))
+
+spatial.dat <- here("data", "rds", "spatial-filter")
+dat.files <- here("data", "rds", "retro-analysis")
+```
+
+# Spatial Filter 
+```{r}
+# read in the data 
+strat_filter <- readRDS(here(spatial.dat, "min-strata_filtered-species.rds"))
+criteria_species <- readRDS(here(spatial.dat, "min-year-strat_filtered-species.rds"))
+species_df <- readRDS(here(spatial.dat, "spatial-filter-species.rds"))
+```
+
+```{r}
+### how many species were in 3 or more strata 
+length(unique(strat_filter$SVSPP)) # n = 278
+
+strat_filter |> group_by(SEASON) |> summarise(length(unique(SVSPP)))
+
+### how many species were in 3 or more years 
+length(unique(criteria_species$SVSPP)) # n = 199
+
+criteria_species |> group_by(SEASON) |> summarise(length(unique(SVSPP)))
+
+### how many species were observed in strata proposed for wind overlap
+# n = 241 see data-cleaning/tidy-data/05a-create-spatial-filter.R
+
+# number of species that appeared in 3 or more strata, 3 or more years, and in any strata impacted by wind. 
+length(unique(species_df$SVSPP)) # n = 164
+
+species_df |> group_by(SEASON) |> summarise(length(unique(SVSPP)))
+```
+
+## Table
+```{r}
+
+```
+
+
+# Abundance Indices 
+```{r}
+### Read in data ####
+# dataset created from `01-calculate-retro-indices.R` here("retro-analysis"). 
+all_stratmu <- readRDS(here(dat.files, "all_stratmu_rows.rds"))
+
+complete <- readRDS(here("data", "rds", "completed_bts_data.rds"))
+data95 <-  readRDS(here("data", "rds", "95filtered_complete_bts.rds")) |> filter(EST_YEAR != 2020)
+
+#mean difference
+all_mudiff <- readRDS(here(dat.files, "species_stratmu-diff.rds"))
+
+# difference in coefficient of variation created from `01-calculate-retro-indices.R` here("retro-analysis")
+all_cvdiff <- readRDS(here(dat.files, "species_cv-diff.rds")) 
+
+# difference in population trends created from `01-calculate-retro-indices.R` here("retro-analysis")
+all_linreg_diff <- readRDS(here(dat.files, "species_slope-diff.rds"))
+```
+
+```{r}
+specieslookup <- all_stratmu |> 
+  ungroup() |>
+  select(SVSPP, COMNAME) |> 
+  distinct() |> 
+  mutate(spname = str_to_lower(gsub(" ", "_", COMNAME)))|> 
+  arrange(SVSPP)
+```
+
+
+```{r}
+min_max_mu <- all_stratmu |> group_by(SVSPP, SEASON, effort) |> 
+  summarise(min(stratmu),
+            max(stratmu))
+
+data |> ggplot() + geom_histogram(aes(x = stratmu)) + 
+  facet_wrap(vars(SEASON, effort))
+```
+
+Was 2017 used in calculating fall indices / were they incomplete survey years for the majority of species
+```{r}
+bts_sum <- complete |>
+  group_by(SVSPP, EST_YEAR, SEASON, COMNAME, STRATUM, TOWID, DAYTIME) |>
+  summarize(BTS_CATCH = sum(EXPCATCHNUM),
+            BTS_BIO = sum(EXPCATCHWT),
+            BTS_TOW = length(unique(TOWID))) 
+
+bts_sp_ssn_yr <- bts_sum |>
+  group_by(SVSPP, COMNAME, EST_YEAR, SEASON) |> 
+  summarize(BTS_TOW = sum(BTS_TOW))|>
+  filter(SEASON == "FALL", EST_YEAR %in% c(2016, 2017, 2018))            
+data95_sum <- data95 |>
+  group_by(SVSPP, EST_YEAR, SEASON, COMNAME, STRATUM, TOWID, DAYTIME) |>
+  summarize(BTS_CATCH = sum(EXPCATCHNUM),
+            BTS_BIO = sum(EXPCATCHWT),
+            BTS_TOW = length(unique(TOWID))) 
+
+filtered_sp_ssn_yr <- data95_sum |>
+  group_by(SVSPP, COMNAME, EST_YEAR, SEASON) |> 
+  summarize(BTS_TOW = sum(BTS_TOW))|>
+  filter(SEASON == "FALL", EST_YEAR %in% c(2016, 2017, 2018)) 
+```
+
+```{r}
+fall_spp <- c("roughtail_stingray", 
+"rough_scad",
+"spanish_sardine",
+"striped_anchovy",
+"northern_stargazer",
+"weakfish",
+"spiny_butterfly_ray",
+"bluntnose_stingray",
+"striped_burrfish",
+"bullnose_ray", 
+"atlantic_croaker",
+"sea_scallop",
+"horseshoe_crab",
+"yellowtail_flounder",
+"little_skate", 
+"scup"
+)
+
+fall_spp_tbl <- specieslookup |> filter(spname %in% fall_spp)
+fall_svspp <- fall_spp_tbl$SVSPP
+
+fall_data <- all_stratmu |> filter(SEASON == "FALL", SVSPP %in% fall_svspp)
+```
+
+```{r}
+spring_spp <- c("striped_bass",
+"spiny_searobin",
+"snake_eel_uncl",
+"lady_crab",
+"spider_crab_uncl",
+"northern_stargazer",
+"smooth_dogfish", 
+"blueback_herring", 
+"bobtail_uncl", 
+"ling_uncl",
+"spiny_dogfish", 
+"all_skates",
+"atlantic_herring",
+"little_skate",
+"clearnose_skate",
+"atlantic_mackerel",
+"butterfish",
+"horseshoe_crab",
+"striped_cusk-eel", 
+"blotched_cusk-eel", 
+"etropus_uncl",
+"coarsehand_lady_crab")
+
+spring_spp_tbl <- specieslookup |> filter(spname %in% spring_spp)
+
+spring_svspp <- spring_spp_tbl$SVSPP
+
+spring_data <- all_stratmu |> filter(SEASON == "SPRING", SVSPP %in% spring_svspp)
+```
+
+
+## Plots
+```{r}
+fall_plots <- fall_data |> group_by(COMNAME) |> nest() |> mutate(plot = map(data, ~plot.stratmu(., EST_YEAR, color = effort) + labs(title = str_to_sentence(COMNAME)) + facet_wrap(~str_to_title(.$SEASON)))) |> left_join(specieslookup, by = "COMNAME")
+
+pmap(list(fall_plots$plot, fall_plots$spname), ~ggsave(filename = str_c(.y, "png", sep = "."), device = "png" , plot = .x, path = here("outputs", "manuscript", "all-species", "fall-stratmu"), width = 8, height = 5))
+```
+
+```{r}
+spring_plots <- spring_data |> group_by(COMNAME) |> nest() |> mutate(plot = map(data, ~plot.stratmu(., EST_YEAR, color = effort) + labs(title = str_to_sentence(COMNAME)) + facet_wrap(~str_to_title(.$SEASON)))) |> left_join(specieslookup, by = "COMNAME")
+
+pmap(list(spring_plots$plot, spring_plots$spname), ~ggsave(filename = str_c(.y, "png", sep = "."), device = "png" , plot = .x, path = here("outputs", "manuscript", "all-species", "spring-stratmu"), width = 8, height = 5))
+```
+
+
+# CV
+Top species of CV differences 
+Reporting mean CV for each scenario with differences 
+```{r}
+mean_cvs <- all_stratmu |> 
+  group_by(SEASON, effort, COMNAME, SVSPP) |>
+  summarise(mean_cv = mean(cv)) |> 
+  pivot_wider(names_from = effort, values_from = mean_cv)
+
+top_cvdiff <- all_cvdiff |> 
+  group_by(SEASON) |> 
+  nest() |>
+  mutate(top = map(data, ~arrange(., desc(ME)) |> head(10))) |> 
+  unnest(cols = top) |> 
+  select(!data) |> 
+  left_join(mean_cvs, by = c("SVSPP", "SEASON", "COMNAME"))
+
+```
+
+## Table
+```{r}
+cv_gt <- top_cvdiff |> 
+  select(SEASON, COMNAME, `With Wind Included`, `With Wind Precluded`, ME) |> #MARE) |> 
+  arrange(desc(ME)) |>
+  # arrange(desc(MARE)) |>
+  mutate(COMNAME = str_to_sentence(COMNAME), 
+         SEASON = str_to_sentence(SEASON)) |> 
+  gt() |> 
+  fmt_number(columns = c(`With Wind Precluded`, `With Wind Included`, ME)) #|>
+  # fmt_scientific(columns = `With Wind Included`, 
+                 # rows = `With Wind Included` < 0.5) |>
+  # fmt_scientific(columns = `With Wind Precluded`, 
+                 # rows = `With Wind Precluded` < 0.5) |> 
+  # fmt_percent(columns = MARE) 
+
+# gtsave(cv_gt, filename = "cvdiff_table.docx", path = here("outputs", "manuscript", "all-species"))
+  
+```
+
+
+
+```{r}
+# quantile function for diffs 
+mudiff_quant.fn <- all_mudiff |>   group_by(SEASON) |>
+               nest() |>
+               mutate(quant.fn = map(data, ~ecdf(.x$MARE)))
+
+cvdiff_quant.fn <- all_cvdiff |>   group_by(SEASON) |>
+  nest() |>
+  mutate(quant.fn = map(data, ~ecdf(.x$MARE))) 
+
+slope_quant.fn <- all_linreg_diff |>   group_by(SEASON) |>
+  nest() |>
+  mutate(quant.fn = map(data, ~ecdf(.x$MAE)))
+```
+

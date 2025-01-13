@@ -1,0 +1,206 @@
+---
+title: "An empirical analysis of potential impacts on survey data"
+author: "Angelia Miller"
+date: "2024-11-24"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+source(here("R", "plot_fns.R"))
+```
+
+# Impacts on indices of abundance
+
+## Summer flounder 
+```{r sf data}
+# datasets created from `05-calculate-sumflounder-stratmu.R` here("sumflounder"). 
+obs_slopes <- readRDS(here("data", "sumflounder", "obs_slopes.rds")) |> mutate(COMNAME = "Summer flounder") |> arrange(SEASON)
+
+# stratified means 
+sf_stratmu <- readRDS(here("data", "sumflounder", "stratmu_rows.rds"))
+
+# datasets for mean differences 
+sf_mudiff_dat <- readRDS(here("data", "sumflounder", "mudiff_dat.rds"))
+
+sf_cvdiff_dat <- readRDS(here("data", "sumflounder", "cvdiff_dat.rds"))
+
+sf_slope_diff_dat <- readRDS(here("data", "sumflounder", "slope_diff.rds"))
+
+# datasets for null hypothesis
+### status quo
+sf_fall_full_dist <- readRDS(here("data", "sumflounder", "null-hypothesis", "sumflounder_fall_fulldat_dist_plot.rds"))
+sf_spr_full_dist <- readRDS(here("data", "sumflounder", "null-hypothesis", "sumflounder_spring_fulldat_dist_plot.rds"))
+### wind preclusion
+sf_fall_wind_dist <- readRDS(here("data", "sumflounder", "null-hypothesis", "sumflounder_fall_wind-precl_dist_plot.rds"))
+sf_spr_wind_dist <- readRDS(here("data", "sumflounder", "null-hypothesis", "sumflounder_spring_wind-precl_dist_plot.rds"))
+### general reduction 
+sf_fall_gen.red_dist <- readRDS(here("data", "sumflounder", "null-hypothesis", "sumflounder_fall_gen-reduced_dist_plot.rds"))
+sf_spr_gen.red_dist <- readRDS(here("data", "sumflounder", "null-hypothesis", "sumflounder_spring_gen-reduced_dist_plot.rds"))
+```
+
+What are the observed slope estimates? 
+```{r sf slope}
+obs_slopes
+```
+
+
+### Stratified Mean plots 
+```{r st stratmu}
+sf_fall_plot <- sf_stratmu |> filter(SEASON == "FALL") |> 
+  plot.stratmu(year_col = EST_YEAR, color = effort, shape = effort) + facet_wrap(~str_to_title(SEASON)) 
+
+sf_spr_plot <- sf_stratmu |> filter(SEASON == "SPRING") |> 
+  plot.stratmu(year_col = EST_YEAR, color = effort, shape = effort) + facet_wrap(~str_to_title(SEASON)) 
+
+sf_stratmu_plots <- (sf_fall_plot + sf_spr_plot) +
+  plot_annotation(tag_levels = "A") +
+  plot_layout(guides = "collect") &
+  theme(legend.position = "bottom")
+
+sf_stratmu_plots
+
+ggsave("sf_stratmeans2.png", plot = sf_stratmu_plots, device = "png", here("outputs", "manuscript", "sumflounder"), width = 12, height = 6)
+
+```
+
+
+### Cumulative distribution functions for mean differences in stratified means, CVs, and slope
+```{r sf ecdf}
+fluke_mudiff_quant <- left_join(mudiff_quant.fn, fluke_mudiff, by = "SEASON") |> 
+  mutate(quant = map(quant.fn, ~.x(MARE))) |> unnest(cols = quant)
+
+fluke_cvdiff_quant <- left_join(cvdiff_quant.fn, fluke_cvdiff, by = "SEASON") |> 
+  mutate(quant = map(quant.fn, ~.x(MARE))) |> unnest(cols = quant)
+
+fluke_slope.diff_quant <- left_join(slope_quant.fn, fluke_slope.diff, by = "SEASON") |> 
+  mutate(quant = map(quant.fn, ~.x(MAE))) |> unnest(cols = quant)
+
+```
+
+
+### Null hypothesis plots
+```{r sf null hyp plot}
+sf_null.hyp_plots <- (sf_fall_full_dist + sf_fall_wind_dist + sf_fall_gen.red_dist) / 
+  (sf_spr_full_dist + sf_spr_wind_dist + sf_spr_gen.red_dist) + 
+  plot_annotation(tag_levels = "A") + 
+  plot_layout(guides = "collect") & 
+  theme(legend.position = "bottom")
+sf_null.hyp_plots
+
+# ggsave("sumflounder_null_hypothesis.png", plot = sf_null.hyp_plots, device = "png", path = here("outputs", "manuscript", "sumflounder"), width = 14, height = 10)
+
+```
+
+
+## Atlantic mackerel
+```{r am data}
+# datasets created from `05-calculate-atlmackerel-stratmu.R` here("atlmackerel"). 
+am_mudiff_dat <- readRDS(here("data", "atlmackerel", "mudiff_dat.rds"))
+
+am_cvdiff_dat <- readRDS(here("data", "atlmackerel", "cvdiff_dat.rds"))
+
+am_slope_diff_dat <- readRDS(here("data", "atlmackerel", "slope_diff.rds"))
+
+mack_slope <- readRDS(here("data", "atlmackerel", "obs_slopes.rds")) |> 
+  mutate(COMNAME = "Atlantic mackerel")
+```
+
+### Cumulative distribution functions for mean differences in stratified means, CVs, and slope
+```{r am ecdf}
+mack_mudiff_quant <- mudiff_quant.fn |> filter(SEASON == "SPRING") |> left_join(mackerel_mudiff, by = "SEASON") |> 
+  mutate(quant = map(quant.fn, ~.x(MARE))) |> unnest(cols = quant)
+
+mack_cvdiff_quant <- cvdiff_quant.fn |> filter(SEASON == "SPRING") |> left_join(mackerel_cvdiff, by = "SEASON") |> 
+  mutate(quant = map(quant.fn, ~.x(MARE))) |> unnest(cols = quant)
+
+mack_slope.diff_quant <- slope_quant.fn |> filter(SEASON == "SPRING") |> left_join(mackerel_slope.diff, by = "SEASON") |> 
+  mutate(quant = map(quant.fn, ~.x(MAE))) |> unnest(cols = quant)
+```
+
+What are the observed slope estimates? 
+```{r}
+mack_slope
+```
+
+### Null Hypothesis  plots
+
+# Tables
+```{r all diffs}
+sf_diff.tbl <- left_join(sf_mudiff_dat, sf_cvdiff_dat, by = "SEASON") |> 
+  left_join(sf_slope_diff_dat, by = "SEASON") |> 
+  select(SEASON, MARE.x, MARE.y, MAE) |> 
+  rename(stratmu_mare = MARE.x, 
+         cv_mare = MARE.y, 
+         slope_mae = MAE) |> 
+  mutate(species = "Summer flounder")
+
+am_diff.tbl <- left_join(am_mudiff_dat, am_cvdiff_dat, by = "SEASON") |> 
+  left_join(am_slope_diff_dat, by = "SEASON") |> 
+  select(SEASON, MARE.x, MARE.y, MAE) |> 
+  rename(stratmu_mare = MARE.x, 
+         cv_mare = MARE.y, 
+         slope_mae = MAE) |> 
+  mutate(species = "Atlantic mackerel")
+
+diff.tbl <- bind_rows(sf_diff.tbl, am_diff.tbl) |> 
+  relocate(species, .before = everything()) |> 
+  mutate(SEASON = str_to_title(SEASON)) #|> 
+  # pivot_wider()
+```
+
+
+```{r diff gt}
+gt <- diff.tbl |> 
+  # arrange(SEASON) |> 
+  # group_by(SEASON) |>
+  gt(rowname_col = "species") |>
+  tab_row_group(label = "Fall",
+                rows = 1) |>
+  tab_row_group(label = "Spring",
+                rows = c(2:3)) |> 
+  cols_hide(SEASON) |>
+  fmt_percent(decimals = 0) |>
+  tab_spanner(label = md("*Mean Absolute Relative Difference*"), 
+              columns = c(stratmu_mare, cv_mare))|> 
+  tab_spanner(label = md("*Mean Absolute Difference*"), 
+              columns = slope_mae)|>
+  cols_label(stratmu_mare = md("**Stratified<br>Mean**"), 
+             cv_mare = md("**Coefficient of<br>Variation (CV)**"), 
+             slope_mae = md("**Trend<br>Estimate**")) |>
+  tab_style(style = list(cell_fill(color = "grey90")), 
+            locations = cells_row_groups(groups = c("Fall", "Spring"))) |> 
+  cols_width(c(stratmu_mare, cv_mare) ~ px(150), 
+             slope_mae ~ px(125))
+
+gt
+```
+
+
+```{r all slopes}
+slopes <- bind_rows(sf_slope, mack_slope) |> 
+  relocate(COMNAME, .before = everything())
+```
+
+
+```{r slope gt}
+slope_tbl <- slopes |> 
+  pivot_wider(names_from = SEASON, values_from = c(estimate, conf.low, conf.high)) |> 
+  select(!term) |> 
+  gt(groupname_col = "COMNAME") |> 
+  tab_spanner(label = md("Fall"), 
+              columns = ends_with("FALL")) |> 
+  tab_spanner(label = md("Spring"), 
+              columns = ends_with("SPRING")) |> 
+  fmt_number() |> 
+  sub_missing() |> 
+  cols_label(
+    starts_with("estimate") ~ md("Estimate"), 
+    matches("low") ~ md("Lower CI"), 
+    matches("high") ~ md("Upper CI"), 
+    effort = "") 
+
+slope_tbl
+```
+
+
