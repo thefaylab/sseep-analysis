@@ -17,10 +17,10 @@ source(here("R", "StratMeanFXs_v2.R"))
 # set season and species to be simulated
 season <- "spring"
 
-species <- "atlmackerel"
+species <- "sumflounder"
 
 # type of scenario simulated - c("no-wind", "baseline", "enhanced", "reduced")
-scenario <- "baseline"
+scenario <- "reduced"
 
 # number of simulations 
 nsims <- 1:1000
@@ -38,22 +38,54 @@ data <- readRDS(here(sim.dat, str_c(id, "sim-tows-df.rds", sep = "_")))
 # load the active bottom trawl survey strata and their relative area weights 
 strata <- readRDS(here("data", "rds", "active_strata_wts.rds"))
 
+## Data Wrangle ####
+# remove strata and year observations when only one tow occurred under both effort scenarios
+filtered_data <- data |>  
+  group_by(SIM, SEASON) |> 
+  nest() |> 
+  mutate(incl.strat.tows = map(data, ~group_by(., EST_YEAR, STRATUM) |>
+                            summarise(towct = length(unique(TOWID))) |>
+                            filter(towct == 1)), 
+         precl.strat.tows = map(data, ~filter(., AREA == "OUTSIDE") |>
+                                  group_by(EST_YEAR, STRATUM) |>
+                                  summarise(towct = length(unique(TOWID))) |>
+                                  filter(towct == 1)),
+         incl_data = map2(data, incl.strat.tows, ~anti_join(.x, .y, by = c("EST_YEAR", "STRATUM"))), 
+         filtered_data = map(data, ~filter(., AREA == "OUTSIDE")),
+         precl_data = map2(filtered_data, precl.strat.tows, ~anti_join(.x, .y, by = c("EST_YEAR", "STRATUM"))))
+
 ## Calculate Stratified Mean ####
-sim_stratmeans <- data |> 
+### Status quo survey effort ####
+sim_included <- filtered_data |> 
+  select(SIM, SEASON, incl_data) |> 
+  unnest(cols = incl_data) |>
   group_by(FUTURE_YEAR, SIM, SCENARIO, SEASON) |> 
   nest() |> 
-  mutate(incl_stratmu = map(data, ~stratified.mean(., strata) |> mutate(effort = "With Wind Included")), 
-         precl_stratmu = map(data, ~filter(., AREA == "OUTSIDE") |> stratified.mean(strata) |> mutate(effort = "With Wind Precluded")))
+  mutate(stratmu = map(data, ~stratified.mean(., strata) |>
+                           mutate(effort = "Status quo survey effort"))) |>
+  select(!data) |>
+  unnest(cols = stratmu)
+
+### Wind-precluded survey effort ####
+sim_precluded <- filtered_data |> 
+  select(SIM, SEASON, precl_data) |> 
+  unnest(cols = precl_data) |>
+  group_by(FUTURE_YEAR, SIM, SCENARIO, SEASON) |> 
+  nest() |> 
+  mutate(stratmu = map(data, ~stratified.mean(., strata) |>
+                         mutate(effort = "Wind-precluded survey effort"))) |>
+  select(!data) |>
+  unnest(cols = stratmu)
 
 # extract precluded indices only
-sim_precluded <- sim_stratmeans |> 
-  select(!c(data, incl_stratmu)) |> 
-  unnest(cols = precl_stratmu)
-
-# extract included indices only 
-sim_included <- sim_stratmeans |> 
-  select(!c(data, precl_stratmu)) |> 
-  unnest(cols = incl_stratmu)
+# sim_precluded <- sim_stratmeans |> 
+#   select(!c(data, incl_stratmu)) |> 
+#   unnest(cols = precl_stratmu)
+# 
+# # extract included indices only 
+# sim_included <- sim_stratmeans |> 
+#   select(!c(data, precl_stratmu)) |> 
+#   unnest(cols = incl_stratmu)
 
 ## Bind Data ####
 # long dataframe for plotting and linear regression models
@@ -74,9 +106,9 @@ stratmu_linreg <- stratmeans_rows |>
 
 # wrangle to calculate MRE and MARE
 precl_linreg <- stratmu_linreg |> 
-  filter(EFFORT == "With Wind Precluded")
+  filter(EFFORT == "Wind-precluded survey effort")
 incl_linreg <- stratmu_linreg |> 
-  filter(EFFORT == "With Wind Included")
+  filter(EFFORT == "Status quo survey effort")
 linreg_cols <- left_join(incl_linreg, precl_linreg, by = c("SIM", "SCENARIO", "SEASON")) 
 
 
@@ -86,7 +118,7 @@ mudiff <- stratmeans_cols |>
   group_by(SIM, SCENARIO, SEASON) |> 
   nest() |> 
   mutate(errors = map(data, ~calc.errors(., expected = STRATMU_X, observed = STRATMU_Y)), # calculate the relative errors 
-         mudiff = map(errors, ~mean.diff(.))) |> # calculate the mean percent difference
+         mudiff = map(errors, ~mean.diff(., group_by = NULL))) |> # calculate the mean percent difference
   dplyr::select(!c(data, errors)) |> 
   unnest(cols = mudiff)
 
@@ -95,7 +127,7 @@ cvdiff <-  stratmeans_cols |>
   group_by(SIM, SCENARIO, SEASON) |> 
   nest() |> 
   mutate(errors = map(data, ~calc.errors(., expected = CV_X, observed = CV_Y)), # calculate the relative errors 
-         cv.diff = map(errors, ~mean.diff(.))) |> # calculate the mean percent difference
+         cv.diff = map(errors, ~mean.diff(., group_by = NULL))) |> # calculate the mean percent difference
   dplyr::select(!c(data, errors)) |> 
   unnest(cols = cv.diff)
 
@@ -104,12 +136,13 @@ linreg_diff <- linreg_cols |>
   group_by(SIM, SCENARIO, SEASON) |> 
   nest() |> 
   mutate(errors = map(data, ~calc.errors(., expected = estimate.x, observed = estimate.y)), # calculate the relative errors 
-         slope.diff = map(errors, ~mean.diff(.))) |> # calculate the mean percent difference
+         slope.diff = map(errors, ~mean.diff(., group_by = NULL))) |> # calculate the mean percent difference
   dplyr::select(!c(data, errors)) |> 
   unnest(cols = slope.diff)
 
 ## Save the data ####
-data.save <- list(sim_included, 
+data.save <- list(filtered_data, 
+                  sim_included, 
                   sim_precluded,
                   stratmeans_rows,
                   stratmeans_cols,
@@ -118,7 +151,8 @@ data.save <- list(sim_included,
                   mudiff, 
                   cvdiff,
                   linreg_diff)
-names(data.save) <- c(str_c(id, "sim.included.stratmu.rds", sep = "_"), 
+names(data.save) <- c(str_c(id, "sim.filtered.data.rds", sep = "_"),
+                      str_c(id, "sim.included.stratmu.rds", sep = "_"),
                       str_c(id, "sim.precluded.stratmu.rds", sep = "_"),
                       str_c(id, "sim.stratmu_rows.rds", sep = "_"),
                       str_c(id, "sim.stratmu_cols.rds", sep = "_"),
@@ -128,4 +162,4 @@ names(data.save) <- c(str_c(id, "sim.included.stratmu.rds", sep = "_"),
                       str_c(id, "sim.cv_diff.rds", sep = "_"),
                       str_c(id, "sim.slope_diff.rds", sep = "_"))
 
-pmap(list(data.save, names(data.save)), ~saveRDS(.x, here(sim.dat, .y)))
+pmap(list(data.save, names(data.save)), ~saveRDS(.x, here(sim.dat, "042025", .y)))

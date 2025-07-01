@@ -1,5 +1,5 @@
 ### created: 01/29/2024
-### last updated: 02/15/2024
+### last updated: 04/27/2025
 
 # 01 - ATLANTIC MACKEREL SYSTEMATIC PRECLUSION ####
 
@@ -26,6 +26,28 @@ data <- readRDS(here(atlmackerel.dat, "atlmackerel_spring.rds"))
 #active bottom trawl survey strata and their relative area weights created here(tidy-data, "02b-filter-current-strata.R")
 strata <- readRDS(here("data", "rds", "active_strata_wts.rds"))
 
+# strata and year combinations that will be removed during the stratified mean calculations because only one tow was conducted. created from `05b-spatial-filter-data.R` here("tidy-data").
+one_tow_strata <- readRDS(here("data", "rds", "one_tow_strata.rds"))
+
+## DATA WRANGLE ####
+# create data frames of year and strata combinations where only one tow occurred
+### Status quo effort 
+remove_incl_strata <- one_tow_strata |> 
+  select(!precl_strata) |> unnest(cols = incl_strata)
+
+# filter out years and strata for the status quo scenario
+incl_data <- data |> 
+  anti_join(remove_incl_strata, by = c("SEASON", "EST_YEAR", "STRATUM"))
+
+### Wind-precluded effort
+remove_precl_strata <- one_tow_strata |> 
+  select(!incl_strata) |> unnest(cols = precl_strata)
+
+# filter out years and strata for the preclusion scenario
+precl_data <- data |> 
+  filter(AREA == "OUTSIDE") |>
+  anti_join(remove_precl_strata, by = c("SEASON", "EST_YEAR", "STRATUM"))
+
 ## WIND INCLUDED LOOP ####
 # create storage vector for years 
 x <- c()
@@ -41,13 +63,13 @@ years <- c(2022, sort(unique(data$EST_YEAR), decreasing = TRUE))
 # x <- NULL
 # x <- append(x, 2022)
 # 
-# y <- sf_spring |> 
+# y <- data |> 
 #   filter(EST_YEAR %in% x) |>
 #   strata.mean() |>
 #   mutate(step = length(x))
 # ww.data <- bind_rows(all.data, y)
 # 
-# y <- sf_spring |> 
+# y <- data |> 
 #   filter(!EST_YEAR %in% x) |>
 #   strata.mean() |>
 #   mutate(step = length(x))
@@ -58,7 +80,7 @@ years <- c(2022, sort(unique(data$EST_YEAR), decreasing = TRUE))
 ### LOOP #### 
 for(i in years){ # count backwards by one starting at 2022 
   x <- append(x, i) # add i to the storage vector
-  y <- data |> 
+  y <- incl_data |> 
     filter(!EST_YEAR %in% x) |> # filter out x value from year
     group_by(EST_YEAR) |> 
     nest() |> 
@@ -66,10 +88,12 @@ for(i in years){ # count backwards by one starting at 2022
     dplyr::select(!data) |> 
     unnest(cols = stratmean) |> 
     mutate(STEP = (length(x) - 1), # count each loop starting at -1 to represent the number of years removed
-           TYPE = "Included")
+           effort = "Status quo survey effort")
   ww.data <- bind_rows(ww.data, y) # add each loop step the stratified means to the with wind dataframe
 }
 
+# remove NA column 
+ww.data <- ww.data |> dplyr::select(!stratmean)
 
 ### save data 
 saveRDS(ww.data, here(system.precl.dat, "with_wind-system_rm.rds"))
@@ -85,18 +109,20 @@ wo.data <- data.frame()
 ### LOOP ####
 for(i in years){ # count backwards by one starting at 2021 
   x <- append(x, i) # add i to the storage vector
-  y <- data |> 
-    filter(EST_YEAR %in% c(x), AREA == "OUTSIDE") |> # filter out x value from year, and wind tows 
+  y <- precl_data |> 
+    filter(EST_YEAR %in% c(x)) |>#, AREA == "OUTSIDE") |> # filter out x value from year, and wind tows 
     group_by(EST_YEAR) |> 
     nest() |> 
     mutate(stratmean = map(data, ~stratified.mean(., strata))) |> # calculate stratified mean
     dplyr::select(!data) |> 
     unnest(cols = stratmean) |> 
     mutate(STEP = length(x)-1, # count each loop starting at 1 to represent the number of years removed
-           TYPE = "Precluded")
+           effort = "Wind-precluded survey effort")
   wo.data <- bind_rows(wo.data, y) # add each loop step the stratified means to the with wind dataframe
 }
 
+# remove NA column 
+wo.data <- wo.data |> dplyr::select(!stratmean)
 
 ### save data 
 saveRDS(wo.data, here(system.precl.dat, "without_wind-system_rm.rds"))

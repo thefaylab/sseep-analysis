@@ -103,6 +103,28 @@ grid_meshs <- map(new_grids_list, ~make_mesh(.x$data, xy_cols = c("X", "Y"), cut
   map(~list(mesh = .))
 # toc() # 110 sec
 
+incl_tow_summary_list <- split(data, factor(data$SIM)) |> 
+  map(~group_by(., SCENARIO, EST_YEAR, STRATUM) |> 
+        filter(EXPCATCHWT >0) |> 
+        summarise(towct = length(unique(TOWID))) |> 
+        filter(towct == 1)) 
+incl_tow_summary_df <- list_rbind(incl_tow_summary_list, names_to = "SIM") |> 
+  mutate(SIM = as.integer(SIM)) |> 
+  group_by(SIM, SCENARIO) |> 
+  nest()
+saveRDS(incl_tow_summary_list, here("data", "rds", "sdmtmb", "atlmackerel", "simulations", "spring", "spring_atlmackerel_future_incl_tow_summary_list.rds"))
+
+precl_tow_summary_list <- split(data, factor(data$SIM)) |> 
+  map(~group_by(., SCENARIO, EST_YEAR, STRATUM) |> 
+        filter(AREA == "OUTSIDE", EXPCATCHWT > 0) |> 
+        summarise(towct = length(unique(TOWID))) |> 
+        filter(towct == 1)) 
+precl_tow_summary_df <- list_rbind(precl_tow_summary_list, names_to = "SIM") |> 
+  mutate(SIM = as.integer(SIM)) |> 
+  group_by(SIM, SCENARIO) |> 
+  nest() 
+saveRDS(precl_tow_summary_df, here("data", "rds", "sdmtmb", "atlmackerel", "simulations", "spring", "spring_atlmackerel_future_precl_tow_summary_df.rds"))
+
 ### Save data ####
 save.dat <- list(year_samps, 
                  future_locs,

@@ -26,20 +26,30 @@ sf_spring <- readRDS(here(sumflounder.dat, "sumflounder_spring.rds"))
 #active bottom trawl survey strata and their relative area weights created here(tidy-data, "02b-filter-current-strata.R")
 strata <- readRDS(here("data", "rds", "active_strata_wts.rds"))
 
+# strata and year combinations that will be removed during the stratified mean calculations because only one tow was conducted. created from `05b-spatial-filter-data.R` here("tidy-data").
+one_tow_strata <- readRDS(here("data", "rds", "one_tow_strata.rds"))
+
+## DATA WRANGLE ####
+# create data frames of year and strata combinations where only one tow occurred
+### Status quo effort 
+remove_incl_strata <- one_tow_strata |> 
+  select(!precl_strata) |> unnest(cols = incl_strata)
+
+# filter out years and strata for the status quo scenario
+incl_data <- sf_spring |> 
+  anti_join(remove_incl_strata, by = c("SEASON", "EST_YEAR", "STRATUM"))
+
+### Wind-precluded effort
+remove_precl_strata <- one_tow_strata |> 
+  select(!incl_strata) |> unnest(cols = precl_strata)
+
+# filter out years and strata for the preclusion scenario
+precl_data <- sf_spring |> 
+  filter(AREA == "OUTSIDE") |>
+  anti_join(remove_precl_strata, by = c("SEASON", "EST_YEAR", "STRATUM"))
 
 # filter for summer flounder data only
 # sf_stratmean <- readRDS(here("data", "sumflounder", "sf_stratmu.rds")) |>  
-#   group_by(EST_YEAR, TYPE, SEASON) %>% 
-#   mutate(sdlog = sqrt(log(1+(sqrt(stratvar)/stratmu)^2)), #logistic standard deviation
-#          lower = qlnorm(0.025, log(stratmu), sdlog), # lower quantile of the logistic normal distribution
-#          upper = qlnorm(0.975, log(stratmu), sdlog)) %>% # upper quantile of the logistic normal distribution
-#   mutate(sdlog = ifelse(is.nan(sdlog), 0, sdlog), # if sdlog is NaN, replace with 0
-#          lower = ifelse(is.nan(lower), 0, lower), # if the lower quantile is NaN, replace with 0
-#          upper = ifelse(is.nan(upper), 0, upper)) # if the upper quantile is NaN, replace with 0
-
-# find the average over 12 years for comparison later
-# sum(sf_stratmean$stratmu)/length(sf_stratmean$stratmu)
-
 
 ## WIND INCLUDED LOOP ####
 # create storage vector for years 
@@ -73,7 +83,7 @@ years <- c(2022, sort(unique(sf_spring$EST_YEAR), decreasing = TRUE))
 ### LOOP #### 
 for(i in years){ # count backwards by one starting at 2022 
   x <- append(x, i) # add i to the storage vector
-  y <- sf_spring |> 
+  y <- incl_data |> 
     filter(!EST_YEAR %in% x) |> # filter out x value from year
     group_by(EST_YEAR) |> 
     nest() |> 
@@ -81,7 +91,7 @@ for(i in years){ # count backwards by one starting at 2022
     dplyr::select(!data) |> 
     unnest(cols = stratmean) |>
     mutate(STEP = (length(x) - 1), # count each loop starting at -1 to represent the number of years removed
-           effort = "With Wind Included")
+           effort = "Status quo survey effort")
   ww.data <- bind_rows(ww.data, y) |> # add each loop step the stratified means to the with wind dataframe
     arrange(STEP, EST_YEAR)
 }
@@ -114,15 +124,15 @@ wo.data <- data.frame()
 ### LOOP ####
 for(i in years){ # count backwards by one starting at 2021 
   x <- append(x, i) # add i to the storage vector
-  y <- sf_spring |> 
-    filter(EST_YEAR %in% c(x), AREA == "OUTSIDE") |> # filter out x value from year
+  y <- precl_data |> 
+    filter(EST_YEAR %in% c(x)) |> #, AREA == "OUTSIDE") |> # filter out x value from year
     group_by(EST_YEAR) |> 
     nest() |> 
     mutate(stratmean = map(data, ~stratified.mean(., strata))) |> # calculate stratified mean
     dplyr::select(!data) |> 
     unnest(cols = stratmean) |>
     mutate(STEP = length(x)-1, # count each loop starting at 1 to represent the number of years removed
-           effort = "With Wind Precluded")
+           effort = "Wind-precluded survey effort")
   wo.data <- bind_rows(wo.data, y) # add each loop step the stratified means to the with wind dataframe
 }
 
