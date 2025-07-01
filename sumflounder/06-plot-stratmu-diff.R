@@ -59,7 +59,7 @@ cvdiff_plot <- ggplot() +
 slope_plot <- ggplot() +
   geom_histogram(data = slope_diff_all, aes(MAE, after_stat(count)), color = pal[5], fill = pal[1]) +
   facet_wrap(~str_to_title(SEASON)) +
-  labs(x = "Relative percent differences between preclusion and status quo annual stratified mean abundance indices", y = "Number of species") +
+  labs(x = "Mean absolute differences between preclusion and status quo annual stratified mean abundance indices", y = "Number of species") +
   theme_bw() 
 
 
@@ -117,7 +117,7 @@ slope_fall_plot <- ggplot() +
   geom_vline(xintercept = as.numeric(slope_diff_dat[1,3]*100), linetype = 6, color = pal[3], linewidth = 1) +
   annotate("text", x = as.numeric(slope_diff_dat[1,3]*100)+3.5, y = 165, label = str_c(round(slope_diff_dat[1,3]*100, 2), "%", sep = ""), angle = 90) +
   facet_wrap(~str_to_title(SEASON)) +
-  labs(x = "Relative absolute differences", y = "Number of species") +
+  labs(x = "Mean absolute differences", y = "Number of species") +
   ylim(0, 200)+
   theme_bw() +
   theme(axis.title = element_text(size = 11), axis.title.x = element_text(margin = margin(5, 5, 5, 5)), axis.title.y = element_text(margin = margin(5, 5, 5, 5)), axis.text = element_text(size = 11), strip.text = element_text(size = 11))

@@ -1,4 +1,7 @@
 library(nationalparkcolors)
+library(infer)
+library(boot)
+library(NatParksPalettes)
 #' 
 #' Plot distributions
 #'
@@ -14,28 +17,29 @@ library(nationalparkcolors)
 #'
 #' @examples
 
-plot_distribution <- function(dist_dat, ci_dat, scenario = "With Wind Included", pal = c("#548F01", "#497381", "#4E5462", "#D58A60"), ...){
+plot_distribution <- function(dist_dat, ci_dat, scenario = "Status quo survey effort", pal = c("#40663F", "#497381", "#4E5462", "#D58A60"), ...){
   
   plot_dat <- dist_dat |> filter(effort == scenario)
   
-  if(scenario == "With Wind Included"){
+  if(scenario == "Status quo survey effort"){
     plot <- ggplot(plot_dat) +
       geom_histogram(aes(x = estimate, fill = pal[1]), color = "white") + 
       scale_fill_manual(values = c(pal[1]), labels = c(scenario), name = NULL) +
       shade_confidence_interval(endpoints = ci_dat, color = pal[2], fill = pal[2], alpha = 0.45) +
       #facet_wrap(~str_to_title(SEASON)) +
-      labs(x = "Linear regression slope of abundance index", y = "Number of linear regression slopes") +
-      theme_bw() +
-      theme(title = element_text(size = 10), legend.position = "bottom", panel.grid = element_blank())}
+      labs(x = "Linear regression slope of abundance index", y = "Number of linear regression slopes") #+
+      # theme_bw() +
+      # theme(title = element_text(size = 10), legend.position = "bottom", panel.grid = element_blank())
+      }
   else {
     plot <- ggplot(plot_dat) +
       geom_histogram(aes(x = estimate, fill = pal[4]), color = "white") + 
-      scale_fill_manual(values = c(pal[4]), labels = c("With Wind Precluded"), name = NULL) +
+      scale_fill_manual(values = c(pal[4]), labels = c(scenario), name = NULL) +
       shade_confidence_interval(endpoints = ci_dat, color = pal[2], fill = pal[2], alpha = 0.45) +
       #facet_wrap(~str_to_title(SEASON)) +
-      labs(x = "Linear regression slope of abundance index", y = "Number of linear regression slopes") +
-      theme_bw() +
-      theme(title = element_text(size = 10), legend.position = "bottom", panel.grid =  element_blank())
+      labs(x = "Linear regression slope of abundance index", y = "Number of linear regression slopes") #+
+      # theme_bw() +
+      # theme(title = element_text(size = 10), legend.position = "bottom", panel.grid =  element_blank())
   }
   
   return(plot)
@@ -59,7 +63,7 @@ plot_distribution <- function(dist_dat, ci_dat, scenario = "With Wind Included",
 #' 
 
 
-plot.stratmu <- function(data, year_col, pal = c("#548F01",  "#D58A60"), ...){
+plot.stratmu <- function(data, year_col, pal = c("#40663F",  "#D58A60"), ...){
   
   data <- data |> 
     mutate(sdlog = sqrt(log(1+(sqrt(stratvar)/stratmu)^2)), #logistic standard deviation
@@ -79,14 +83,15 @@ plot.stratmu <- function(data, year_col, pal = c("#548F01",  "#D58A60"), ...){
     #facet_wrap(vars({{facet_by}}), scales = "free_y") + # create sequence of panels based on SEASON variable
     #facet_grid(rows = vars(GEO_AREA), cols = vars(SEASON), scales = "free_y") + # create sequence of panels based on SEASON variable
     labs(x = "Year", y = "Stratified Mean (kg/tow)") + # edit plot labels 
-    ylim(0,NA) +
-    theme_bw() + # black and white plot theme
+    #ylim(0,NA) #+
+    # theme_bw() + # black and white plot theme
     theme(legend.position="bottom", # move legend to the bottom
-          legend.title = element_blank(), # leave legend title blank
-          axis.title = element_text(size = 11), 
-          axis.text = element_text(size = 11), 
-          strip.text = element_text(size = 11), 
-          legend.text = element_text(size = 11)) + 
+         legend.title = element_blank()#, # leave legend title blank
+          # axis.title = element_text(size = 11), 
+          # axis.text = element_text(size = 11), 
+          # strip.text = element_text(size = 11), 
+          # legend.text = element_text(size = 11)
+          ) + 
     scale_color_manual(values = pal)
   
   return(plot)

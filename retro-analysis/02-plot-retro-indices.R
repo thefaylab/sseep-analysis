@@ -1,5 +1,5 @@
 ### created: 04/23/2024
-### last updated: 11/10/2024
+### last updated: 04/25/2025
 
 # 02 - PLOT RETROSPECTIVE INDICES BY SPECIES ####
 
@@ -19,6 +19,7 @@ suppressPackageStartupMessages(library(tidyverse))
 #devtools::install_github("katiejolly/nationalparkcolors")
 library(nationalparkcolors)
 
+
 ### File locations ####
 dat.files <- here("data", "rds", "retro-analysis")
 
@@ -32,10 +33,10 @@ data <- data |>
   group_by(SVSPP, EST_YEAR, effort, SEASON) |> 
   mutate(sdlog = sqrt(log(1+(sqrt(stratvar)/stratmu)^2)), #logistic standard deviation
          lower = qlnorm(0.025, log(stratmu), sdlog), # lower quantile of the logistic normal distribution
-         upper = qlnorm(0.975, log(stratmu), sdlog)) |> # upper quantile of the logistic normal distribution
-  mutate(sdlog = ifelse(is.nan(sdlog), 0, sdlog), # if sdlog is NaN, replace with 0
-         lower = ifelse(is.nan(lower), 0, lower), # if the lower quantile is NaN, replace with 0
-         upper = ifelse(is.nan(upper), 0, upper)) # if the upper quantile is NaN, replace with 0
+         upper = qlnorm(0.975, log(stratmu), sdlog)) #|> # upper quantile of the logistic normal distribution
+  # mutate(sdlog = ifelse(is.nan(sdlog), 0, sdlog), # if sdlog is NaN, replace with 0
+  #        lower = ifelse(is.nan(lower), 0, lower), # if the lower quantile is NaN, replace with 0
+  #        upper = ifelse(is.nan(upper), 0, upper)) # if the upper quantile is NaN, replace with 0
 
 # create a species vector to loop over below.
 species <- unique(data$SVSPP)
@@ -45,7 +46,10 @@ mu_plots <- list()
 
 # create universal aesthetics for ggplot
 # names(park_palettes)
-pal <- c("#548F01",  "#D58A60")#park_palette("Badlands")
+pal <- park_palette("SmokyMountains")[c(2,1)]
+theme <- theme_bw(base_size = 14) + theme(legend.position = "bottom", legend.text = element_text(angle = 45))
+theme_set(theme)
+# pal <- c("#548F01",  "#D58A60")#park_palette("Badlands")
 
 # create a lookup table with filename-friendly species names
 specieslookup <- data |> 
@@ -70,8 +74,7 @@ for(i in species){ # for each value i in the species vector
         color = effort, # differentiate color based on whether or not wind tows were included in the calculation
         shape = effort) +  # differentiate shapes based on whether or not wind tows were included in the calculation
     geom_pointrange(aes(ymin=lower, ymax = upper), position = position_dodge2(width=0.4)) + # plot the upper and lower quantiles about the mean 
-    facet_wrap(vars(SEASON), scales = "free_y") + # create sequence of panels based on SEASON variable
-    #facet_grid(rows = vars(GEO_AREA), cols = vars(SEASON), scales = "free_y") + # create sequence of panels based on SEASON variable
+    facet_wrap(vars(str_to_title(SEASON)), scales = "free_y") + # create sequence of panels based on SEASON variable
     labs(x = "Year", y = "Stratified Mean (kg/tow)", title = str_to_title(x$COMNAME), subtitle = str_c("Annual and seasonal stratified mean biomass for", str_to_lower(x$COMNAME), "when wind tows are included and precluded from the calculation", sep = " "), SEASON = "", TYPE = "") + # edit plot labels 
     ylim(0,NA) +
     theme_bw() + # black and white plot theme
@@ -87,7 +90,7 @@ mu_plots <- compact(mu_plots) # remove NULL list items
 
 
 ### save the plot list 
-saveRDS(mu_plots, file = here("data", "rds","retro-analysis",  "stratmu-plots.rds"))
+saveRDS(mu_plots, file = here(dat.files,  "stratmu-plots.rds"))
 
 
 ##### PRINT AND SAVE #####

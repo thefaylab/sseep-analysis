@@ -57,7 +57,7 @@ obs_plot <- ggplot() +
   geom_sf(data = ne_coast, fill = "#efe5c7", color = "#816c62") +
   geom_sf(data = strata, fill = NA) +
   geom_point(data = sumflounder, aes(x = DECDEG_BEGLON, y = DECDEG_BEGLAT, color = EXPCATCHWT, size = EXPCATCHWT, alpha = EXPCATCHWT)) +
-  scale_colour_viridis_c(guide = "legend")+
+  scale_colour_viridis_c(guide = "legend", direction = -1)+
   scale_size(range=c(1,10)) +
   scale_alpha_continuous(range = c(0.4, 1)) +
   labs(x = "Longitude", y = "Latitude", color = "Biomass\n(kg/tow)", size = "Biomass\n(kg/tow)", alpha = "Biomass\n(kg/tow)") +

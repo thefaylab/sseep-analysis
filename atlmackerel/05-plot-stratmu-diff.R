@@ -58,7 +58,7 @@ cvdiff_plot <- ggplot() +
   geom_vline(xintercept = as.numeric(cvdiff_dat[1,5]*100), linetype = 6, color = pal[3], linewidth = 1) + 
   annotate("text", x = as.numeric(cvdiff_dat[1,5]*100)-0.5, y = 50, label = str_c(round((cvdiff_dat[1,5]*100), 0), "%", sep = " "), angle = 90) +
   facet_wrap(~str_to_title(SEASON)) +
-  labs(x = "Relative percent differences", y = "Number of species") +
+  labs(x = "Mean absolute relative differences", y = "Number of species") +
   ylim(0,100) +
   theme_bw() + 
   theme(axis.title = element_text(size = 11), axis.text.x = element_text(size = 11), strip.text = element_text(size = 11))

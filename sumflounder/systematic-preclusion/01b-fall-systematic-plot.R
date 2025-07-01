@@ -1,5 +1,5 @@
 ### created: 07/28/2023
-### last updated: 02/14/2024
+### last updated: 04/27/2025
 
 # 01b - SYSTEMATIC PRECLUSION PLOTS: FALL  ####
 
@@ -20,7 +20,7 @@ source(here("R", "StratMeanFXs_v2.R")) # stratified mean functions
 
 system.precl.dat <- here("data", "sumflounder", "systematic-preclusion")
 sumflounder.dat <- here("data", "sumflounder")
-sumflounder.plots <- here("outputs", "sumflounder")
+sumflounder.plots <- here("outputs", "init-analysis-plots" ,"sumflounder")
 
 ## LOAD DATA ####
 # systematic preclusion data containing a stepwise removal of potential wind energy area tows from the annual stratified mean calculation created here("sumflounder", "systematic-preclusion", "01a-fall-systematic-preclusion.R")

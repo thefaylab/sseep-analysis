@@ -20,7 +20,7 @@ source(here("R", "StratMeanFXs_v2.R")) # stratified mean functions
 
 system.precl.dat <- here("data", "atlmackerel", "systematic-preclusion")
 atlmackerel.dat <- here("data", "atlmackerel")
-atlmackerel.plots <- here("outputs", "atlmackerel")
+atlmackerel.plots <- here("outputs", "init-analysis-plots", "atlmackerel")
 
 ## LOAD DATA ####
 # systematic preclusion data containing a stepwise removal of potential wind energy area tows from the annual stratified mean calculation created here("atlmackerel", "systematic-preclusion", "01-atlmackerel-systematic-preclusion.R")
