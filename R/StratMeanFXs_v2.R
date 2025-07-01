@@ -38,40 +38,41 @@ stratified.mean <- function(dat, strata, value = "biomass"){
   if (value == "biomass"){
   individual <- dat |> 
     group_by(STRATUM) |>
-    summarise(towct = length(unique(STATION)), # calculate unique tows
+    summarise(towct = length(unique(TOWID)), # calculate unique tows
               mu = sum(EXPCATCHWT)/towct, # find the average biomass based on unique tows rather than observations to avoid potential duplication 
-              var = ifelse(towct == 1, 0, # if the tow count equals 1, then variance about the mean should be 0
-                           sum((EXPCATCHWT - mu)^2)/(towct - 1))) |> # if tow count does not equal 1, then find the variance of biomass
+              var = #ifelse(towct == 1, 0, # if the tow count equals 1, then variance about the mean should be 0
+                           sum((EXPCATCHWT - mu)^2)/(towct - 1)) |> # if tow count does not equal 1, then find the variance of biomass
     left_join(strata_wts_use, by = "STRATUM") |> # add each stratum area and relative weight to the dataset based on STRATUM number
     mutate(wt_mu = Area_SqNm * mu, # part one of the stratified mean formula
            wt_var = ((((RelWt)^2) * var) / towct) * (1 - (towct / Area_SqNm))) # part one of the stratified variance formula
-  } 
+    } 
   
   if (value == "number"){
     individual <- dat |> 
       group_by(STRATUM) |>
       summarise(towct = length(unique(STATION)), # calculate unique tows
                 mu = sum(EXPCATCHNUM)/towct, # find the average biomass based on unique tows rather than observations to avoid potential duplication 
-                var = ifelse(towct == 1, 0, # if the tow count equals 1, then variance about the mean should be 0
-                             sum((EXPCATCHNUM - mu)^2)/(towct - 1))) |> # if tow count does not equal 1, then find the variance of biomass
+                var = #ifelse(towct == 1, 0, # if the tow count equals 1, then variance about the mean should be 0
+                             sum((EXPCATCHNUM - mu)^2)/(towct - 1)) |> # if tow count does not equal 1, then find the variance of biomass
       left_join(strata_wts_use, by = "STRATUM") |> # add each stratum area and relative weight to the dataset based on STRATUM number
       mutate(wt_mu = Area_SqNm * mu, # part one of the stratified mean formula
-             wt_var = ((((RelWt)^2) * var) / towct) * (1 - (towct / Area_SqNm))) # part one of the stratified variance formula
+             wt_var = ((((RelWt)^2) * var) / towct) * (1 - (towct / Area_SqNm)))  # part one of the stratified variance formula
   }
   # BTSArea <- as.integer(sum(strata_wts$Area_SqNm))
   
+  # individual <- individual |> filter(wt_mu != 0)
+ 
   stratified <- individual |> 
     # group_by(EST_YEAR) |> 
+    # filter(wt_mu != 0) |> 
     summarise(stratmu = (sum(wt_mu)) / survey_area, # part two of the stratified mean formula
               stratvar = sum(wt_var), 
-              cv = sqrt(stratvar)/stratmu) |>  # part two of the stratified variance formula
-    mutate(cv = ifelse(is.na(cv), 0, cv))
+              cv = sqrt(stratvar)/stratmu) # part two of the stratified variance formula
+    #mutate(cv = ifelse(is.na(cv), 0, cv))
   
   return(stratified)
   
-  #return(individual)
-}  
-
+} 
 #' Calculate error
 #'
 #' @description calculates bias, relative bias, and absolute relative bias
@@ -100,11 +101,11 @@ error.dat <- dat |>
   mutate(error = {{observed}} - {{expected}},
          abs.err = abs(error),
          rel.err = error / {{expected}}, 
-         abs.rel.err = abs.err / {{expected}}) |> 
-  mutate(error = ifelse(is.nan(error), 0, error), 
-         abs.err = ifelse(is.nan(abs.err), 0, abs.err),
-         rel.err = ifelse(is.nan(rel.err), 0, rel.err), 
-         abs.rel.err =  ifelse(is.nan(abs.rel.err), 0, abs.rel.err))
+         abs.rel.err = abs.err / {{expected}}) #|> 
+  #mutate(error = ifelse(is.nan(error), 0, error), 
+         # abs.err = ifelse(is.nan(abs.err), 0, abs.err),
+         # rel.err = ifelse(is.nan(rel.err), 0, rel.err), 
+         # abs.rel.err =  ifelse(is.nan(abs.rel.err), 0, abs.rel.err))
   
 return(error.dat)
   
@@ -131,14 +132,26 @@ return(error.dat)
 #'                   
 #' 
 
-mean.diff <- function(error.dat){
+mean.diff <- function(error.dat, group_by){
   
+  if(is.null(group_by) == FALSE){
+    # supply a grouping variable to calculate the averages on
   mudiff <- error.dat |> 
+    ungroup() |>
     summarise(ME = mean(error), 
               MAE = mean(abs.err),
               MRE = mean(rel.err), 
-              MARE = mean(abs.rel.err))
-  
+              MARE = mean(abs.rel.err), .by = {{group_by}})
+  } else {
+    # drops any residual grouping in the error data 
+    mudiff <- error.dat |> 
+      ungroup() |>
+      summarise(ME = mean(error), 
+                MAE = mean(abs.err),
+                MRE = mean(rel.err), 
+                MARE = mean(abs.rel.err))
+    
+  }
   return(mudiff)
   
 }
