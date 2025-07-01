@@ -1,5 +1,5 @@
 ### created: 11/24/2023
-### last updated: 11/24/2023
+### last updated: 04/30/2024
 
 # 03a - CROSS VALIDATE FALL MODELS ####
 
@@ -25,9 +25,14 @@ here()
 
 ### LOAD DATA ####
 
-sf_fall <- readRDS(here("sdmtmb", "scup", "data", "scup_fall.rds"))
+scup_fall <- readRDS(here("sdmtmb", "scup", "data", "scup_fall.rds")) |>
+  mutate(AREA = as.factor(AREA), 
+         EST_YEAR = as.factor(EST_YEAR))
 fall_mesh <- readRDS(here("sdmtmb", "scup", "data", "fall_mesh.rds"))
-clust <- sample(1:2, size = nrow(sf_fall), replace = T, prob = c(0.1, 0.9))
+#clust <- sample(1:2, size = nrow(scup_fall), replace = T, prob = c(0.1, 0.9))
+
+clust <- kmeans(scup_fall[, c("X", "Y")], 10)$cluster #spatial clusters
+#tabulate(clust) 
 
 
 ## MODEL CROSS VALIDATIONS ####
@@ -38,56 +43,63 @@ plan(multisession)
 
 ### No random effect models ####
 #### M1 ####
-m1_fall.cv <- sdmTMB_cv(EXPCATCHNUM ~ s(AVGDEPTH) + EST_YEAR - 1,
-                     data = sf_fall, 
+m1_fall.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1,
+                     data = scup_fall, 
                      mesh = fall_mesh,
-                     family = nbinom2(link = "log"), 
+                     family = tweedie(link = "log"), 
                      spatial = "off", 
                      control = sdmTMBcontrol(newton_loops = 1), #extra optimization to help with convergence
-                     fold_ids = clust,
-                     k_folds = length(unique(clust)))
+                     silent = FALSE,
+                    # fold_ids = clust,
+                     k_folds = 10)
+
 
 #### M2 ####
-m2_fall.cv <- sdmTMB_cv(EXPCATCHNUM ~ s(AVGDEPTH) + EST_YEAR + AREA - 1,
-                     data = sf_fall, 
+m2_fall.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR + AREA - 1,
+                     data = scup_fall, 
                      mesh = fall_mesh,
-                     family = nbinom2(link = "log"), 
+                     family = tweedie(link = "log"), 
                      spatial = "off", 
                      control = sdmTMBcontrol(newton_loops = 1), 
+                     silent = FALSE,
                      fold_ids = clust,
                      k_folds = length(unique(clust)))
 
 
 ### Spatial Only Models ####
-#### M3 ####
-m3_fall.cv <- sdmTMB_cv(EXPCATCHNUM ~ s(AVGDEPTH) + EST_YEAR - 1,
-                     data = sf_fall, 
+#### M3 #### 
+m3_fall.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1,
+                     data = scup_fall, 
                      mesh = fall_mesh,
-                     family = nbinom2(link = "log"),  
+                     family = tweedie(link = "log"),  
                      spatial = "on", # spatial covariance with depth
                      control = sdmTMBcontrol(newton_loops = 1), 
+                     silent = FALSE,
                      fold_ids = clust,
                      k_folds = length(unique(clust)))
 
 
-#### M4 ####
-m4_fall.cv <- sdmTMB_cv(EXPCATCHNUM ~ s(AVGDEPTH) + EST_YEAR + AREA - 1,
-                     data = sf_fall, 
+#### M4 #### 
+m4_fall.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR + AREA - 1,
+                     data = scup_fall, 
                      mesh = fall_mesh,
-                     family = nbinom2(link = "log"),  
+                     family = tweedie(link = "log"),  
                      spatial = "on", 
                      control = sdmTMBcontrol(newton_loops = 1), 
+                     silent = FALSE,
                      fold_ids = clust,
                      k_folds = length(unique(clust)))
 
 
 ### Spatiotemporal Only Models ####
 #### M5 ####
-m5_fall.cv <- sdmTMB_cv(EXPCATCHNUM ~ s(AVGDEPTH) + EST_YEAR - 1, 
-                     data = sf_fall,
+m5_fall.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1, 
+                     data = scup_fall,
                      mesh = fall_mesh,
-                     family = nbinom2(link = "log"), 
+                     family = tweedie(link = "log"), 
                      spatial = "off", 
+                     control = sdmTMBcontrol(newton_loops = 1), 
+                     silent = FALSE,
                      time = "EST_YEAR",
                      spatiotemporal = "IID", 
                      fold_ids = clust,
@@ -96,11 +108,13 @@ m5_fall.cv <- sdmTMB_cv(EXPCATCHNUM ~ s(AVGDEPTH) + EST_YEAR - 1,
 
 
 #### M6 ####
-m6_fall.cv <- sdmTMB_cv(EXPCATCHNUM ~ s(AVGDEPTH) + EST_YEAR + AREA - 1, 
-                     data = sf_fall,
+m6_fall.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR + AREA - 1, 
+                     data = scup_fall,
                      mesh = fall_mesh,
-                     family = nbinom2(link = "log"), 
-                     spatial = "off", 
+                     family = tweedie(link = "log"), 
+                     spatial = "off",
+                     control = sdmTMBcontrol(newton_loops = 1), 
+                     silent = FALSE,
                      time = "EST_YEAR",
                      spatiotemporal = "IID", 
                      fold_ids = clust,
@@ -108,11 +122,13 @@ m6_fall.cv <- sdmTMB_cv(EXPCATCHNUM ~ s(AVGDEPTH) + EST_YEAR + AREA - 1,
 
 ### Spatiotemporal + Spatial Models ####
 #### M7 ####
-m7_fall.cv <- sdmTMB_cv(EXPCATCHNUM ~ s(AVGDEPTH) + EST_YEAR - 1, 
-                     data = sf_fall,
+m7_fall.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR - 1, 
+                     data = scup_fall,
                      mesh = fall_mesh,
-                     family = nbinom2(link = "log"), 
+                     family = tweedie(link = "log"), 
                      spatial = "on", 
+                     control = sdmTMBcontrol(newton_loops = 1), 
+                     silent = FALSE,
                      time = "EST_YEAR",
                      spatiotemporal = "IID", 
                      fold_ids = clust,
@@ -120,14 +136,15 @@ m7_fall.cv <- sdmTMB_cv(EXPCATCHNUM ~ s(AVGDEPTH) + EST_YEAR - 1,
 
 
 #### M8 #### 
-m8_fall.cv <- sdmTMB_cv(EXPCATCHNUM ~ s(AVGDEPTH) + EST_YEAR + AREA - 1, 
-                     data = sf_fall,
+m8_fall.cv <- sdmTMB_cv(EXPCATCHWT ~ s(AVGDEPTH) + EST_YEAR + AREA - 1, 
+                     data = scup_fall,
                      mesh = fall_mesh,
-                     family = nbinom2(link = "log"), 
+                     family = tweedie(link = "log"), 
                      spatial = "on", 
+                     control = sdmTMBcontrol(newton_loops = 1), 
+                     silent = FALSE,
                      time = "EST_YEAR",
                      spatiotemporal = "IID", 
-                     control = sdmTMBcontrol(newton_loops = 1), 
                      fold_ids = clust,
                      k_folds = length(unique(clust)))
 
@@ -143,6 +160,3 @@ saveRDS(m5_fall.cv, file = here("sdmtmb", "scup", "data", "cross-valid", "m5-fal
 saveRDS(m6_fall.cv, file = here("sdmtmb", "scup", "data", "cross-valid", "m6-fall-cv.rds"))
 saveRDS(m7_fall.cv, file = here("sdmtmb", "scup", "data", "cross-valid", "m7-fall-cv.rds"))
 saveRDS(m8_fall.cv, file = here("sdmtmb", "scup", "data", "cross-valid", "m8-fall-cv.rds"))
-
-
-
