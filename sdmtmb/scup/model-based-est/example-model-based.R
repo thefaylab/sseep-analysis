@@ -201,7 +201,7 @@ AIC(m1,m2,m3,m4)
 # 
 # # Construct DHARMa residuals
 # sim_res <- createDHARMa(
-#   simulatedResponse = sim_vals,            # use directly if [nsim, n_obs]
+#   simulatedResponse = sim_vals,            
 #   observedResponse = dat_1_1$N,
 #   fittedPredictedResponse = fitted_vals
 # )
